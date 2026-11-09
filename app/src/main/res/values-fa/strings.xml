@@ -229,6 +229,7 @@
     <string name="safe_mode_no_log">لاگی از راه‌اندازی ثبت نشده است.</string>
     <string name="safe_mode_share_log">اشتراک‌گذاری لاگ راه‌اندازی</string>
     <string name="safe_mode_retry">تلاش دوباره برای راه‌اندازی معمول</string>
+    <string name="safe_mode_reset">پاک کردن داده‌های اپ و تلاش دوباره</string>
 
     <!-- Library: Folders / Genres tabs (stage 5) -->
     <string name="library_tab_folders">پوشه‌ها</string>

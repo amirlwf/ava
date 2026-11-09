@@ -28,7 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.5.2](https://github.com/amirlwf/ava/releases/tag/v0.5.2) | [ava-0.5.2-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.2-debug.apk) | 55 MB |
+| [v0.5.3](https://github.com/amirlwf/ava/releases/tag/v0.5.3) | [ava-0.5.3-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.3-debug.apk) | 57 MB |
 
 ## Installation
 
@@ -51,7 +51,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.5.2 is a diagnostic build.** The app currently crashes on launch on some devices and the cause is still under investigation. This build records a startup trace and writes the crash log to `Downloads/Ava/ava-crash-log.txt` on the device, and opens a safe-mode screen if a previous launch crashed during startup. Please share that log file if you hit the crash.
+**0.5.3 fixes the launch crash.** The cause was missing library resource classes in the hand-built APK: the first screen reads AndroidX resource IDs that were never packaged, so the app died before the first frame. This build merges all library resources and their generated classes. It is still a diagnostic build: it records a startup trace, writes the crash log to `Downloads/Ava/ava-crash-log.txt` on the device, and opens a safe-mode screen (with a "reset app data" option) if a previous launch crashed during startup. Please share that log file if you hit a crash.
 
 ## Contributing
 

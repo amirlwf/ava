@@ -264,6 +264,19 @@ class MainActivity : ComponentActivity() {
             startActivity(intent)
             Runtime.getRuntime().exit(0)
         })
+        layout.addView(button(getString(R.string.safe_mode_reset)) {
+            // 0.5.3: the crash may be caused by persisted data corrupted
+            // by an earlier crashed run (Room DB, DataStore, preferences).
+            // Wipe it all (the trace and crash logs are kept), clear the
+            // flag and restart the process for a clean normal startup.
+            val deleted = StartupTracer.resetAppData(this@MainActivity)
+            StartupTracer.mark(this@MainActivity, "activity.safeMode.reset deleted=$deleted")
+            StartupTracer.markStartupComplete(this@MainActivity)
+            val intent = packageManager.getLaunchIntentForPackage(packageName)
+            intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            startActivity(intent)
+            Runtime.getRuntime().exit(0)
+        })
         scroll.addView(layout)
         setContentView(scroll)
         StartupTracer.mark(this, "activity.safeMode.shown")

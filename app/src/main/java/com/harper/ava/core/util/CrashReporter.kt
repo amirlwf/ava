@@ -28,10 +28,19 @@ import java.util.Locale
  * the private log is unreachable when the app never opens.
  */
 object CrashReporter {
-    private const val DIR_NAME = "crash-logs"
+    /** Directory (inside filesDir) holding the saved crash reports. */
+    internal const val DIR_NAME = "crash-logs"
     private const val MAX_FILES = 5
 
+    /** 0.5.3: the diagnostics provider installs the handler before
+     * Application.onCreate; installing twice would chain the handler
+     * into itself and double-log every crash. */
+    @Volatile
+    private var installed = false
+
     fun install(context: Context) {
+        if (installed) return
+        installed = true
         val appContext = context.applicationContext
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->

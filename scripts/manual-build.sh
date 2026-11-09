@@ -4,8 +4,14 @@
 # which the sandbox filter blocks — see ENV.md), so this script reproduces
 # what `assembleDebug` does, step by step, with the plain Android tools:
 #   1. aapt2 compile + link (resources + manifest -> APK skeleton + R.java)
+#      — via merge-resources.py, which also merges LIBRARY resources from
+#      the real AARs (see scripts/merge-resources.py — 0.5.0/0.5.1/0.5.2
+#      crashed on launch because library R classes were never generated)
 #   2. KSP 2.x standalone JVM app -> Room generated code (see KSP-NOTES.md)
 #   3. kotlinc + Compose plugin -> app classes (incl. KSP output + R.java)
+#   3b. javac -> R classes (kotlinc does NOT emit .class for .java
+#      sources — the R classes must be compiled separately, or the
+#      library code's getstatic on R$id etc. has no class to read)
 #   4. d8 -> classes.dex (+ multidex as needed)
 #   5. package dex + META-INF/services (see package-services.py — 0.5.0
 #      crashed on launch without the coroutines MainDispatcherFactory
@@ -16,6 +22,8 @@
 #   .build-tools/kotlinc-dist/   kotlin-compiler 2.3.21
 #   .build-tools/ava-deps/       jars from scripts/maven-resolve.py
 #   .build-tools/ava-cp.txt      colon-separated classpath from the resolver
+#   .build-tools/real-aars/      real AARs from scripts/download-aars.py
+#                                (library resources for merge-resources.py)
 #   .build-tools/ksp/            KSP runtime jars + room-compiler processor cp
 # Usage: ./scripts/manual-build.sh
 set -euo pipefail
@@ -25,7 +33,7 @@ source "$(dirname "$0")/java-env.sh"
 ROOT="$PWD"
 TOOLS="$ROOT/.build-tools"
 OUT="$ROOT/.build-out"
-DIST="$ROOT/dist/ava-0.5.2-debug.apk"
+DIST="$ROOT/dist/ava-0.5.3-debug.apk"
 AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
 # d8 8.2.2-dev (build-tools 34.0.0) NPEs on androidx.concurrent:concurrent-futures
 # 1.2.0 (CallbackToFutureAdapter$SafeFuture$1.class) — a genuine d8 bug fixed
@@ -47,22 +55,30 @@ KEYSTORE="$TOOLS/debug.keystore"
 
 mkdir -p "$OUT/aapt2" "$OUT/classes" "$OUT/dex" "$OUT/ksp" "$ROOT/dist"
 
-echo "== [1/7] aapt2 compile + link =="
+echo "== [1/7] aapt2 compile + link (app + library resources) =="
 "$AAPT2" compile --dir app/src/main/res -o "$OUT/aapt2/res.zip"
 # aapt2 link needs a package attribute (AGP injects it from the namespace)
 # and the library-manifest components (AGP merges them from the AARs);
 # both are reproduced by merge-manifest.py — the source manifest is untouched.
 python3 "$(dirname "$0")/merge-manifest.py" \
   app/src/main/AndroidManifest.xml "$OUT/aapt2/AndroidManifest.xml" com.harper.ava
-"$AAPT2" link -o "$OUT/unsigned.apk" \
-  -I "$ANDROID_JAR" \
+# 0.5.3: the app's res alone is NOT enough — library resources must be
+# merged too, or the library R classes (androidx.lifecycle.runtime.R$id
+# etc.) never exist and the app dies with NoClassDefFoundError at the
+# first setContent. merge-resources.py compiles every library res/ from
+# the real AARs, links them all, and writes the list of generated
+# R.java files to $OUT/aapt2/r-java-files.txt for the kotlinc step.
+python3 "$(dirname "$0")/merge-resources.py" \
+  --cp-files "$TOOLS/ava-cp.txt,$TOOLS/ava-cp-coil.txt" \
+  --aars-dir "$TOOLS/real-aars" \
+  --app-res-zip "$OUT/aapt2/res.zip" \
   --manifest "$OUT/aapt2/AndroidManifest.xml" \
-  --java "$OUT/aapt2/r" \
-  --version-code 7 --version-name 0.5.2 \
-  --min-sdk-version 26 --target-sdk-version 34 \
-  -A app/src/main/assets \
-  "$OUT/aapt2/res.zip"
-echo "aapt2 OK: $(find "$OUT/aapt2/r" -name R.java)"
+  --assets-dir app/src/main/assets \
+  --out-dir "$OUT/aapt2" \
+  --apk-out "$OUT/unsigned.apk" \
+  --r-out "$OUT/aapt2/r" \
+  --aapt2 "$AAPT2" --android-jar "$ANDROID_JAR" \
+  --version-code 8 --version-name 0.5.3
 
 echo "== [2/7] KSP (Room codegen, standalone JVM app) =="
 # KSP 2.x runs as a standalone JVM app, NOT as a kotlinc -Xplugin
@@ -99,7 +115,7 @@ find "$OUT/ksp/generated" \( -name '*.kt' -o -name '*.java' \) | sort >> "$OUT/s
 "$KOTLINC" -cp "$CP:$ANDROID_JAR" -d "$OUT/classes" \
   -Xplugin="$COMPOSE_PLUGIN" \
   -jvm-target 17 \
-  $(cat "$OUT/sources.txt") "$OUT/aapt2/r/com/harper/ava/R.java" \
+  $(cat "$OUT/sources.txt") $(cat "$OUT/aapt2/r-java-files.txt") \
   > "$OUT/kotlinc.log" 2>&1 || {
     echo "kotlinc FAILED — see $OUT/kotlinc.log"
     grep -E "error:|warning:" "$OUT/kotlinc.log" | head -30 || true
@@ -107,6 +123,22 @@ find "$OUT/ksp/generated" \( -name '*.kt' -o -name '*.java' \) | sort >> "$OUT/s
   }
 echo "kotlinc OK: classes=$(find "$OUT/classes" -name '*.class' | wc -l)"
 grep -E "error:|warning:" "$OUT/kotlinc.log" | head -30 || true
+
+echo "== [3b/7] javac compile (R.java -> R classes) =="
+# kotlinc does NOT emit .class files for .java sources (verified
+# 2026-11-09: com.harper.ava.R is absent from the 0.5.2 dex even though
+# its R.java was passed to kotlinc — the app only worked because the
+# app's own R fields are compile-time constants inlined by kotlinc).
+# Library R fields are NON-final, so library code does a real getstatic
+# on the R class at runtime — the R classes must really exist in the
+# dex. Compile all generated R.java files with javac into $OUT/classes
+# (R.java files are pure int constants; no classpath needed).
+"$JAVA_HOME/bin/javac" -d "$OUT/classes" \
+  $(cat "$OUT/aapt2/r-java-files.txt") \
+  > "$OUT/javac.log" 2>&1 || {
+    echo "javac FAILED — see $OUT/javac.log"; tail -20 "$OUT/javac.log"; exit 1
+  }
+echo "javac OK: R classes=$(find "$OUT/classes" -name 'R.class' | wc -l), R\$ nested=$(find "$OUT/classes" -name 'R$*.class' | wc -l)"
 
 echo "== [4/7] d8 dex =="
 # The classpath has 634 duplicated .class files (-android vs -jvm vs KMP-root
@@ -153,7 +185,12 @@ fi
 
 echo "== [7/7] verify =="
 "$APKSIGNER" verify --verbose "$DIST"
-"$AAPT2" dump badging "$DIST" | head -8
+# NB: `| head -8` closes the pipe while aapt2 still has 100+ lines to
+# write; aapt2 then dies with SIGPIPE (141) and `set -o pipefail`
+# + `set -e` would abort the script AFTER a successful build
+# (this is exactly what happened on the 0.5.3 build: exit 141 with a
+# good APK). `|| true` swallows the expected SIGPIPE.
+"$AAPT2" dump badging "$DIST" | head -8 || true
 unzip -l "$DIST" | tail -15
 ls -la "$DIST"
 echo "DONE: $DIST"

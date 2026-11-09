@@ -229,6 +229,7 @@
     <string name="safe_mode_no_log">No startup log was recorded.</string>
     <string name="safe_mode_share_log">Share startup log</string>
     <string name="safe_mode_retry">Try normal start again</string>
+    <string name="safe_mode_reset">Reset app data &amp; try again</string>
 
     <!-- Library: Folders / Genres tabs (stage 5) -->
     <string name="library_tab_folders">Folders</string>

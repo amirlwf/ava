@@ -45,6 +45,64 @@ object StartupTracer {
     @Volatile
     private var startElapsed: Long = -1L
 
+    /**
+     * 0.5.3: beginStartup is now called twice per process — once from
+     * the diagnostics provider (before Application.onCreate) and once
+     * from Application.onCreate. Only the first call writes the header
+     * and creates the flag; later calls return the cached result so the
+     * "previous run crashed" information survives.
+     */
+    @Volatile
+    private var begun: Boolean = false
+
+    @Volatile
+    private var begunCrashed: Boolean = false
+
+    /**
+     * Deletes persisted app data that may have been corrupted by an
+     * earlier crashed run: the Room database, the DataStore file, all
+     * SharedPreferences, and the cache. The startup trace and saved
+     * crash logs are KEPT so the cause can still be read afterwards.
+     * Safe to call only when nothing else is using the data (safe mode).
+     * Returns how many files/directories were removed.
+     */
+    fun resetAppData(context: Context): Int {
+        val ctx = safeContext(context)
+        var deleted = 0
+        fun deleteFile(f: File) {
+            runCatching { if (f.exists() && f.delete()) deleted++ }
+        }
+        fun deleteDir(dir: File) {
+            runCatching {
+                dir.listFiles()?.forEach { child ->
+                    if (child.isDirectory) deleteDir(child) else deleteFile(child)
+                }
+                if (dir.exists() && dir.delete()) deleted++
+            }
+        }
+        // Room database (+ -wal / -shm sidecars).
+        runCatching { if (ctx.deleteDatabase("ava.db")) deleted++ }
+        // DataStore preferences file.
+        deleteDir(File(ctx.filesDir, "datastore"))
+        // SharedPreferences (incl. the synchronous language mirror).
+        ctx.filesDir.parentFile?.let { deleteDir(File(it, "shared_prefs")) }
+        // Cache.
+        deleteDir(ctx.cacheDir)
+        // Everything else in filesDir except the diagnostics themselves.
+        runCatching {
+            ctx.filesDir.listFiles()?.forEach { child ->
+                if (child.name == TRACE_NAME || child.name == FLAG_NAME ||
+                    child.name == CrashReporter.DIR_NAME
+                ) {
+                    return@forEach
+                }
+                if (child.isDirectory) deleteDir(child) else deleteFile(child)
+            }
+        }
+        mark(ctx, "app.data.reset deleted=$deleted")
+        return deleted
+    }
+
     private fun safeContext(context: Context): Context =
         runCatching { context.applicationContext }.getOrNull() ?: context
 
@@ -61,6 +119,7 @@ object StartupTracer {
      * new trace, so the safe-mode screen can still show it.
      */
     fun beginStartup(context: Context): Boolean {
+        if (begun) return begunCrashed
         val ctx = safeContext(context)
         startElapsed = SystemClock.elapsedRealtime()
         val crashed = runCatching { flagFile(ctx).exists() }.getOrDefault(false)
@@ -80,6 +139,8 @@ object StartupTracer {
             traceFile(ctx).writeText(header + previous)
             flagFile(ctx).createNewFile()
         }
+        begun = true
+        begunCrashed = crashed
         mark(ctx, "startup.begin crashedLastStart=$crashed")
         return crashed
     }
