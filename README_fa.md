@@ -39,7 +39,7 @@
 
 ## ساخت از سورس
 
-پیش‌نیازها: JDK 17 و Android SDK 34.
+پیش‌نیازها: JDK 17 و Android SDK 37 (‏compileSdk ‏۳۷؛ ‏targetSdk ‏۳۴ می‌ماند).
 
 ```bash
 ./gradlew assembleDebug

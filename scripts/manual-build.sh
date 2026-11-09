@@ -38,8 +38,13 @@ AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
 # d8 8.2.2-dev (build-tools 34.0.0) NPEs on androidx.concurrent:concurrent-futures
 # 1.2.0 (CallbackToFutureAdapter$SafeFuture$1.class) — a genuine d8 bug fixed
 # in later R8. Use d8 8.10.9-dev from build-tools 36.0.0 (downloaded to
-# .build-tools/build-tools-36/android-16/); aapt2 stays at 34.0.0 to match
-# compileSdk 34.
+# .build-tools/build-tools-36/android-16/); aapt2 stays at 34.0.0.
+# NOTE: Gradle compileSdk is 37 (libraries require it — see CI runs
+# 42646098518/42647750383), but this manual build still compiles against
+# android.jar from platforms/android-34: the code uses no API 35+ symbols,
+# so the older android.jar is sufficient and no android-37 platform is
+# needed locally. If code ever uses API 35+, download platforms;android-37
+# and point ANDROID_JAR at it.
 D8="$ROOT/.build-tools/build-tools-36/android-16/d8"
 ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
 APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
