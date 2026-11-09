@@ -1,62 +1,68 @@
+[فارسی 🇮🇷](README_fa.md)
+
 # Ava — Premium Offline Music Player for Android
 
-Ava is a fully offline, premium music player for Android. No account, no internet, no ads, no tracking. Just your music.
+A fully offline music player for Android. No account, no internet, no ads, no tracking — just your music.
 
-- **Stack:** Kotlin, Jetpack Compose (Material 3), Media3 / ExoPlayer, MediaSession, Room, DataStore
-- **Package:** `com.harper.ava`
-- **Min SDK:** 26 · **Target SDK:** 34
-- **Version:** 0.5.2 (diagnostic build, see Status)
+[![Release](https://img.shields.io/github/v/release/amirlwf/ava)](https://github.com/amirlwf/ava/releases)
+[![Build](https://github.com/amirlwf/ava/actions/workflows/android.yml/badge.svg)](https://github.com/amirlwf/ava/actions/workflows/android.yml)
+[![Downloads](https://img.shields.io/github/downloads/amirlwf/ava/total)](https://github.com/amirlwf/ava/releases)
+
+## What is Ava?
+
+Ava is a premium offline music player for Android, built with Kotlin, Jetpack Compose, Media3, Room and DataStore. It plays the music already on your device — no streaming, no account, no ads.
 
 ## Features
 
-- **Library** — MediaStore scan with Artists, Albums, Genres and Folders views
-- **Playback** — background playback with MediaSession, queue with drag-and-drop reorder, shuffle, repeat (off / all / one), playback speed 0.75–2x
-- **Now Playing** — adaptive blurred background, seek bar, synced LRC lyrics with follow toggle
-- **Playlists and Favorites** — create and manage playlists, mark favorites
-- **Sleep timer** — presets and custom durations, with fade-out in the last 10 seconds
-- **Equalizer** — system equalizer with presets and per-band controls
-- **Themes** — Dark, Light, System and AMOLED, with accent colors
-- **Languages** — full Persian (RTL) and English (LTR), switchable in the app
-- **Resume playback** — picks up where you left off, including the full queue
+- 🎵 **Library** — MediaStore scan with Songs, Artists, Albums, Genres and Folders
+- ▶️ **Background playback** — MediaSession with notification and lock-screen controls
+- 📋 **Queue** — drag-and-drop reorder, shuffle, repeat (off / all / one), speed 0.75–2x
+- 🎤 **Synced lyrics** — LRC files with highlighted lines and follow toggle
+- 😴 **Sleep timer** — presets and custom durations, with fade-out in the last 10 seconds
+- 🎚️ **Equalizer** — system equalizer with presets and per-band controls
+- 🎨 **Themes** — Dark, Light, System and AMOLED, with accent colors
+- 🌐 **Languages** — full Persian (RTL) and English (LTR), switchable in the app
+- 🔄 **Resume playback** — picks up where you left off, including the full queue
 
-## Install
+## Download
 
-Download the APK from the [Releases](../../releases) page and install it on your phone. No account or setup is needed.
+| Version | File | Size |
+| ------- | ---- | ---- |
+| [v0.5.2](https://github.com/amirlwf/ava/releases/tag/v0.5.2) | [ava-0.5.2-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.2-debug.apk) | 55 MB |
 
-## Build
+## Installation
 
-**GitHub Actions (recommended).** Every push to `main` builds a debug APK automatically. Download it from the Actions tab.
+1. Download the APK from the table above.
+2. Open it on your phone and install. If your browser blocks the install, allow "Install unknown apps" for it.
+3. On first launch, allow the **Music and audio** permission so Ava can scan your songs.
+4. Allow **Notifications** if you want playback controls in the notification shade and on the lock screen.
+
+## Build from source
+
+Requirements: JDK 17 and Android SDK 34.
 
 ```bash
 ./gradlew assembleDebug
 ```
 
-**Manual build (no Gradle).** If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces the same debug APK by hand (aapt2, Room KSP, kotlinc, d8, zipalign, apksigner). See the script for details.
+The APK is at `app/build/outputs/apk/debug/app-debug.apk`.
 
-```bash
-./scripts/manual-build.sh
-```
+If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces the same debug APK by hand (aapt2, Room KSP, kotlinc, d8, zipalign, apksigner).
 
-The Gradle-built APK is at `app/build/outputs/apk/debug/app-debug.apk`. The manual build writes to `dist/ava-<version>-debug.apk`.
+## Project status
 
-## Status
+**0.5.2 is a diagnostic build.** The app currently crashes on launch on some devices and the cause is still under investigation. This build records a startup trace and writes the crash log to `Downloads/Ava/ava-crash-log.txt` on the device, and opens a safe-mode screen if a previous launch crashed during startup. Please share that log file if you hit the crash.
 
-**0.5.2 is a diagnostic build.** The app currently crashes on launch on some devices, and the cause is still under investigation. This build records a startup trace and writes the crash log to `Downloads/Ava/ava-crash-log.txt` on the device, and opens a safe-mode screen if a previous launch crashed during startup. Please share that log file if you hit the crash.
+## Contributing
+
+Issues and pull requests are welcome. Please keep changes focused and describe what you tested.
+
+## Acknowledgements
+
+- [Media3 / ExoPlayer](https://developer.android.com/media/media3) for playback
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) and [Room](https://developer.android.com/training/data-storage/room) for the UI and data layers
+- [Vazirmatn](https://github.com/rastikerdar/vazirmatn) font, licensed under the SIL Open Font License
 
 ## License
 
 Source code is provided as-is for personal use. The Vazirmatn font is licensed under the SIL Open Font License.
-
----
-
-## آوا — موزیک‌پلیر آفلاین و حرفه‌ای اندروید
-
-آوا یک موزیک‌پلیر کاملاً آفلاین برای اندروید است؛ بدون حساب کاربری، بدون اینترنت، بدون تبلیغ و بدون ردیابی.
-
-- کتابخانه کامل (آهنگ‌ها، خواننده‌ها، آلبوم‌ها، ژانرها و پوشه‌ها)، پخش پس‌زمینه، صف پخش با جابه‌جایی، تکرار و پخش تصادفی
-- متن ترانه همگام (LRC)، تایمر خواب با محو تدریجی صدا، اکولایزر، پلی‌لیست و علاقه‌مندی‌ها
-- تم تیره، روشن و AMOLED، و رابط کامل فارسی (راست‌به‌چپ) و انگلیسی
-
-**نصب:** فایل APK را از صفحه Releases دانلود و نصب کنید.
-
-**وضعیت:** نسخه ۰٫۵٫۲ یک نسخه تشخیصی است؛ کرش موقع باز شدن روی بعضی گوشی‌ها هنوز در دست بررسی است و این نسخه دلیل کرش را در فایل `Downloads/Ava/ava-crash-log.txt` ذخیره می‌کند.
