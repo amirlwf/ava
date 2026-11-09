@@ -25,7 +25,15 @@ jobs:
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "platform-tools" "platforms;android-37" "build-tools;34.0.0"
+          "$SDKMANAGER" "platform-tools" "build-tools;34.0.0"
+          # Android 17 (API 37, "Cinnamon Bun") is still in preview, so its
+          # platform is NOT in the stable repository — it lives in the
+          # canary channel (sdkmanager --channel=3). The current androidx
+          # libraries (navigation 2.10.2, compose 1.12, core 1.19.1, ...)
+          # require compileSdk 37, so CI must install it from there.
+          # Accept the preview license first, then install the platform.
+          yes | "$SDKMANAGER" --channel=3 --licenses
+          "$SDKMANAGER" --channel=3 "platforms;android-37"
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
