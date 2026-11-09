@@ -1,6 +1,6 @@
-# Ava (آوا) — CI: build the debug APK on GitHub Actions.
+# Ava — CI: build the debug APK on GitHub Actions.
 # The sandbox where Ava is developed cannot run Gradle (its daemon needs
-# raw loopback TCP, blocked there — see ENV.md), so the APK is built here.
+# raw loopback TCP, which is blocked there), so the APK is built here.
 name: Android CI
 
 on:
