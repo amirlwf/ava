@@ -1,17 +1,33 @@
 [versions]
-# Verified against Maven Central / Google Maven on 2026-11-08 (latest stable).
+# Pins verified against Maven Central / Google Maven on 2026-11-09.
+# NOTE: these are intentionally NOT the latest stable versions. The newest
+# androidx releases (compose BOM 2026.09.00, core-ktx 1.19.1, lifecycle
+# 2.11.0, activity 1.13.0, navigation 2.10.2, coil 3.6.3) declare
+# minCompileSdk 37, but Android 17 (API 37, "Cinnamon Bun") is still in
+# preview — its platform is not in the stable SDK repository, not in the
+# canary channel via sdkmanager, and not downloadable as a platform zip
+# (verified 2026-11-09, CI runs 42647750383 / 42649719586 / 42651859291).
+# So the libraries are pinned to the newest versions whose AAR metadata
+# declares minCompileSdk <= 36 (each verified by downloading the AAR and
+# reading META-INF/com/android/build/gradle/aar-metadata.properties):
+#   core-ktx 1.18.0 = 36, activity-compose 1.12.0 = 36,
+#   coil-compose-android 3.5.0 = 36, compose ui-android 1.11.4 = 35,
+#   material3-android 1.4.0 = 35; lifecycle 2.10.0 / navigation-compose
+#   2.9.5 AARs carry no aar-metadata.properties (no constraint).
+# When platforms;android-37 reaches the stable repository, bump
+# compileSdk to 37 and restore the latest versions.
 agp = "9.5.1"
 kotlin = "2.3.21"
 ksp = "2.3.13"
-composeBom = "2026.09.00"
+composeBom = "2026.06.01"
 media3 = "1.11.1"
 room = "2.8.5"
 datastore = "1.3.0"
-navigation = "2.10.2"
-coil = "3.6.3"
-lifecycle = "2.11.0"
-activityCompose = "1.13.0"
-coreKtx = "1.19.1"
+navigation = "2.9.5"
+coil = "3.5.0"
+lifecycle = "2.10.0"
+activityCompose = "1.12.0"
+coreKtx = "1.18.0"
 junit = "4.13.2"
 
 [libraries]

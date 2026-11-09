@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.harper.ava"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.harper.ava"

@@ -39,11 +39,12 @@ AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
 # 1.2.0 (CallbackToFutureAdapter$SafeFuture$1.class) — a genuine d8 bug fixed
 # in later R8. Use d8 8.10.9-dev from build-tools 36.0.0 (downloaded to
 # .build-tools/build-tools-36/android-16/); aapt2 stays at 34.0.0.
-# NOTE: Gradle compileSdk is 37 (libraries require it — see CI runs
-# 42646098518/42647750383), but this manual build still compiles against
+# NOTE: Gradle compileSdk is 36 (the newest libraries need 37, but the
+# Android 17 platform is still in preview and not installable — see
+# libs.versions.toml). This manual build still compiles against
 # android.jar from platforms/android-34: the code uses no API 35+ symbols,
-# so the older android.jar is sufficient and no android-37 platform is
-# needed locally. If code ever uses API 35+, download platforms;android-37
+# so the older android.jar is sufficient and no android-36/37 platform is
+# needed locally. If code ever uses API 35+, download platforms;android-36
 # and point ANDROID_JAR at it.
 D8="$ROOT/.build-tools/build-tools-36/android-16/d8"
 ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"

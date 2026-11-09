@@ -39,7 +39,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 ## Build from source
 
-Requirements: JDK 17 and Android SDK 37 (compileSdk 37; targetSdk stays 34).
+Requirements: JDK 17 and Android SDK 36 (compileSdk 36; targetSdk stays 34).
 
 ```bash
 ./gradlew assembleDebug
