@@ -1,0 +1,97 @@
+package com.harper.ava.ui.playlists
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.harper.ava.data.repository.MusicRepository
+import com.harper.ava.data.repository.PlayerRepository
+import com.harper.ava.domain.model.Playlist
+import com.harper.ava.domain.model.Song
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class PlaylistsViewModel(
+    private val musicRepository: MusicRepository,
+    private val playerRepository: PlayerRepository,
+) : ViewModel() {
+
+    /** Stage 6: real song counts + cover art (the base flow reports 0). */
+    val playlists: StateFlow<List<Playlist>> = musicRepository
+        .observePlaylistsWithCounts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun createPlaylist(name: String) {
+        viewModelScope.launch {
+            runCatching { musicRepository.createPlaylist(name) }
+        }
+    }
+
+    fun deletePlaylist(id: Long) {
+        viewModelScope.launch { musicRepository.deletePlaylist(id) }
+    }
+
+    fun playPlaylist(id: Long) {
+        viewModelScope.launch {
+            // One-shot read: take the first emission, then play it.
+            val list = musicRepository.observePlaylistSongs(id).first()
+            if (list.isNotEmpty()) playerRepository.playSongs(list, 0)
+        }
+    }
+
+    companion object {
+        fun factory(music: MusicRepository, player: PlayerRepository): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    PlaylistsViewModel(music, player) as T
+            }
+    }
+}
+
+class PlaylistDetailViewModel(
+    private val playlistId: Long,
+    private val musicRepository: MusicRepository,
+    private val playerRepository: PlayerRepository,
+) : ViewModel() {
+
+    val playlist: StateFlow<Playlist?> = musicRepository
+        .observePlaylist(playlistId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val songs: StateFlow<List<Song>> = musicRepository
+        .observePlaylistSongs(playlistId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun playAll(songs: List<Song>) {
+        if (songs.isNotEmpty()) playerRepository.playSongs(songs, 0)
+    }
+
+    /** Stage 6: Shuffle Playlist (spec §7) — the detail screen had Play All only. */
+    fun shuffleAll(songs: List<Song>) {
+        if (songs.isNotEmpty()) playerRepository.playSongs(songs.shuffled(), 0)
+    }
+
+    fun removeSong(song: Song) {
+        viewModelScope.launch { musicRepository.removeSongFromPlaylist(playlistId, song.id) }
+    }
+
+    fun toggleFavorite(song: Song) {
+        viewModelScope.launch { musicRepository.toggleFavorite(song) }
+    }
+
+    companion object {
+        fun factory(
+            playlistId: Long,
+            music: MusicRepository,
+            player: PlayerRepository,
+        ): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    PlaylistDetailViewModel(playlistId, music, player) as T
+            }
+    }
+}

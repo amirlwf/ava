@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">آوا</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">خانه</string>
+    <string name="nav_library">کتابخانه</string>
+    <string name="nav_search">جستجو</string>
+    <string name="nav_playlists">پلی‌لیست‌ها</string>
+
+    <!-- Home -->
+    <string name="home_greeting_morning">صبح بخیر</string>
+    <string name="home_greeting_afternoon">ظهر بخیر</string>
+    <string name="home_greeting_evening">عصر بخیر</string>
+    <string name="home_greeting_night">شب بخیر</string>
+    <string name="home_subtitle">موسیقی‌هایت، همیشه همراهت</string>
+    <string name="home_empty_title">هنوز آهنگی اینجا نیست</string>
+    <string name="home_empty_body">وقتی موسیقی‌های گوشی‌ات اسکن شوند، آهنگ‌های اخیر، محبوب‌ها و پلی‌لیست‌هایت اینجا نمایش داده می‌شوند.</string>
+    <string name="home_empty_note">برای پیدا کردن موسیقی‌های گوشی، «اسکن مجدد» را بزن.</string>
+    <string name="home_recently_played">اخیراً پخش‌شده</string>
+    <string name="home_recently_added">اخیراً اضافه‌شده</string>
+
+    <!-- Library scan -->
+    <string name="scan_rescan">اسکن مجدد</string>
+    <string name="scan_scanning">در حال اسکن موسیقی…</string>
+    <string name="scan_found">%1$d آهنگ پیدا شد</string>
+    <string name="scan_found_removed">%1$d آهنگ پیدا شد · %2$d حذف شد</string>
+    <string name="scan_error">اسکن ناموفق بود. دوباره تلاش کنید.</string>
+    <string name="scan_permission_title">بگذار آوا موسیقی‌هایت را پیدا کند</string>
+    <string name="scan_permission_body">آوا فقط فایل‌های صوتی همین گوشی را اسکن می‌کند. چیزی از گوشی خارج نمی‌شود.</string>
+    <string name="scan_permission_grant">اجازه دسترسی به موسیقی</string>
+    <string name="scan_permission_settings">باز کردن تنظیمات</string>
+    <string name="scan_permission_denied">دسترسی به موسیقی رد شد. می‌توانی از تنظیمات اجازه بدهی.</string>
+    <string name="home_favorites">محبوب‌ها</string>
+    <string name="home_show_all">نمایش همه</string>
+    <!-- Onboarding (stage 6) -->
+    <string name="onboarding_title_1">موزیک تو، آفلاین</string>
+    <string name="onboarding_body_1">آوا موزیک‌های داخل گوشی‌ات را پخش می‌کند. بدون حساب کاربری، بدون اینترنت، بدون تبلیغ.</string>
+    <string name="onboarding_title_2">مال خودت</string>
+    <string name="onboarding_body_2">تیره، روشن یا آمولد، هفت رنگ تأکیدی، فارسی و انگلیسی — همه‌چیز روی گوشی خودت می‌ماند.</string>
+    <string name="onboarding_title_3">موزیکت را پیدا کن</string>
+    <string name="onboarding_body_3">آوا فقط فایل‌های صوتی این گوشی را اسکن می‌کند. چیزی از گوشی تو خارج نمی‌شود.</string>
+    <string name="onboarding_next">بعدی</string>
+    <string name="onboarding_start">شروع گوش دادن</string>
+    <string name="onboarding_continue">ادامه</string>
+    <string name="storage_folders_unreadable">الآن نمی‌توان این پوشه را خواند</string>
+    <string name="favorites_title">محبوب‌ها</string>
+    <string name="favorites_empty_title">هنوز محبوبی نداری</string>
+    <string name="favorites_empty_body">روی قلب هر آهنگ بزن تا اینجا نمایش داده شود.</string>
+    <string name="favorites_shuffle_all">بر زدن همه</string>
+    <string name="home_your_playlists">پلی‌لیست‌های تو</string>
+
+    <!-- Library -->
+    <string name="library_title">کتابخانه</string>
+    <string name="library_tab_songs">آهنگ‌ها</string>
+    <string name="library_tab_artists">خواننده‌ها</string>
+    <string name="library_tab_albums">آلبوم‌ها</string>
+    <string name="library_empty_title">کتابخانه خالی است</string>
+    <string name="library_empty_body">هنوز هیچ آهنگی به کتابخانه اضافه نشده است.</string>
+    <string name="library_sort_label">مرتب‌سازی</string>
+    <string name="library_sort_title">مرتب‌سازی بر اساس نام</string>
+    <string name="library_sort_artist">مرتب‌سازی بر اساس خواننده</string>
+    <string name="library_sort_date">مرتب‌سازی بر اساس تاریخ اضافه‌شدن</string>
+    <string name="library_sort_duration">مرتب‌سازی بر اساس مدت زمان</string>
+    <string name="library_songs_count">%1$d آهنگ</string>
+    <string name="unknown_artist">خواننده نامشخص</string>
+    <string name="unknown_album">آلبوم نامشخص</string>
+
+    <!-- Search -->
+    <string name="search_title">جستجو</string>
+    <string name="search_hint">نام آهنگ، خواننده یا آلبوم…</string>
+    <string name="search_empty_title">چیزی برای جستجو بنویس</string>
+    <string name="search_empty_body">در عنوان آهنگ، نام خواننده و نام آلبوم جستجو می‌شود.</string>
+    <string name="search_no_results_title">نتیجه‌ای پیدا نشد</string>
+    <string name="search_no_results_body">برای «%1$s» چیزی در کتابخانه پیدا نشد.</string>
+    <string name="search_history_title">جستجوهای اخیر</string>
+    <string name="search_history_clear">پاک کردن تاریخچه</string>
+
+    <!-- Playlists -->
+    <string name="playlists_title">پلی‌لیست‌ها</string>
+    <string name="playlists_empty_title">هنوز پلی‌لیستی نساخته‌ای</string>
+    <string name="playlists_empty_body">پلی‌لیست بساز و آهنگ‌های موردعلاقه‌ات را کنار هم بچین.</string>
+    <string name="playlists_create">ساخت پلی‌لیست</string>
+    <string name="playlists_create_title">پلی‌لیست جدید</string>
+    <string name="playlists_name_hint">نام پلی‌لیست</string>
+    <string name="playlists_create_button">ساختن</string>
+    <string name="playlists_cancel">لغو</string>
+    <string name="playlists_delete">حذف پلی‌لیست</string>
+    <string name="playlists_delete_confirm_title">این پلی‌لیست حذف شود؟</string>
+    <string name="playlists_delete_confirm_body">«%1$s» و فهرست آهنگ‌هایش حذف می‌شود. خود آهنگ‌ها در کتابخانه باقی می‌مانند.</string>
+    <string name="playlists_delete_confirm">حذف</string>
+    <string name="playlists_play_all">پخش همه</string>
+    <string name="playlist_detail_empty_title">این پلی‌لیست خالی است</string>
+    <string name="playlist_detail_empty_body">هنوز آهنگی به این پلی‌لیست اضافه نشده است.</string>
+    <string name="playlist_remove_song">حذف از پلی‌لیست</string>
+
+    <!-- Player -->
+    <string name="player_play">پخش</string>
+    <string name="player_pause">توقف</string>
+    <string name="player_next">بعدی</string>
+    <string name="player_previous">قبلی</string>
+    <string name="player_favorite_add">افزودن به محبوب‌ها</string>
+    <string name="player_favorite_remove">حذف از محبوب‌ها</string>
+    <string name="player_shuffle">بر زدن</string>
+    <string name="player_repeat">تکرار</string>
+    <string name="player_repeat_off">تکرار خاموش</string>
+    <string name="player_repeat_all">تکرار همه</string>
+    <string name="player_repeat_one">تکرار یکی</string>
+    <string name="player_speed">سرعت</string>
+    <string name="player_queue">صف</string>
+    <string name="player_notification_channel">پخش موسیقی</string>
+    <string name="player_notification_channel_desc">کنترل پخش موسیقی آوا</string>
+
+    <!-- Now Playing -->
+    <string name="now_playing_title">در حال پخش</string>
+
+    <!-- Queue -->
+    <string name="queue_title">صف پخش</string>
+    <string name="queue_now_playing">در حال پخش</string>
+    <string name="queue_up_next">بعدی‌ها</string>
+    <string name="queue_empty_title">صف خالی است</string>
+    <string name="queue_empty_body">آهنگی پخش کن تا اینجا نمایش داده شود.</string>
+    <string name="queue_clear">پاک کردن صف</string>
+    <string name="queue_shuffle">بر زدن صف</string>
+    <string name="queue_remove">حذف از صف</string>
+    <string name="queue_drag_hint">برای جابه‌جایی، دستگیره را نگه دار و بکش</string>
+
+    <!-- Song actions -->
+    <string name="song_add_to_queue">افزودن به صف</string>
+    <string name="song_play_next">پخش بعدی</string>
+    <string name="song_add_to_playlist">افزودن به پلی‌لیست</string>
+    <string name="song_no_playlists">هنوز پلی‌لیستی نیست</string>
+    <string name="song_more_actions">گزینه‌های بیشتر</string>
+
+    <!-- Settings -->
+    <string name="settings_title">تنظیمات</string>
+    <string name="settings_back">بازگشت</string>
+    <string name="settings_appearance">ظاهر</string>
+    <string name="settings_appearance_sub">تم و رنگ تأکیدی</string>
+    <string name="settings_language">زبان</string>
+    <string name="settings_language_sub">زبان اپ، مستقل از زبان گوشی</string>
+    <string name="settings_playback">پخش</string>
+    <string name="settings_playback_sub">سرعت، ادامه پخش و محو شدن صدا</string>
+    <string name="settings_storage">حافظه و کتابخانه</string>
+    <string name="settings_storage_sub">حجم کتابخانه، اسکن مجدد و کش</string>
+    <string name="settings_about">درباره آوا</string>
+    <string name="settings_about_sub">نسخه و حریم خصوصی آفلاین</string>
+
+    <!-- Appearance -->
+    <string name="appearance_theme_title">تم</string>
+    <string name="theme_system">پیش‌فرض سیستم</string>
+    <string name="theme_system_sub">مطابق تنظیم گوشی</string>
+    <string name="theme_dark">تیره</string>
+    <string name="theme_dark_sub">پس‌زمینه زغالی</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_light_sub">پس‌زمینه روشن</string>
+    <string name="theme_amoled">مشکی AMOLED</string>
+    <string name="theme_amoled_sub">مشکی واقعی، پیکسل‌ها خاموش</string>
+    <string name="appearance_accent_title">رنگ تأکیدی</string>
+    <string name="appearance_custom_title">رنگ دلخواه</string>
+    <string name="appearance_custom_active">رنگ دلخواه فعال است</string>
+    <string name="appearance_custom_clear">استفاده از یک رنگ آماده</string>
+    <string name="appearance_custom_hint">هر رنگی که بخواهی انتخاب کن. به‌محض اعمال، در کل اپ استفاده می‌شود.</string>
+    <string name="color_hue">رنگ (Hue)</string>
+    <string name="color_saturation">اشباع</string>
+    <string name="color_brightness">روشنایی</string>
+    <string name="color_apply">اعمال رنگ</string>
+    <string name="accent_violet">بنفش</string>
+    <string name="accent_electric_blue">آبی برقی</string>
+    <string name="accent_emerald">زمردی</string>
+    <string name="accent_crimson">زرشکی</string>
+    <string name="accent_amber">کهربایی</string>
+    <string name="accent_rose">رز</string>
+    <string name="accent_monochrome">تک‌رنگ</string>
+
+    <!-- Language -->
+    <string name="language_title">زبان</string>
+    <string name="language_system">پیش‌فرض سیستم</string>
+    <string name="language_system_sub">از زبان گوشی استفاده می‌شود</string>
+    <string name="language_fa">فارسی</string>
+    <string name="language_fa_sub">فارسی — راست‌به‌چپ</string>
+    <string name="language_en">انگلیسی</string>
+    <string name="language_en_sub">English — چپ‌به‌راست</string>
+    <string name="language_note">زبان بلافاصله عوض می‌شود و بعد از بستن اپ هم حفظ می‌ماند.</string>
+
+    <!-- Playback settings -->
+    <string name="playback_settings_title">پخش</string>
+    <string name="playback_speed_title">سرعت پیش‌فرض</string>
+    <string name="playback_speed_sub">هنگام شروع پخش اعمال می‌شود</string>
+    <string name="playback_resume">ادامه پخش</string>
+    <string name="playback_resume_sub">با باز شدن دوباره اپ، کل صف پخش در جای توقف‌شده و به‌صورت متوقف نمایش داده می‌شود</string>
+    <string name="playback_fade">محو شدن صدا</string>
+    <string name="playback_fade_sub">هنگام پخش صدا آرام بالا می‌رود و هنگام توقف آرام پایین می‌آید</string>
+    <string name="playback_fade_note">محو شدن صدا فقط برای دکمه‌های پخش و توقف داخل اپ کار می‌کند. پخش و توقف از اعلان یا هندزفری بلافاصله انجام می‌شود.</string>
+
+    <!-- Storage and library -->
+    <string name="storage_title">حافظه و کتابخانه</string>
+    <string name="storage_library_title">کتابخانه</string>
+    <string name="storage_songs">آهنگ‌ها</string>
+    <string name="storage_duration">مدت کل پخش</string>
+    <string name="storage_playlists">پلی‌لیست‌ها</string>
+    <string name="storage_favorites">محبوب‌ها</string>
+    <string name="storage_cache_title">کش کاور</string>
+    <string name="storage_cache_size">حجم کش</string>
+    <string name="storage_clear_cache">پاک کردن کش کاور</string>
+    <string name="storage_cleared">%1$s از کاورهای کش‌شده پاک شد. در صورت نیاز دوباره بارگذاری می‌شوند.</string>
+    <string name="storage_source_title">موسیقی از کجا می‌آید</string>
+    <string name="storage_source_body">آوا فایل‌های صوتی همین گوشی را از طریق MediaStore اسکن می‌کند. هیچ چیزی به جایی ارسال نمی‌شود.</string>
+    <string name="storage_folders_note">پوشه‌های انتخاب‌شده روی همین دستگاه ذخیره می‌شوند. کتابخانه همچنان از اسکن MediaStore می‌آید؛ پوشه‌ها در تب پوشه‌های کتابخانه گروه‌بندی می‌شوند.</string>
+
+    <!-- About -->
+    <string name="about_title">درباره آوا</string>
+    <string name="about_version">نسخه</string>
+    <string name="about_offline_title">کاملاً آفلاین</string>
+    <string name="about_offline_body">آوا فقط موسیقی‌های ذخیره‌شده روی همین گوشی را پخش می‌کند. حساب کاربری، ورود، استریم و تبلیغات ندارد.</string>
+    <string name="about_privacy_title">حریم خصوصی</string>
+    <string name="about_privacy_body">هیچ فایل موسیقی و هیچ اطلاعات شخصی از گوشی تو خارج نمی‌شود. تنظیمات روی همین گوشی می‌مانند.</string>
+    <string name="about_built_title">ساخته‌شده با</string>
+    <string name="about_built_body">Kotlin، Jetpack Compose، Media3، Room، DataStore و Coil. فونت فارسی: Vazirmatn (SIL OFL).</string>
+    <string name="about_diagnostics_title">گزارش‌های خرابی</string>
+    <string name="about_diagnostics_body">یک گزارش خرابی روی همین گوشی ذخیره شده است. برای کمک به رفع مشکل، آخرین گزارش را به اشتراک بگذار — هیچ چیزی خودکار ارسال نمی‌شود.</string>
+    <string name="about_diagnostics_none">هیچ گزارش خرابی ذخیره نشده است. اگر اپ ناگهان بسته شود، جزئیات آن اینجا ذخیره می‌شود.</string>
+    <string name="about_diagnostics_share">اشتراک‌گذاری آخرین گزارش خرابی</string>
+
+    <!-- Safe mode (0.5.2): shown when the previous launch crashed -->
+    <string name="safe_mode_title">آوا در حالت امن باز شد</string>
+    <string name="safe_mode_message">اجرای قبلی پیش از باز شدن اپ کرش کرد. این صفحه حداقلی راه‌اندازی معمول را رد می‌کند تا لاگ خوانده و به اشتراک گذاشته شود. هیچ چیزی به‌صورت خودکار ارسال نمی‌شود.</string>
+    <string name="safe_mode_log_saved">لاگ راه‌اندازی ذخیره شد در: %1$s</string>
+    <string name="safe_mode_no_log">لاگی از راه‌اندازی ثبت نشده است.</string>
+    <string name="safe_mode_share_log">اشتراک‌گذاری لاگ راه‌اندازی</string>
+    <string name="safe_mode_retry">تلاش دوباره برای راه‌اندازی معمول</string>
+
+    <!-- Library: Folders / Genres tabs (stage 5) -->
+    <string name="library_tab_folders">پوشه‌ها</string>
+    <string name="library_tab_genres">ژانرها</string>
+    <string name="library_folders_empty_title">هنوز پوشه‌ای نیست</string>
+    <string name="library_folders_empty_body">بعد از اسکن موسیقی، پوشه‌ها اینجا نمایش داده می‌شوند. آهنگ‌ها بر اساس پوشه‌ای که در آن هستند گروه‌بندی می‌شوند.</string>
+    <string name="library_genres_empty_title">هنوز ژانری نیست</string>
+    <string name="library_genres_empty_body">هیچ آهنگی در کتابخانه اطلاعات ژانر ندارد. اگر فایل‌هایت برچسب ژانر دارند، دوباره اسکن کن.</string>
+    <string name="unknown_folder">پوشه نامشخص</string>
+
+    <!-- Song actions -->
+    <string name="song_details">جزئیات آهنگ</string>
+
+    <!-- Now Playing overflow menu -->
+    <string name="player_lyrics">متن آهنگ</string>
+    <string name="player_equalizer">اکولایزر</string>
+    <string name="player_sleep_timer">تایمر خواب</string>
+    <string name="player_sleep_timer_active">تایمر خواب (%1$s مانده)</string>
+    <string name="player_song_details">جزئیات آهنگ</string>
+
+    <!-- Sleep timer -->
+    <string name="sleep_timer_title">تایمر خواب</string>
+    <string name="sleep_timer_pick">با پایان تایمر، موسیقی متوقف می‌شود. صدا در ۱۰ ثانیه آخر به‌تدریج کم می‌شود.</string>
+    <string name="sleep_timer_presets">مدت‌های آماده</string>
+    <string name="sleep_timer_minutes">%1$d دقیقه</string>
+    <string name="sleep_timer_custom_title">مدت دلخواه</string>
+    <string name="sleep_timer_custom_label">دقیقه</string>
+    <string name="sleep_timer_set">تنظیم تایمر</string>
+    <string name="sleep_timer_cancel">لغو تایمر</string>
+    <string name="sleep_timer_remaining">تا توقف موسیقی باقی مانده</string>
+    <string name="sleep_timer_custom_hint">بین %1$d تا %2$d دقیقه.</string>
+    <string name="sleep_timer_fade_note">تایمر حتی با بسته شدن اپ هم کار می‌کند، تا وقتی پخش در حال اجراست.</string>
+
+    <!-- Equalizer -->
+    <string name="eq_title">اکولایزر</string>
+    <string name="eq_enable">اکولایزر</string>
+    <string name="eq_enable_sub">صدا را با پیش‌تنظیم‌ها یا باندهای دستی تنظیم کن</string>
+    <string name="eq_presets_title">پیش‌تنظیم‌ها</string>
+    <string name="eq_custom">دلخواه</string>
+    <string name="eq_bands_title">باندها</string>
+    <string name="eq_reset">بازنشانی باندها</string>
+    <string name="eq_note">تغییرات روی جلسه پخش فعلی اعمال می‌شود و برای آهنگ بعدی هم حفظ می‌شود.</string>
+    <string name="eq_unsupported_title">اکولایزر در دسترس نیست</string>
+    <string name="eq_reason_no_session">اول یک آهنگ پخش کن — اکولایزر به جلسه پخش فعال وصل می‌شود.</string>
+    <string name="eq_reason_unsupported">این دستگاه افکت اکولایزر ندارد، پس چیزی برای تنظیم نیست.</string>
+
+    <!-- Lyrics -->
+    <string name="lyrics_title">متن آهنگ</string>
+    <string name="lyrics_empty_title">متنی پیدا نشد</string>
+    <string name="lyrics_empty_body">برای «%1$s» فایل .lrc پیدا نشد. فایلی هم‌نام با آهنگ را کنار آن بگذار (مثلاً song.lrc کنار song.mp3) تا اینجا نمایش داده شود.</string>
+    <string name="lyrics_no_song_title">چیزی در حال پخش نیست</string>
+    <string name="lyrics_no_song_body">آهنگی پخش کن تا متن آن اینجا نمایش داده شود.</string>
+    <string name="lyrics_follow">دنبال کردن خط در حال پخش</string>
+    <string name="now_playing_empty_title">چیزی در حال پخش نیست</string>
+    <string name="now_playing_empty_body">از کتابخانه آهنگی پخش کن تا اینجا نمایش داده شود.</string>
+
+    <!-- Song details -->
+    <string name="details_title">جزئیات آهنگ</string>
+    <string name="details_file_title">فایل</string>
+    <string name="details_metadata_title">اطلاعات</string>
+    <string name="details_file_name">نام فایل</string>
+    <string name="details_format">فرمت</string>
+    <string name="details_size">حجم</string>
+    <string name="details_duration">مدت</string>
+    <string name="details_bitrate">بیت‌ریت</string>
+    <string name="details_sample_rate">فرکانس نمونه‌برداری</string>
+    <string name="details_folder">پوشه</string>
+    <string name="details_album">آلبوم</string>
+    <string name="details_genre">ژانر</string>
+    <string name="details_year">سال</string>
+    <string name="details_track">شماره ترک</string>
+    <string name="details_unknown">نامشخص</string>
+    <string name="details_not_found_title">آهنگ پیدا نشد</string>
+    <string name="details_not_found_body">این آهنگ دیگر در کتابخانه نیست.</string>
+
+    <!-- Music folders (SAF) -->
+    <string name="storage_folders_title">پوشه‌های موسیقی</string>
+    <string name="storage_folders_pick">انتخاب پوشه موسیقی</string>
+    <string name="storage_folders_empty">هنوز پوشه‌ای انتخاب نشده است. پوشه‌ای انتخاب کن تا ببینی چند فایل صوتی دارد.</string>
+    <string name="storage_folders_audio_count">%1$d فایل صوتی</string>
+    <string name="storage_folders_lost">دسترسی از دست رفته است — برای بازگرداندن، دوباره همین پوشه را انتخاب کن.</string>
+    <string name="storage_folders_remove">حذف پوشه</string>
+</resources>

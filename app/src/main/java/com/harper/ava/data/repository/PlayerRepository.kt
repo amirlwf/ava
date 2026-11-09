@@ -1,0 +1,666 @@
+package com.harper.ava.data.repository
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.core.net.toUri
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import com.harper.ava.core.util.SLEEP_TIMER_FADE_MS
+import com.harper.ava.core.util.SleepTimerState
+import com.harper.ava.core.util.StartupTracer
+import com.harper.ava.core.util.restoreSleepTimerMinutes
+import com.harper.ava.core.util.insertPlayNext
+import com.harper.ava.core.util.moveItem
+import com.harper.ava.core.util.removeItemAt
+import com.harper.ava.core.util.shuffleKeepingFirst
+import com.harper.ava.core.util.sleepTimerRemainingMs
+import com.harper.ava.data.audio.EqualizerController
+import com.harper.ava.data.preferences.UserPreferences
+import com.harper.ava.domain.model.Song
+import com.harper.ava.playback.AvaPlaybackService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+enum class RepeatMode { OFF, ALL, ONE }
+
+/** What the Equalizer screen shows (and whether the device really supports it). */
+data class EqualizerState(
+    val supported: Boolean = false,
+    /** String-resource key for the failure reason, or null when supported. */
+    val reasonKey: String? = "eq_reason_no_session",
+    val enabled: Boolean = false,
+    val bandCount: Int = 0,
+    val centerFreqsHz: List<Int> = emptyList(),
+    val minLevelDb: Float = -15f,
+    val maxLevelDb: Float = 15f,
+    val presets: List<String> = emptyList(),
+    /** Selected preset index, or -1 for manual band levels. */
+    val presetIndex: Int = -1,
+    val bandLevelsDb: List<Float> = emptyList(),
+)
+
+data class PlaybackState(
+    val currentSong: Song? = null,
+    val queue: List<Song> = emptyList(),
+    val queueIndex: Int = -1,
+    val isPlaying: Boolean = false,
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    val playbackSpeed: Float = 1f,
+)
+
+/**
+ * Real local-file playback backed by Media3 ExoPlayer.
+ *
+ * The player instance is owned here (application scope) so both the UI and
+ * [com.harper.ava.playback.AvaPlaybackService] share the exact same player
+ * through the MediaSession.
+ */
+class PlayerRepository(
+    context: Context,
+    private val userPreferences: UserPreferences? = null,
+) {
+
+    private val appContext = context.applicationContext
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // 0.5.2 diagnostics: mark the two most crash-prone steps of startup
+    // (Dispatchers.Main resolution and ExoPlayer construction).
+    init {
+        StartupTracer.mark(appContext, "player.constructor.begin")
+    }
+
+    /** The single ExoPlayer instance for the whole process. */
+    val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
+        StartupTracer.mark(appContext, "player.exoplayer.built")
+        addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _state.update { it.copy(isPlaying = isPlaying) }
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val song = mediaItem?.mediaId?.toLongOrNull()?.let { id ->
+                    _state.value.queue.firstOrNull { it.id == id }
+                }
+                _state.update {
+                    it.copy(
+                        currentSong = song,
+                        queueIndex = song?.let { s -> it.queue.indexOf(s) } ?: -1,
+                        durationMs = safeDuration(),
+                    )
+                }
+                // New track while playing: checkpoint the resume position
+                // (start of track). Skip when paused at 0 — that is
+                // prepareSong() restoring a saved position, and saving 0
+                // here would clobber the restored position.
+                if (player.isPlaying || player.currentPosition > 0L) saveCheckpoint()
+            }
+
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                // The equalizer attaches to this session; a new session
+                // (first play, or a new track after a release) needs a
+                // re-attach with the persisted settings.
+                refreshEqualizer()
+            }
+        })
+    }
+
+    private val _state = MutableStateFlow(PlaybackState())
+    val state: StateFlow<PlaybackState> = _state.asStateFlow()
+
+    private var positionJob: Job? = null
+
+    // ------------------------------------------------------------------
+    // Sleep timer — an absolute deadline owned by this repository, so it
+    // keeps counting while the app is closed (playback is a foreground
+    // service) and across Activity recreates. The deadline is persisted
+    // in DataStore so a process restart can re-arm it (see
+    // restoreSleepTimer). At the deadline the volume fades out over
+    // SLEEP_TIMER_FADE_MS and playback pauses.
+    // ------------------------------------------------------------------
+
+    private val _sleepTimer = MutableStateFlow(SleepTimerState())
+    val sleepTimerState: StateFlow<SleepTimerState> = _sleepTimer.asStateFlow()
+    private var sleepJob: Job? = null
+    private var sleepTickerJob: Job? = null
+
+    fun setSleepTimer(durationMinutes: Int) {
+        val minutes = durationMinutes.coerceIn(1, 480)
+        startSleepTimer(
+            System.currentTimeMillis() + minutes * 60_000L,
+            durationMinutes = minutes,
+        )
+    }
+
+    /** Re-arms a persisted deadline after a process restart (no-op when none/past). */
+    fun restoreSleepTimer(endsAtMs: Long?) {
+        if (endsAtMs == null) return
+        val now = System.currentTimeMillis()
+        if (endsAtMs <= now) {
+            scope.launch { userPreferences?.setSleepTimerEndsAt(null) }
+            return
+        }
+        // Duration is unknown after a restart; recover it from the
+        // remaining time (rounded up) so the preset chip still highlights.
+        val minutes = restoreSleepTimerMinutes(endsAtMs, now)
+        startSleepTimer(endsAtMs, persist = false, durationMinutes = minutes)
+    }
+
+    private fun startSleepTimer(
+        endsAtMs: Long,
+        persist: Boolean = true,
+        durationMinutes: Int = 0,
+    ) {
+        cancelSleepTimerJobs()
+        _sleepTimer.value = SleepTimerState(
+            active = true,
+            endsAtMs = endsAtMs,
+            remainingMs = sleepTimerRemainingMs(endsAtMs, System.currentTimeMillis()),
+            durationMinutes = durationMinutes,
+        )
+        if (persist) scope.launch { userPreferences?.setSleepTimerEndsAt(endsAtMs) }
+        sleepTickerJob = scope.launch {
+            while (true) {
+                delay(1_000L)
+                val remaining = sleepTimerRemainingMs(endsAtMs, System.currentTimeMillis())
+                _sleepTimer.update { it.copy(remainingMs = remaining) }
+                if (remaining <= 0L) break
+            }
+        }
+        sleepJob = scope.launch {
+            val total = endsAtMs - System.currentTimeMillis()
+            if (total <= 0L) {
+                finishSleepTimer()
+                return@launch
+            }
+            val fadeMs = minOf(SLEEP_TIMER_FADE_MS, total)
+            delay((total - fadeMs).coerceAtLeast(0L))
+            rampVolume(0f, fadeMs)
+            if (player.isPlaying) player.pause()
+            player.volume = 1f
+            finishSleepTimer()
+        }
+    }
+
+    private fun finishSleepTimer() {
+        cancelSleepTimerJobs()
+        _sleepTimer.value = SleepTimerState()
+        scope.launch { userPreferences?.setSleepTimerEndsAt(null) }
+        saveCheckpoint()
+    }
+
+    fun cancelSleepTimer() {
+        cancelSleepTimerJobs()
+        // A fade in progress must not leave the volume turned down.
+        player.volume = 1f
+        _sleepTimer.value = SleepTimerState()
+        scope.launch { userPreferences?.setSleepTimerEndsAt(null) }
+    }
+
+    private fun cancelSleepTimerJobs() {
+        sleepJob?.cancel()
+        sleepJob = null
+        sleepTickerJob?.cancel()
+        sleepTickerJob = null
+    }
+
+    // ------------------------------------------------------------------
+    // Equalizer — attached to ExoPlayer's audio session. The device is
+    // asked, never assumed: when the effect is unavailable the state
+    // reports supported = false and the UI says so honestly.
+    // ------------------------------------------------------------------
+
+    private val eqController = EqualizerController()
+    private val _equalizer = MutableStateFlow(EqualizerState())
+    val equalizerState: StateFlow<EqualizerState> = _equalizer.asStateFlow()
+
+    /** (Re)attaches the equalizer and applies the persisted settings. */
+    fun refreshEqualizer() {
+        scope.launch {
+            val prefs = userPreferences?.settings?.first() ?: return@launch
+            applyEqualizerSettings(prefs.eqEnabled, prefs.eqPresetIndex, prefs.eqBandLevels)
+        }
+    }
+
+    private fun applyEqualizerSettings(
+        enabled: Boolean,
+        presetIndex: Int,
+        bandLevelsMillibels: List<Int>,
+    ) {
+        val support = eqController.ensure(
+            player.audioSessionId,
+            enabled,
+            presetIndex,
+            bandLevelsMillibels,
+        )
+        val levels = if (support.supported) eqController.currentBandLevelsMillibels() else emptyList()
+        _equalizer.value = EqualizerState(
+            supported = support.supported,
+            reasonKey = support.reasonKey,
+            enabled = enabled && support.supported,
+            bandCount = support.bandCount,
+            centerFreqsHz = support.centerFreqsHz,
+            minLevelDb = support.minLevelDb,
+            maxLevelDb = support.maxLevelDb,
+            presets = support.presets,
+            presetIndex = if (support.supported) presetIndex else -1,
+            bandLevelsDb = levels.map { it / 100f },
+        )
+    }
+
+    fun setEqualizerEnabled(enabled: Boolean) {
+        scope.launch {
+            userPreferences?.setEqEnabled(enabled)
+            val prefs = userPreferences?.settings?.first()
+            applyEqualizerSettings(
+                enabled,
+                prefs?.eqPresetIndex ?: -1,
+                prefs?.eqBandLevels ?: emptyList(),
+            )
+        }
+    }
+
+    /** Applies a device preset and persists it (with the levels it produces). */
+    fun applyEqualizerPreset(presetIndex: Int) {
+        scope.launch {
+            val prefs = userPreferences?.settings?.first()
+            eqController.ensure(player.audioSessionId, true, presetIndex, prefs?.eqBandLevels ?: emptyList())
+            val levels = eqController.currentBandLevelsMillibels()
+            userPreferences?.setEqEnabled(true)
+            userPreferences?.setEqPreset(presetIndex, levels)
+            applyEqualizerSettings(true, presetIndex, levels)
+        }
+    }
+
+    /** Sets one band manually (dB); the preset becomes "Custom" (-1). */
+    fun setEqualizerBand(band: Int, levelDb: Float) {
+        scope.launch {
+            val current = _equalizer.value
+            if (band !in current.bandLevelsDb.indices) return@launch
+            val levels = current.bandLevelsDb.toMutableList().also { it[band] = levelDb }
+            val millibels = levels.map { (it * 100).toInt() }
+            userPreferences?.setEqEnabled(true)
+            userPreferences?.setEqBandLevels(millibels)
+            applyEqualizerSettings(true, -1, millibels)
+        }
+    }
+
+    /** Resets all bands to 0 dB (manual mode, keeps the on/off state). */
+    fun resetEqualizerBands() {
+        scope.launch {
+            val current = _equalizer.value
+            if (current.bandCount <= 0) return@launch
+            val zeros = List(current.bandCount) { 0 }
+            userPreferences?.setEqBandLevels(zeros)
+            applyEqualizerSettings(current.enabled, -1, zeros)
+        }
+    }
+
+    /** ExoPlayer reports TIME_UNSET (-2^63+1) for an unknown duration; never leak that into state. */
+    private fun safeDuration(): Long = player.duration.takeIf { it > 0L } ?: 0L
+
+    private fun Song.toMediaItem(): MediaItem =
+        MediaItem.Builder().setUri(uri.toUri()).setMediaId(id.toString()).build()
+
+    init {
+        positionJob = scope.launch {
+            while (true) {
+                delay(500L)
+                val current = player.currentMediaItem
+                if (current != null && player.isPlaying) {
+                    _state.update {
+                        it.copy(positionMs = player.currentPosition, durationMs = safeDuration())
+                    }
+                }
+            }
+        }
+        StartupTracer.mark(appContext, "player.constructor.done")
+    }
+
+    fun playSongs(songs: List<Song>, startIndex: Int = 0) {
+        if (songs.isEmpty()) return
+        val index = startIndex.coerceIn(0, songs.lastIndex)
+        val items = songs.map { it.toMediaItem() }
+        player.setMediaItems(items, index, 0L)
+        player.prepare()
+        if (fadeEnabled) player.volume = 0f
+        player.play()
+        if (fadeEnabled) fadeVolumeTo(1f, 700L)
+        // Bring up the MediaSessionService so playback survives the UI and
+        // the system (notification / lock screen / headset) can control it.
+        appContext.startForegroundService(Intent(appContext, AvaPlaybackService::class.java))
+        _state.update {
+            it.copy(queue = songs, queueIndex = index, currentSong = songs[index])
+        }
+        refreshEqualizer()
+        saveCheckpoint()
+    }
+
+    fun play(song: Song) = playSongs(listOf(song), 0)
+
+    /**
+     * Prepares one song paused at [positionMs] without starting playback.
+     * Used by resume-playback on app restart: the user sees the last song
+     * ready in the Mini Player and presses play when they want it.
+     */
+    fun prepareSong(song: Song, positionMs: Long) {
+        player.setMediaItems(listOf(song.toMediaItem()))
+        player.prepare()
+        player.seekTo(positionMs.coerceAtLeast(0L))
+        val position = positionMs.coerceAtLeast(0L)
+        _state.update {
+            it.copy(
+                queue = listOf(song),
+                queueIndex = 0,
+                currentSong = song,
+                durationMs = safeDuration(),
+                positionMs = position,
+            )
+        }
+        refreshEqualizer()
+    }
+
+    /**
+     * Prepares a whole queue paused at [positionMs] inside [startIndex]
+     * without starting playback. Used by resume-playback: the full queue
+     * comes back, not just one song. Songs missing from the library were
+     * already dropped by the caller.
+     */
+    fun prepareQueue(songs: List<Song>, startIndex: Int = 0, positionMs: Long = 0L) {
+        if (songs.isEmpty()) return
+        val index = startIndex.coerceIn(0, songs.lastIndex)
+        val position = positionMs.coerceAtLeast(0L)
+        player.setMediaItems(songs.map { it.toMediaItem() }, index, position)
+        player.prepare()
+        _state.update {
+            it.copy(
+                queue = songs,
+                queueIndex = index,
+                currentSong = songs[index],
+                durationMs = safeDuration(),
+                positionMs = position,
+            )
+        }
+        refreshEqualizer()
+    }
+
+    // ------------------------------------------------------------------
+    // Queue management — every op mirrors the same change into ExoPlayer
+    // and into the StateFlow, so the Queue screen and the player can never
+    // disagree about the order.
+    // ------------------------------------------------------------------
+
+    /** Jumps to a queue item and starts it. */
+    fun playQueueItem(index: Int) {
+        if (index !in _state.value.queue.indices) return
+        player.seekTo(index, 0L)
+        player.play()
+        saveCheckpoint()
+    }
+
+    /** Adds a song right after the current one (Play Next) or at the end (Play Last). */
+    fun addToQueue(song: Song, playNext: Boolean) {
+        val current = _state.value
+        if (current.queue.isEmpty()) {
+            play(song)
+            return
+        }
+        val at = if (playNext) (current.queueIndex + 1).coerceIn(0, current.queue.size) else current.queue.size
+        player.addMediaItem(at, song.toMediaItem())
+        val newQueue = if (playNext) {
+            insertPlayNext(current.queue, current.queueIndex, song)
+        } else {
+            current.queue + song
+        }
+        _state.update { it.copy(queue = newQueue) }
+        saveCheckpoint()
+    }
+
+    /** Removes one queue item. Removing the only item stops playback. */
+    fun removeFromQueue(index: Int) {
+        val current = _state.value
+        if (index !in current.queue.indices) return
+        if (current.queue.size <= 1) {
+            stop()
+            return
+        }
+        val removedCurrent = index == current.queueIndex
+        player.removeMediaItem(index)
+        val newQueue = removeItemAt(current.queue, index)
+        _state.update {
+            it.copy(
+                queue = newQueue,
+                // If the playing song was removed, ExoPlayer transitions to
+                // the next item and onMediaItemTransition fixes currentSong.
+                currentSong = if (removedCurrent) null else it.currentSong,
+                queueIndex = if (removedCurrent) -1 else newQueue.indexOf(it.currentSong),
+            )
+        }
+        saveCheckpoint()
+    }
+
+    /** Reorders the queue (drag & drop). The playing song keeps playing. */
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val current = _state.value
+        if (fromIndex !in current.queue.indices || toIndex !in current.queue.indices) return
+        if (fromIndex == toIndex) return
+        player.moveMediaItem(fromIndex, toIndex)
+        val newQueue = moveItem(current.queue, fromIndex, toIndex)
+        _state.update {
+            it.copy(
+                queue = newQueue,
+                queueIndex = newQueue.indexOf(it.currentSong),
+            )
+        }
+        saveCheckpoint()
+    }
+
+    /**
+     * Shuffles everything after the currently playing song; the current
+     * song stays first and keeps playing. Applied with moveMediaItem calls
+     * so playback is never restarted.
+     */
+    fun shuffleQueue() {
+        val current = _state.value
+        if (current.queue.size <= 2 || current.queueIndex < 0) return
+        val head = current.queue.take(current.queueIndex + 1)
+        val shuffledTail = shuffleKeepingFirst(
+            listOf(current.queue[current.queueIndex]) + current.queue.drop(current.queueIndex + 1),
+        ).drop(1)
+        val targetOrder = head + shuffledTail
+        // Apply the target order with moves, tracking a working copy that
+        // mirrors the player's playlist order.
+        val working = current.queue.toMutableList()
+        for (position in current.queueIndex + 1 until targetOrder.size) {
+            val wanted = targetOrder[position]
+            val from = working.indexOf(wanted)
+            if (from != position) {
+                player.moveMediaItem(from, position)
+                working.add(position, working.removeAt(from))
+            }
+        }
+        _state.update { it.copy(queue = working) }
+        saveCheckpoint()
+    }
+
+    /** Clears every queued song except the one currently playing. */
+    fun clearQueue() {
+        val current = _state.value
+        if (current.queue.isEmpty()) return
+        if (current.currentSong == null) {
+            stop()
+            return
+        }
+        // Remove the tail first, then the head: indices below queueIndex
+        // stay valid while the tail is removed.
+        for (index in current.queue.lastIndex downTo current.queueIndex + 1) {
+            player.removeMediaItem(index)
+        }
+        for (index in current.queueIndex - 1 downTo 0) {
+            player.removeMediaItem(index)
+        }
+        val song = current.currentSong
+        _state.update { it.copy(queue = listOf(song), queueIndex = 0) }
+        saveCheckpoint()
+    }
+
+    /** Playback speed in 0.5x–2.0x; stored in state so the UI can show it. */
+    fun setPlaybackSpeed(speed: Float) {
+        val clamped = speed.coerceIn(0.5f, 2.0f)
+        player.playbackParameters = PlaybackParameters(clamped)
+        _state.update { it.copy(playbackSpeed = clamped) }
+    }
+
+    fun togglePlayPause() {
+        if (player.isPlaying) {
+            if (fadeEnabled) {
+                // Ramp down, then pause; restore full volume for the next play.
+                fadeVolumeTo(0f, 400L) {
+                    player.pause()
+                    player.volume = 1f
+                    saveCheckpoint()
+                }
+            } else {
+                player.pause()
+                saveCheckpoint()
+            }
+        } else {
+            if (fadeEnabled) {
+                player.volume = 0f
+                player.play()
+                fadeVolumeTo(1f, 700L)
+            } else {
+                player.play()
+            }
+        }
+    }
+
+    fun playNext() {
+        if (player.hasNextMediaItem()) player.seekToNextMediaItem()
+    }
+
+    fun playPrevious() {
+        if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
+    }
+
+    fun seekTo(positionMs: Long) {
+        // Stage 6: an unknown duration used to clamp every seek to 0
+        // (duration TIME_UNSET -> max 0), so the seekbar was dead on files
+        // whose duration ExoPlayer had not resolved yet. ExoPlayer clamps
+        // out-of-range seeks itself when the duration is unknown.
+        val max = player.duration
+        val target = if (max > 0L) {
+            positionMs.coerceIn(0L, max)
+        } else {
+            positionMs.coerceAtLeast(0L)
+        }
+        player.seekTo(target)
+        _state.update { it.copy(positionMs = player.currentPosition) }
+    }
+
+    fun toggleShuffle() {
+        val enabled = !_state.value.shuffleEnabled
+        player.shuffleModeEnabled = enabled
+        _state.update { it.copy(shuffleEnabled = enabled) }
+    }
+
+    fun cycleRepeatMode() {
+        val next = when (_state.value.repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        player.repeatMode = when (next) {
+            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+        }
+        _state.update { it.copy(repeatMode = next) }
+    }
+
+    fun stop() {
+        saveCheckpoint()
+        player.stop()
+        _state.update { PlaybackState() }
+    }
+
+    // ------------------------------------------------------------------
+    // Fade in / out (real volume ramps on the player, in-app controls)
+    // ------------------------------------------------------------------
+
+    var fadeEnabled: Boolean = false
+        private set
+
+    fun setFadeEnabled(enabled: Boolean) {
+        fadeEnabled = enabled
+        if (!enabled) {
+            fadeJob?.cancel()
+            fadeJob = null
+            player.volume = 1f
+        }
+    }
+
+    private var fadeJob: Job? = null
+
+    /** Suspends while ramping the player volume to [target] over [durationMs]. */
+    private suspend fun rampVolume(target: Float, durationMs: Long) {
+        val start = player.volume
+        val steps = 14
+        val stepMs = (durationMs / steps).coerceAtLeast(16L)
+        for (i in 1..steps) {
+            player.volume = start + (target - start) * i / steps
+            delay(stepMs)
+        }
+        player.volume = target
+    }
+
+    /** Ramps the player volume to [target] over [durationMs], then runs [onDone]. */
+    private fun fadeVolumeTo(target: Float, durationMs: Long, onDone: (() -> Unit)? = null) {
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            rampVolume(target, durationMs)
+            onDone?.invoke()
+        }
+    }
+
+    /**
+     * Persists the current song + position + full queue for resume-playback.
+     * Called on track change / pause / stop and on queue changes. No-op
+     * when no song is loaded or when no preferences store was injected
+     * (unit-test use).
+     */
+    private fun saveCheckpoint() {
+        val prefs = userPreferences ?: return
+        val song = _state.value.currentSong ?: return
+        val position = player.currentPosition.coerceAtLeast(0L)
+        val queueIds = _state.value.queue.map { it.id }
+        val queueIndex = _state.value.queueIndex.coerceAtLeast(0)
+        scope.launch { prefs.setLastPlayback(song.id, position, queueIds, queueIndex) }
+    }
+
+    fun release() {
+        cancelSleepTimerJobs()
+        positionJob?.cancel()
+        eqController.release()
+        player.release()
+    }
+
+    companion object {
+        @Suppress("unused")
+        fun uriOf(song: Song): Uri = song.uri.toUri()
+    }
+}
