@@ -228,6 +228,9 @@
     <string name="safe_mode_log_saved">Startup log saved to: %1$s</string>
     <string name="safe_mode_no_log">No startup log was recorded.</string>
     <string name="safe_mode_share_log">Share startup log</string>
+    <string name="safe_mode_crash_log_title">Last recorded crash</string>
+    <string name="safe_mode_no_crash_log">No Java crash was recorded — the process died without an uncaught Java exception (for example a native crash or a kill by the system).</string>
+    <string name="safe_mode_share_crash">Share crash log</string>
     <string name="safe_mode_retry">Try normal start again</string>
     <string name="safe_mode_reset">Reset app data &amp; try again</string>
 

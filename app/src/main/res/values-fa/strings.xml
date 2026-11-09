@@ -228,6 +228,9 @@
     <string name="safe_mode_log_saved">لاگ راه‌اندازی ذخیره شد در: %1$s</string>
     <string name="safe_mode_no_log">لاگی از راه‌اندازی ثبت نشده است.</string>
     <string name="safe_mode_share_log">اشتراک‌گذاری لاگ راه‌اندازی</string>
+    <string name="safe_mode_crash_log_title">آخرین کرش ثبت‌شده</string>
+    <string name="safe_mode_no_crash_log">هیچ کرش جاوایی ثبت نشده است — پروسه بدون exception جاوا مرده است (مثلاً کرش native یا kill توسط سیستم).</string>
+    <string name="safe_mode_share_crash">اشتراک‌گذاری لاگ کرش</string>
     <string name="safe_mode_retry">تلاش دوباره برای راه‌اندازی معمول</string>
     <string name="safe_mode_reset">پاک کردن داده‌های اپ و تلاش دوباره</string>
 

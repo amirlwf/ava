@@ -26,8 +26,11 @@ class StartupDiagnosticsProvider : ContentProvider() {
     override fun onCreate(): Boolean {
         val ctx = context ?: return false
         CrashReporter.install(ctx)
-        StartupTracer.mark(ctx, "provider.onCreate")
+        // 0.5.4: beginStartup FIRST, then the mark — marking before it
+        // wrote the line with a -1ms timestamp (startElapsed not set yet)
+        // and the header rewrite then buried it at the end of the trace.
         val crashedLastStart = StartupTracer.beginStartup(ctx)
+        StartupTracer.mark(ctx, "provider.onCreate")
         StartupTracer.mark(ctx, "provider.tracer.begin crashedLastStart=$crashedLastStart")
         return true
     }

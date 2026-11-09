@@ -41,6 +41,18 @@ object StartupTracer {
     private const val FLAG_NAME = "startup-in-progress.flag"
     const val PUBLIC_FILE_NAME = "ava-crash-log.txt"
     const val PUBLIC_FOLDER = "Ava"
+    /**
+     * 0.5.4: the startup trace is exported to its OWN public file. In
+     * 0.5.2/0.5.3 the safe-mode screen exported the trace-only report to
+     * ava-crash-log.txt — which DELETED the crash report (with the stack
+     * trace) that the crash handler had just written there. That is why
+     * two crash reports arrived with no stack trace at all.
+     */
+    const val TRACE_FILE_NAME = "ava-startup-trace.txt"
+
+    @Volatile
+    var startupComplete: Boolean = false
+        private set
 
     @Volatile
     private var startElapsed: Long = -1L
@@ -157,9 +169,31 @@ object StartupTracer {
         }
     }
 
+    /**
+     * 0.5.4: append a full stack trace to the trace file. The trace is
+     * what the user shares from safe mode, so a crash caught here
+     * survives even if the public crash log is lost — the report that
+     * reaches us carries the exception with it.
+     */
+    fun markThrowable(context: Context, tag: String, throwable: Throwable) {
+        runCatching {
+            val elapsed = if (startElapsed < 0L) {
+                -1L
+            } else {
+                SystemClock.elapsedRealtime() - startElapsed
+            }
+            val sw = StringWriter()
+            throwable.printStackTrace(PrintWriter(sw))
+            traceFile(context).appendText(
+                "[+${elapsed}ms] $tag ${throwable::class.qualifiedName}: ${throwable.message}\n$sw\n",
+            )
+        }
+    }
+
     /** Call once the first real screen has composed: startup succeeded. */
     fun markStartupComplete(context: Context) {
         runCatching {
+            startupComplete = true
             mark(context, "startup.complete")
             flagFile(context).delete()
         }
@@ -186,16 +220,36 @@ object StartupTracer {
             val sw = StringWriter()
             throwable.printStackTrace(PrintWriter(sw))
             sb.append(sw.toString())
+        } else {
+            // 0.5.4: a trace-only report (the one safe mode shares) must
+            // still carry the last caught exception, if one was recorded.
+            // Without this, a report shared from safe mode never shows
+            // the stack trace even when CrashReporter captured it.
+            sb.append("\n--- last recorded crash ---\n")
+            val last = runCatching { CrashReporter.readLatest(context) }.getOrNull()
+            if (last != null) {
+                sb.append(last)
+            } else {
+                sb.append(
+                    "(no Java crash was recorded — the process died without " +
+                        "an uncaught Java exception, e.g. a native crash or a system kill)\n",
+                )
+            }
         }
         return sb.toString()
     }
 
     /**
-     * Writes [reportText] to Downloads/Ava/ava-crash-log.txt via MediaStore
+     * Writes [reportText] to Downloads/Ava/[fileName] via MediaStore
      * (API 29+; no permission needed for the app's own files) so the user
      * can find it in the Files app. Returns the user-visible path, or null.
+     *
+     * 0.5.4: [fileName] is a parameter because the crash log and the
+     * startup trace must be DIFFERENT files. The crash log
+     * (ava-crash-log.txt) carries the stack trace; the trace-only report
+     * must never overwrite it (see [exportTrace]).
      */
-    fun exportPublic(context: Context, reportText: String): String? {
+    fun exportPublic(context: Context, reportText: String, fileName: String = PUBLIC_FILE_NAME): String? {
         return runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val resolver = safeContext(context).contentResolver
@@ -205,7 +259,7 @@ object StartupTracer {
                     uri,
                     arrayOf(MediaStore.Downloads._ID),
                     "${MediaStore.Downloads.DISPLAY_NAME} = ?",
-                    arrayOf(PUBLIC_FILE_NAME),
+                    arrayOf(fileName),
                     null,
                 )?.use { cursor ->
                     while (cursor.moveToNext()) {
@@ -214,7 +268,7 @@ object StartupTracer {
                     }
                 }
                 val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, PUBLIC_FILE_NAME)
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
                     put(MediaStore.Downloads.MIME_TYPE, "text/plain")
                     put(MediaStore.Downloads.RELATIVE_PATH, "Download/$PUBLIC_FOLDER")
                 }
@@ -222,7 +276,7 @@ object StartupTracer {
                 resolver.openOutputStream(outUri)?.use { out ->
                     out.write(reportText.toByteArray(Charsets.UTF_8))
                 } ?: return@runCatching null
-                "Downloads/$PUBLIC_FOLDER/$PUBLIC_FILE_NAME"
+                "Downloads/$PUBLIC_FOLDER/$fileName"
             } else {
                 @Suppress("DEPRECATION")
                 val dir = File(
@@ -230,11 +284,15 @@ object StartupTracer {
                     PUBLIC_FOLDER,
                 )
                 dir.mkdirs()
-                File(dir, PUBLIC_FILE_NAME).writeText(reportText)
-                "Downloads/$PUBLIC_FOLDER/$PUBLIC_FILE_NAME"
+                File(dir, fileName).writeText(reportText)
+                "Downloads/$PUBLIC_FOLDER/$fileName"
             }
         }.getOrNull()
     }
+
+    /** Trace-only export for the safe-mode screen: a separate file that never touches the crash log. */
+    fun exportTrace(context: Context, reportText: String): String? =
+        exportPublic(context, reportText, TRACE_FILE_NAME)
 
     /** Called from the crash handler: trace + stack trace -> public file. */
     fun exportCrash(context: Context, thread: Thread, throwable: Throwable): String? {

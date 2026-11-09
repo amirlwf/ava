@@ -33,7 +33,7 @@ source "$(dirname "$0")/java-env.sh"
 ROOT="$PWD"
 TOOLS="$ROOT/.build-tools"
 OUT="$ROOT/.build-out"
-DIST="$ROOT/dist/ava-0.5.3-debug.apk"
+DIST="$ROOT/dist/ava-0.5.4-debug.apk"
 AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
 # d8 8.2.2-dev (build-tools 34.0.0) NPEs on androidx.concurrent:concurrent-futures
 # 1.2.0 (CallbackToFutureAdapter$SafeFuture$1.class) — a genuine d8 bug fixed
@@ -84,7 +84,7 @@ python3 "$(dirname "$0")/merge-resources.py" \
   --apk-out "$OUT/unsigned.apk" \
   --r-out "$OUT/aapt2/r" \
   --aapt2 "$AAPT2" --android-jar "$ANDROID_JAR" \
-  --version-code 8 --version-name 0.5.3
+  --version-code 9 --version-name 0.5.4
 
 echo "== [2/7] KSP (Room codegen, standalone JVM app) =="
 # KSP 2.x runs as a standalone JVM app, NOT as a kotlinc -Xplugin

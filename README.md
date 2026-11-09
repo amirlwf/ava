@@ -28,7 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.5.3](https://github.com/amirlwf/ava/releases/tag/v0.5.3) | [ava-0.5.3-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.3-debug.apk) | 57 MB |
+| [v0.5.4](https://github.com/amirlwf/ava/releases/tag/v0.5.4) | [ava-0.5.4-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.4-debug.apk) | 57 MB |
 
 ## Installation
 
@@ -51,7 +51,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.5.3 fixes the launch crash.** The cause was missing library resource classes in the hand-built APK: the first screen reads AndroidX resource IDs that were never packaged, so the app died before the first frame. This build merges all library resources and their generated classes. It is still a diagnostic build: it records a startup trace, writes the crash log to `Downloads/Ava/ava-crash-log.txt` on the device, and opens a safe-mode screen (with a "reset app data" option) if a previous launch crashed during startup. Please share that log file if you hit a crash.
+**0.5.4 is a diagnostic build for a second launch crash.** 0.5.3 fixed the missing library resource classes, but the app still crashes after `onCreate` and before the settings load — deterministically, on the test device. The exact exception is still unknown: in 0.5.2/0.5.3 the safe-mode screen accidentally deleted the crash log (with the stack trace) when it exported the startup trace to the same file. 0.5.4 fixes the evidence chain: the trace now goes to a separate file (`Downloads/Ava/ava-startup-trace.txt`), the crash log (`Downloads/Ava/ava-crash-log.txt`) is kept, the stack trace is also written into the trace itself, and safe mode shows the last crash log with a share button. DataStore is also hardened (a corrupt settings file can no longer kill the app at startup). If you hit a crash, please share either file — or use the safe-mode "Share crash log" button.
 
 ## Contributing
 

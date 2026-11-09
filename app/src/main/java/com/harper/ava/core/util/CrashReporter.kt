@@ -45,6 +45,14 @@ object CrashReporter {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             runCatching { writeLog(appContext, thread, throwable) }
+            // 0.5.4: also write the stack trace into the STARTUP TRACE
+            // file itself. The trace is what safe mode shows and what
+            // the user shares — so the exception survives even if the
+            // public crash log is lost or overwritten. This covers every
+            // uncaught exception, including composition crashes (which
+            // cannot be wrapped in try/catch — the Compose compiler
+            // forbids it around composable invocations).
+            runCatching { StartupTracer.markThrowable(appContext, "crash", throwable) }
             // 0.5.2: also leave a copy where the user can find it without
             // opening the app (Downloads/Ava/ava-crash-log.txt).
             runCatching { StartupTracer.exportCrash(appContext, thread, throwable) }

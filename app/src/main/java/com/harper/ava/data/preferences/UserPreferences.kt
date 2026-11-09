@@ -2,14 +2,17 @@ package com.harper.ava.data.preferences
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.harper.ava.core.util.LocaleHelper
+import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.clampPlaybackSpeed
 import com.harper.ava.core.util.decodeQueueIds
 import com.harper.ava.core.util.decodeRecentSearches
@@ -17,6 +20,7 @@ import com.harper.ava.core.util.encodeQueueIds
 import com.harper.ava.core.util.encodeRecentSearches
 import com.harper.ava.core.util.recordSearch
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 enum class ThemeMode { SYSTEM, DARK, LIGHT, AMOLED }
@@ -59,7 +63,13 @@ data class SettingsState(
     val onboardingSeen: Boolean = false,
 )
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "ava_settings")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "ava_settings",
+    // 0.5.4: a preferences file left half-written by an earlier crashed
+    // run must not kill the app on the next launch — replace it with
+    // empty preferences (defaults) instead of throwing CorruptionException.
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 /**
  * User settings persisted with DataStore Preferences. Survives app restarts.
@@ -94,7 +104,15 @@ class UserPreferences(private val context: Context) {
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
     }
 
-    val settings: Flow<SettingsState> = context.dataStore.data.map { prefs ->
+    val settings: Flow<SettingsState> = context.dataStore.data
+        .catch { e ->
+            // 0.5.4: belt and braces — any read error (not just a corrupt
+            // file) is recorded in the startup trace and the app starts
+            // with default settings instead of dying before the first frame.
+            StartupTracer.mark(context, "settings.flow.error ${e::class.simpleName}: ${e.message}")
+            emit(emptyPreferences())
+        }
+        .map { prefs ->
         SettingsState(
             themeMode = prefs[Keys.THEME_MODE]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: ThemeMode.SYSTEM,

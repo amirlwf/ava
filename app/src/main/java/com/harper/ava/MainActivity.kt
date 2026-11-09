@@ -26,8 +26,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.harper.ava.core.util.CrashReporter
 import com.harper.ava.core.util.LocaleHelper
 import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.data.preferences.ThemeMode
@@ -40,9 +42,17 @@ import com.harper.ava.ui.navigation.OnboardingRoute
 import com.harper.ava.ui.navigation.QueueRoute
 import com.harper.ava.ui.splash.SplashScreen
 import com.harper.ava.ui.theme.AvaTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        /** Marks the first composition entry exactly once per process. */
+        private val compositionEntryMarked = AtomicBoolean(false)
+    }
 
     /**
      * Applies the in-app language before anything inflates, so strings
@@ -68,8 +78,33 @@ class MainActivity : ComponentActivity() {
             showSafeModeScreen()
             return
         }
-        enableEdgeToEdge()
+        // 0.5.4: finer marks + a watchdog around the crash window
+        // (activity.onCreate -> activity.settings.first). If the app hangs
+        // waiting for settings, the watchdog marks keep appearing; if it
+        // crashes, they stop at the crash point.
+        lifecycleScope.launch {
+            var waited = 0
+            while (!StartupTracer.startupComplete && waited < 30) {
+                delay(2000L)
+                waited += 2
+                StartupTracer.mark(
+                    this@MainActivity,
+                    "watchdog: still waiting for settings.first after ${waited}s",
+                )
+            }
+        }
+        StartupTracer.mark(this, "activity.edgeToEdge.begin")
+        try {
+            enableEdgeToEdge()
+        } catch (t: Throwable) {
+            StartupTracer.markThrowable(this, "activity.edgeToEdge.error", t)
+            throw t
+        }
+        StartupTracer.mark(this, "activity.edgeToEdge.done")
         setContent {
+            if (compositionEntryMarked.compareAndSet(false, true)) {
+                StartupTracer.mark(this@MainActivity, "composition.first.entry")
+            }
             // Stage 6: wait for the persisted settings before composing the
             // graph — otherwise the first frame would use default settings
             // (wrong theme, wrong start destination) and flash. While
@@ -100,6 +135,7 @@ class MainActivity : ComponentActivity() {
                 // 0.5.2: settings arrived and the first screen composed —
                 // startup succeeded; clear the crash flag for next launch.
                 StartupTracer.mark(this@MainActivity, "activity.settings.first")
+                StartupTracer.mark(this@MainActivity, "activity.settings.collect.start")
                 val stored = app.container.userPreferences.settings.first()
                 val player = app.container.playerRepository
                 if (stored.resumePlayback) {
@@ -192,6 +228,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        StartupTracer.mark(this, "activity.setContent.called")
     }
 
     /**
@@ -202,12 +239,20 @@ class MainActivity : ComponentActivity() {
      * restarts the process so Application.onCreate runs again).
      */
     private fun showSafeModeScreen() {
-        // Export the trace first, so it exists even if this screen is closed.
-        val publicPath = StartupTracer.exportPublic(
+        // 0.5.4: export the trace to its OWN file. The 0.5.2/0.5.3 code
+        // exported it to ava-crash-log.txt, which DELETED the crash
+        // report (with the stack trace) that the crash handler had just
+        // written there — that is why two crash reports arrived with no
+        // stack trace at all.
+        val publicPath = StartupTracer.exportTrace(
             this,
             StartupTracer.buildReport(this, null, null),
         )
         val trace = StartupTracer.readTrace(this)
+        // 0.5.4: the last Java crash log (with the stack trace) survives
+        // in internal storage even when the public file is gone — show it
+        // here so it can be read and shared from safe mode.
+        val crashLog = CrashReporter.readLatest(this)
 
         val scroll = ScrollView(this)
         val layout = LinearLayout(this).apply {
@@ -247,6 +292,25 @@ class MainActivity : ComponentActivity() {
                 typeface = Typeface.MONOSPACE
             },
         )
+        layout.addView(textView(getString(R.string.safe_mode_crash_log_title), 16f, bold = true))
+        layout.addView(
+            textView(
+                crashLog?.take(8000) ?: getString(R.string.safe_mode_no_crash_log),
+                12f,
+            ).apply {
+                typeface = Typeface.MONOSPACE
+            },
+        )
+        if (crashLog != null) {
+            layout.addView(button(getString(R.string.safe_mode_share_crash)) {
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Ava crash log")
+                    putExtra(Intent.EXTRA_TEXT, crashLog)
+                }
+                startActivity(Intent.createChooser(share, getString(R.string.safe_mode_share_crash)))
+            })
+        }
         layout.addView(button(getString(R.string.safe_mode_share_log)) {
             val share = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
