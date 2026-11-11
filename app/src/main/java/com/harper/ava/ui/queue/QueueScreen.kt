@@ -52,6 +52,7 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.dragTargetIndex
 import com.harper.ava.core.util.formatDuration
+import com.harper.ava.core.util.queueRowKey
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
@@ -162,7 +163,11 @@ fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
                 modifier = Modifier.padding(start = AvaTokens.space20, bottom = AvaTokens.space8),
             )
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(upcoming, key = { _, song -> song.id }) { pos, song ->
+                // 0.5.6: the key includes the position — the same song may
+                // legitimately appear twice in a queue (add-to-queue /
+                // play-next / restored checkpoint) and a bare id key would
+                // crash with a duplicate key, exactly like Home in 0.5.5.
+                itemsIndexed(upcoming, key = { pos, song -> queueRowKey(pos, song.id) }) { pos, song ->
                     val absoluteIndex = currentIndex + 1 + pos
                     val isDragged = draggedPos == pos
                     QueueRow(

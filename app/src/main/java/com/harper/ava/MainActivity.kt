@@ -87,10 +87,16 @@ class MainActivity : ComponentActivity() {
             while (!StartupTracer.startupComplete && waited < 30) {
                 delay(2000L)
                 waited += 2
-                StartupTracer.mark(
-                    this@MainActivity,
-                    "watchdog: still waiting for settings.first after ${waited}s",
-                )
+                // 0.5.6: re-check after the sleep — the first sleep ends
+                // AFTER settings.first arrives (0.5.5 marked "still
+                // waiting after 2s" at +2253ms although settings.first
+                // had arrived at +1438ms).
+                if (!StartupTracer.startupComplete) {
+                    StartupTracer.mark(
+                        this@MainActivity,
+                        "watchdog: still waiting for settings.first after ${waited}s",
+                    )
+                }
             }
         }
         StartupTracer.mark(this, "activity.edgeToEdge.begin")

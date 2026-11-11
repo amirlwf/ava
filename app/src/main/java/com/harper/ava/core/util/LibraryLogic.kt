@@ -96,6 +96,31 @@ fun dedupeScannedSongs(raws: List<RawScannedSong>): List<RawScannedSong> {
 }
 
 // ---------------------------------------------------------------------------
+// LazyColumn item keys — unique across the WHOLE list scope, not per section
+// ---------------------------------------------------------------------------
+
+/**
+ * Key for a song inside a named section of one LazyColumn. Home shows the
+ * same song in up to three sections (recently played / recently added /
+ * favorites) inside ONE LazyColumn, so a bare song id collides as soon as
+ * a song is both recently played and recently added — that killed 0.5.5
+ * on the real device (IllegalArgumentException: Key "1000201063" was
+ * already used). Prefixing with the section name makes the same song a
+ * different row in each section.
+ */
+fun homeSectionSongKey(section: String, songId: Long): String = "$section:$songId"
+
+/**
+ * Key for a queue row. A queue may legitimately hold the same song twice
+ * (add-to-queue / play-next / restored checkpoint), so the song id alone
+ * is not a key there either — the position distinguishes the two rows.
+ * Trade-off: a drag-reorder changes the keys, so the moved rows
+ * recompose instead of animating the move (animateItem has nothing
+ * stable to track); the drag itself still works via translationY.
+ */
+fun queueRowKey(position: Int, songId: Long): String = "$position:$songId"
+
+// ---------------------------------------------------------------------------
 // Queue operations (pure list transforms; PlayerRepository mirrors them
 // into ExoPlayer with the same calls)
 // ---------------------------------------------------------------------------

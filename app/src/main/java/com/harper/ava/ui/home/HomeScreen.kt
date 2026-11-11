@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.core.util.homeSectionSongKey
 import com.harper.ava.data.media.AudioPermission
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
@@ -226,7 +227,10 @@ fun HomeScreen(
                 item {
                     SectionTitle(stringResource(R.string.home_recently_played))
                 }
-                items(recentlyPlayed, key = { it.id }) { song ->
+                // 0.5.6: keys are section-prefixed — the same song is in
+                // recentlyPlayed AND recentlyAdded as soon as it is played
+                // once, and a bare id key crashed 0.5.5 (duplicate key).
+                items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
                     HomeSongRow(viewModel, playlists, song, recentlyPlayed, onOpenSongDetails)
                 }
             }
@@ -234,7 +238,7 @@ fun HomeScreen(
                 item {
                     SectionTitle(stringResource(R.string.home_recently_added))
                 }
-                items(recentlyAdded, key = { it.id }) { song ->
+                items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
                     HomeSongRow(viewModel, playlists, song, recentlyAdded, onOpenSongDetails)
                 }
             }
@@ -272,7 +276,7 @@ fun HomeScreen(
                         )
                     }
                 }
-                items(favorites, key = { it.id }) { song ->
+                items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
                     HomeSongRow(viewModel, playlists, song, favorites, onOpenSongDetails)
                 }
             }
@@ -280,7 +284,9 @@ fun HomeScreen(
                 item {
                     SectionTitle(stringResource(R.string.home_your_playlists))
                 }
-                items(playlists, key = { it.id }) { playlist ->
+                // Playlists share this LazyColumn's key namespace with the
+                // song sections above; their ids come from another table.
+                items(playlists, key = { "playlist:${it.id}" }) { playlist ->
                     HomePlaylistRow(playlist, onOpenPlaylist)
                 }
             }

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.core.util.LocaleHelper
 import com.harper.ava.data.preferences.AppLanguage
 
 /**
@@ -72,7 +73,10 @@ fun LanguageScreen(app: AvaApplication, onBack: () -> Unit) {
                 subtitle = stringResource(R.string.language_system_sub),
                 selected = settings.language == AppLanguage.SYSTEM,
                 onClick = {
-                    viewModel.setLanguage(AppLanguage.SYSTEM) { activity?.recreate() }
+                    // 0.5.6: on API 33+ the platform recreates the
+                    // Activity itself for the locale change; an explicit
+                    // recreate() here would restart it a second time.
+                    viewModel.setLanguage(AppLanguage.SYSTEM) { LocaleHelper.recreateForLanguageChange(activity) }
                 },
             )
             SettingsChoiceRow(
@@ -80,7 +84,7 @@ fun LanguageScreen(app: AvaApplication, onBack: () -> Unit) {
                 subtitle = stringResource(R.string.language_fa_sub),
                 selected = settings.language == AppLanguage.FA,
                 onClick = {
-                    viewModel.setLanguage(AppLanguage.FA) { activity?.recreate() }
+                    viewModel.setLanguage(AppLanguage.FA) { LocaleHelper.recreateForLanguageChange(activity) }
                 },
             )
             SettingsChoiceRow(
@@ -88,7 +92,7 @@ fun LanguageScreen(app: AvaApplication, onBack: () -> Unit) {
                 subtitle = stringResource(R.string.language_en_sub),
                 selected = settings.language == AppLanguage.EN,
                 onClick = {
-                    viewModel.setLanguage(AppLanguage.EN) { activity?.recreate() }
+                    viewModel.setLanguage(AppLanguage.EN) { LocaleHelper.recreateForLanguageChange(activity) }
                 },
             )
             SettingsNote(stringResource(R.string.language_note))

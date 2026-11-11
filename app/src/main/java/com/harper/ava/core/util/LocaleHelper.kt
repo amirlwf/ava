@@ -52,4 +52,19 @@ object LocaleHelper {
             LocaleList(locale)
         }
     }
+
+    /**
+     * 0.5.6: on Android 13+ the platform recreates the Activity itself
+     * when [updateSystemAppLocale] sets the per-app locale (MainActivity
+     * declares no `configChanges`), so an explicit `recreate()` restarts
+     * the Activity a SECOND time — the 0.5.5 trace showed two onCreate
+     * pairs 59 ms apart after one language change. Below API 33 the
+     * platform call is a no-op and the manual recreate is the only one
+     * that applies the new language.
+     */
+    fun recreateForLanguageChange(activity: android.app.Activity?) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            activity?.recreate()
+        }
+    }
 }

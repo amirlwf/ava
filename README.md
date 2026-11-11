@@ -28,7 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.5.5](https://github.com/amirlwf/ava/releases/tag/v0.5.5) | [ava-0.5.5-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.5-debug.apk) | 57 MB |
+| [v0.5.6](https://github.com/amirlwf/ava/releases/tag/v0.5.6) | [ava-0.5.6-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.6-debug.apk) | 57 MB |
 
 ## Installation
 
@@ -51,7 +51,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.5.5 fixes the second launch crash.** The 0.5.4 diagnostics captured the exact exception: `NoClassDefFoundError: androidx.collection.OrderedScatterSetKt` — a class Compose needs for its first layout, missing from the hand-built APK because the dependency resolver had pinned the collection library to 1.4.5 (which predates that class) instead of 1.5.0. This build ships collection 1.5.0, and a dex audit now runs as part of every build and fails it if any AndroidX class is missing. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button.
+**0.5.6 fixes the crash when playing a song.** The app now opens (0.5.5 fixed the launch crash), but tapping a song crashed it: Home shows the same song in up to three sections inside one list, and all sections used the bare song id as the list key — as soon as a song was both recently played and recently added, Compose threw a duplicate-key error. This build gives every section its own key prefix, and the queue (which may legitimately hold the same song twice) keys rows by position. Two minor fixes too: the startup watchdog no longer reports a false "still waiting" after settings already arrived, and changing the language no longer restarts the app twice. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button.
 
 ## Contributing
 
