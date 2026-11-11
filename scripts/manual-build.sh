@@ -33,7 +33,12 @@ source "$(dirname "$0")/java-env.sh"
 ROOT="$PWD"
 TOOLS="$ROOT/.build-tools"
 OUT="$ROOT/.build-out"
-DIST="$ROOT/dist/ava-0.5.4-debug.apk"
+# 0.5.5: the version is DERIVED from app/build.gradle.kts (single source
+# of truth). Hardcoding it here mislabeled the first 0.5.4 build as 0.5.3
+# and only the badging check caught it — never hardcode the version again.
+VERSION_CODE="$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts)"
+VERSION_NAME="$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)"
+DIST="$ROOT/dist/ava-${VERSION_NAME}-debug.apk"
 AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
 # d8 8.2.2-dev (build-tools 34.0.0) NPEs on androidx.concurrent:concurrent-futures
 # 1.2.0 (CallbackToFutureAdapter$SafeFuture$1.class) — a genuine d8 bug fixed
@@ -84,7 +89,7 @@ python3 "$(dirname "$0")/merge-resources.py" \
   --apk-out "$OUT/unsigned.apk" \
   --r-out "$OUT/aapt2/r" \
   --aapt2 "$AAPT2" --android-jar "$ANDROID_JAR" \
-  --version-code 9 --version-name 0.5.4
+  --version-code "$VERSION_CODE" --version-name "$VERSION_NAME"
 
 echo "== [2/7] KSP (Room codegen, standalone JVM app) =="
 # KSP 2.x runs as a standalone JVM app, NOT as a kotlinc -Xplugin
@@ -200,3 +205,17 @@ echo "== [7/7] verify =="
 unzip -l "$DIST" | tail -15
 ls -la "$DIST"
 echo "DONE: $DIST"
+
+echo "== [8/8] dex audit (missing-type gate) =="
+# Round-5: the 0.5.4 crash (missing OrderedScatterSetKt) was visible in
+# a dex audit all along, but the audit was a one-off script nobody ran
+# as a gate. scripts/dex-audit.py is now part of the build: exit 2
+# (missing androidx.* type or unresolvable method) fails the build.
+# Exit 1 means only allowlisted/dormant/non-androidx types are missing.
+AUDIT_EXIT=0
+python3 "$(dirname "$0")/dex-audit.py" "$DIST" --quiet || AUDIT_EXIT=$?
+if [ "$AUDIT_EXIT" -eq 2 ]; then
+  echo "DEX AUDIT HARD FAIL — see above; the APK is NOT shippable"
+  exit 1
+fi
+echo "dex audit exit=$AUDIT_EXIT (0 clean, 1 allowlisted-only)"

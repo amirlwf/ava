@@ -45,6 +45,16 @@ DIRECT = [
     # .class files). The Android app needs the -android platform variants.
     ("io.coil-kt.coil3", "coil-compose-android", "3.6.3"),
     ("io.coil-kt.coil3", "coil-android", "3.6.3"),
+    # Round-5 (0.5.5): androidx.collection:collection-jvm pinned to 1.5.0.
+    # compose-ui 1.12.1's android POM declares collection-jvm 1.5.0, but the
+    # resolver's first-seen-wins BFS pinned it to 1.4.5 (from an earlier
+    # transitive edge) — and 1.4.5 has no OrderedScatterSet* (added in
+    # 1.5.0), so the app died with NoClassDefFoundError at the first
+    # SubcomposeLayout. DIRECT entries are processed first, so this wins
+    # the race. (The KMP root artifact `collection` itself resolves to a
+    # shell AAR with no classes.jar — see download_artifact — which is
+    # why the -jvm variant must be pinned explicitly.)
+    ("androidx.collection", "collection-jvm", "1.5.0"),
     ("org.jetbrains.kotlin", "kotlin-stdlib", "2.3.21"),
     ("junit", "junit", "4.13.2"),
 ]
@@ -171,7 +181,16 @@ def resolve(direct):
 
 
 def download_artifact(outdir: str, g: str, a: str, v: str) -> str | None:
-    """Downloads jar (or aar -> extracted classes.jar). Returns jar path or None."""
+    """Downloads jar (or aar -> extracted classes.jar). Returns jar path or None.
+
+    Round-5: an AAR may also carry jars under libs/ (AGP puts those on the
+    app's classpath too). emoji2 1.2.0 hides its flatbuffer classes
+    (MetadataItem/MetadataList) in libs/repackaged.jar — classes.jar alone
+    does not contain them, so they were missing from the dex. Merge every
+    libs/*.jar into the extracted jar (classes.jar wins on collision).
+    NOTE: jars downloaded before this fix are cached by name and are NOT
+    re-extracted — delete a stale jar to force re-extraction.
+    """
     dest = os.path.join(outdir, f"{g}__{a}-{v}")
     if os.path.exists(dest + ".jar"):
         return dest + ".jar"
@@ -191,8 +210,23 @@ def download_artifact(outdir: str, g: str, a: str, v: str) -> str | None:
                     names = z.namelist()
                     if "classes.jar" not in names:
                         return None
-                    with z.open("classes.jar") as src, open(jar, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
+                    written: set[str] = set()
+                    with zipfile.ZipFile(jar, "w", zipfile.ZIP_DEFLATED) as out:
+                        with z.open("classes.jar") as src:
+                            with zipfile.ZipFile(src) as cj:
+                                for n in cj.namelist():
+                                    if n.endswith(".class"):
+                                        out.writestr(n, cj.read(n))
+                                        written.add(n)
+                        for lib in sorted(n for n in names
+                                          if n.startswith("libs/")
+                                          and n.endswith(".jar")):
+                            with z.open(lib) as src:
+                                with zipfile.ZipFile(src) as lj:
+                                    for n in lj.namelist():
+                                        if n.endswith(".class") and n not in written:
+                                            out.writestr(n, lj.read(n))
+                                            written.add(n)
                 os.remove(path)
                 return jar
             return path

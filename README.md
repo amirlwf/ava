@@ -28,7 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.5.4](https://github.com/amirlwf/ava/releases/tag/v0.5.4) | [ava-0.5.4-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.4-debug.apk) | 57 MB |
+| [v0.5.5](https://github.com/amirlwf/ava/releases/tag/v0.5.5) | [ava-0.5.5-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.5-debug.apk) | 57 MB |
 
 ## Installation
 
@@ -51,7 +51,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.5.4 is a diagnostic build for a second launch crash.** 0.5.3 fixed the missing library resource classes, but the app still crashes after `onCreate` and before the settings load — deterministically, on the test device. The exact exception is still unknown: in 0.5.2/0.5.3 the safe-mode screen accidentally deleted the crash log (with the stack trace) when it exported the startup trace to the same file. 0.5.4 fixes the evidence chain: the trace now goes to a separate file (`Downloads/Ava/ava-startup-trace.txt`), the crash log (`Downloads/Ava/ava-crash-log.txt`) is kept, the stack trace is also written into the trace itself, and safe mode shows the last crash log with a share button. DataStore is also hardened (a corrupt settings file can no longer kill the app at startup). If you hit a crash, please share either file — or use the safe-mode "Share crash log" button.
+**0.5.5 fixes the second launch crash.** The 0.5.4 diagnostics captured the exact exception: `NoClassDefFoundError: androidx.collection.OrderedScatterSetKt` — a class Compose needs for its first layout, missing from the hand-built APK because the dependency resolver had pinned the collection library to 1.4.5 (which predates that class) instead of 1.5.0. This build ships collection 1.5.0, and a dex audit now runs as part of every build and fails it if any AndroidX class is missing. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button.
 
 ## Contributing
 
