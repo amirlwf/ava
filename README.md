@@ -28,7 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.5.6](https://github.com/amirlwf/ava/releases/tag/v0.5.6) | [ava-0.5.6-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.6-debug.apk) | 57 MB |
+| [v0.5.7](https://github.com/amirlwf/ava/releases/tag/v0.5.7) | [ava-0.5.7-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.7-debug.apk) | 57 MB |
 
 ## Installation
 
@@ -51,7 +51,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.5.6 fixes the crash when playing a song.** The app now opens (0.5.5 fixed the launch crash), but tapping a song crashed it: Home shows the same song in up to three sections inside one list, and all sections used the bare song id as the list key — as soon as a song was both recently played and recently added, Compose threw a duplicate-key error. This build gives every section its own key prefix, and the queue (which may legitimately hold the same song twice) keys rows by position. Two minor fixes too: the startup watchdog no longer reports a false "still waiting" after settings already arrived, and changing the language no longer restarts the app twice. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button.
+**0.5.7 fixes the crash when playing a song again.** The app now opens and plays (0.5.5 fixed the launch crash, 0.5.6 the duplicate-key crash), but tapping another song mid-listening crashed it outside the app — and no playback notification ever appeared. The cause: the MediaSession was never registered with the playback service, so Media3 never built the media notification and never called `startForeground()`. This build registers the session (so the notification with play/pause/next/prev controls appears in the shade and on the lock screen) and foregrounds the service immediately on every start. Two minor fixes too: every path that starts playback now (re)starts the service (after a pause it was demoted), and restoring the saved queue no longer re-runs on every screen rotation/language change. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button.
 
 ## Contributing
 

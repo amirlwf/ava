@@ -331,6 +331,20 @@ class PlayerRepository(
         StartupTracer.mark(appContext, "player.constructor.done")
     }
 
+    /**
+     * (Re)starts the playback service so every playback start gets a
+     * fresh foreground start. 0.5.7: the service foregrounds itself
+     * synchronously in onStartCommand, so this is cheap and idempotent
+     * — but it must be called from EVERY path that starts playback
+     * (playSongs, playQueueItem, togglePlayPause), not just playSongs:
+     * after a pause Media3 demotes the service, and a later play from
+     * the Mini Player or the queue would otherwise start playback
+     * with no service at all.
+     */
+    private fun ensurePlaybackService() {
+        appContext.startForegroundService(Intent(appContext, AvaPlaybackService::class.java))
+    }
+
     fun playSongs(songs: List<Song>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
         val index = startIndex.coerceIn(0, songs.lastIndex)
@@ -342,7 +356,7 @@ class PlayerRepository(
         if (fadeEnabled) fadeVolumeTo(1f, 700L)
         // Bring up the MediaSessionService so playback survives the UI and
         // the system (notification / lock screen / headset) can control it.
-        appContext.startForegroundService(Intent(appContext, AvaPlaybackService::class.java))
+        ensurePlaybackService()
         _state.update {
             it.copy(queue = songs, queueIndex = index, currentSong = songs[index])
         }
@@ -409,6 +423,7 @@ class PlayerRepository(
         if (index !in _state.value.queue.indices) return
         player.seekTo(index, 0L)
         player.play()
+        ensurePlaybackService()
         saveCheckpoint()
     }
 
@@ -539,6 +554,11 @@ class PlayerRepository(
                 saveCheckpoint()
             }
         } else {
+            // 0.5.7: play from the Mini Player / Now Playing must also
+            // (re)start the service — after a pause Media3 demotes it,
+            // and playing without a service leaves playback with no
+            // foreground service and no notification.
+            ensurePlaybackService()
             if (fadeEnabled) {
                 player.volume = 0f
                 player.play()

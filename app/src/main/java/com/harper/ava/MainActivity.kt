@@ -52,6 +52,15 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Marks the first composition entry exactly once per process. */
         private val compositionEntryMarked = AtomicBoolean(false)
+
+        /**
+         * 0.5.7: the resume-restore below must run once per process.
+         * LaunchedEffect(Unit) re-runs on every Activity recreate (e.g.
+         * language change), and re-preparing the queue then clobbers the
+         * currently playing queue/position and forces a buffering window
+         * that can demote the foreground service.
+         */
+        private val resumeRestored = AtomicBoolean(false)
     }
 
     /**
@@ -138,6 +147,8 @@ class MainActivity : ComponentActivity() {
             // (no autoplay). Runs once per process. Songs deleted since
             // the checkpoint are dropped and the index is clamped.
             LaunchedEffect(Unit) {
+                // 0.5.7: restore once per process (see resumeRestored).
+                if (!resumeRestored.compareAndSet(false, true)) return@LaunchedEffect
                 // 0.5.2: settings arrived and the first screen composed —
                 // startup succeeded; clear the crash flag for next launch.
                 StartupTracer.mark(this@MainActivity, "activity.settings.first")

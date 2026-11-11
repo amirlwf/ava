@@ -66,6 +66,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/SettingsLogicTest.kt \
   app/src/test/java/com/harper/ava/LyricsLogicTest.kt \
   app/src/test/java/com/harper/ava/ListKeyTest.kt \
+  app/src/test/java/com/harper/ava/PlaybackServiceTest.kt \
   app/src/test/java/com/harper/ava/SleepTimerLogicTest.kt \
   app/src/test/java/com/harper/ava/SearchHistoryLogicTest.kt \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
@@ -77,5 +78,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.SettingsLogicTest \
   com.harper.ava.LyricsLogicTest \
   com.harper.ava.ListKeyTest \
+  com.harper.ava.PlaybackServiceTest \
   com.harper.ava.SleepTimerLogicTest \
   com.harper.ava.SearchHistoryLogicTest 2>&1 | tail -5
