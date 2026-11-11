@@ -13,8 +13,8 @@ effects, adaptive color. Original — not a Spotify/Apple Music copy.
 
 - **Background (dark):** charcoal `#12121A` (not pure black — keeps
   elevation visible). **AMOLED:** true black `#000000`.
-- **Surface (dark):** `#1C1C28`; surface variant `#262636`.
-- **Light:** background `#FAFAFC`, surface white, variant `#F0F0F5`.
+- **Surface (dark):** `#1C1C28`; surface variant `#282838` (0.6.0: a touch softer).
+- **Light:** background `#FAFAFC`, surface white, variant `#F4F4F9` (0.6.0: a touch softer).
 - **Text:** dark `onBackground #F4F4F8`, `onSurfaceVariant #9C9CAD`;
   light `onBackground #17171C`, `onSurfaceVariant #5F5F6E`.
 - **Accent (default Violet `#7C5CFF`):** 7 palettes, each with
@@ -35,30 +35,39 @@ ellipsize at 1 line; nothing overflows.
 
 ## Tokens (`AvaTokens`)
 
-- Spacing on a 4dp grid: 2 / 4 / 8 / 12 / 16 / 20 / 24 / 32 / 48 / 64.
-- Radii: small 8, medium 12, large 16, extra-large 24, full 100.
-- Sizes: song row 64dp, queue row 72dp (fixed — the drag math relies
-  on it), cover small 48dp / medium 56dp, Now Playing cover 300dp,
-  mini player 64dp, empty-state icon disc 96dp, min touch target 48dp.
+- Spacing on a 4dp grid: 2 / 4 / 6 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 (6dp is for tight title/subtitle gaps).
+- Radii (0.6.0, one step rounder): small 12, medium 16, large 20, extra-large 28, full 100.
+- Soft elevation: `elevationSoft` 8dp (floating mini-player pill), `elevationLifted` 16dp (Now Playing cover).
+- Sizes: song row 68dp, queue row 72dp (fixed — the drag math relies
+  on it), cover small 52dp / medium 60dp, Now Playing cover 300dp,
+  mini player 72dp (floating pill), mini-player play button 48dp,
+  Now Playing play button 76dp, empty-state icon disc 96dp, min touch target 48dp.
 
 ## Components
 
 - **EmptyState** — radial-gradient accent disc (96dp) + icon, title,
   body, optional honest note. Shared by Home / Library / Search /
   Playlists; emptiness never looks like a blank page.
-- **SongRow** — 48dp cover (Coil artwork or tonal placeholder with a
-  music note), title + `artist • duration`, favorite toggle.
-  64dp tall, 12dp radius, 12dp horizontal padding.
-- **MiniPlayer** — surface-container-high strip above the bottom bar:
-  44dp cover, title/artist, play-pause + next, thin linear progress.
-  Shown only while a song is loaded. Tapping the song info opens Now
-  Playing; hidden on the Now Playing / Queue routes.
+- **SongRow** — 52dp cover (Coil artwork or tonal placeholder with a
+  music note), title + `artist • duration` with a 2dp gap between the
+  lines, favorite toggle.
+  68dp tall, 16dp radius, 12dp horizontal padding (0.6.0).
+- **MiniPlayer** — a floating pill above the bottom bar (0.6.0): 28dp
+  corners, 8dp soft shadow, 12dp side margins, `surfaceContainer`
+  fill; 52dp cover with 16dp corners, SemiBold title over a quieter
+  artist line, a filled primary play circle (48dp) + quiet next
+  button, and an inset 4dp round-ended progress line. Shown only
+  while a song is loaded. Tapping the song info opens Now Playing;
+  hidden on the Now Playing / Queue routes.
 - **Now Playing** — full-screen: cover art heavily blurred as the
   adaptive background under a dark scrim (accent gradient fallback
   when there is no art), 300dp cover with a fade+scale track-change
-  animation, title/artist/album, seekbar with elapsed/remaining,
-  72dp primary play/pause button, shuffle/repeat/favorite/speed/queue
-  controls. Cover art that fails to load falls back to the music-note
+  animation and a soft 16dp lift, title/artist/album in a clear
+  headline → medium → small hierarchy, themed seekbar with
+  elapsed/remaining,
+  76dp primary play/pause button flanked by skip buttons on soft
+  tonal discs, shuffle/repeat/favorite/speed/queue
+  controls (favorite gets a soft tonal disc when active). Cover art that fails to load falls back to the music-note
   placeholder (same rule as SongRow / MiniPlayer / Queue rows).
 - **Queue rows** — fixed 72dp rows: cover, title, artist • duration,
   equalizer icon on the playing song, drag handle (long-press to

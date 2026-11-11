@@ -9,9 +9,23 @@ import androidx.compose.ui.unit.sp
 import com.harper.ava.R
 
 /**
- * Vazirmatn (SIL OFL 1.1) is the single typeface for both Persian and Latin
- * text, so fa/en render with one consistent voice. Weights shipped:
- * Regular 400, Medium 500, SemiBold 600, Bold 700.
+ * Two typefaces, both SIL OFL 1.1 (free for commercial use and app
+ * embedding; licences in `assets/OFL.txt` and `assets/OFL-lalezar.txt`):
+ *
+ * - Vazirmatn is the body / UI face: every body, label and title style
+ *   below, so fa/en render with one consistent voice. Weights shipped:
+ *   Regular 400, Medium 500, SemiBold 600, Bold 700.
+ * - Lalezar (لاله‌زار, single weight 400, display font) is the display
+ *   face: displayLarge / headlineMedium / headlineSmall — big titles,
+ *   the app name and section headers, where the character lives.
+ *   Lalezar covers Latin fully (52/52) so Latin headlines need no
+ *   fallback; being single-weight, headline hierarchy comes from size,
+ *   not weight — all three display styles use FontWeight.Normal.
+ *
+ * Manshoor was deliberately NOT bundled: it is a paid commercial font
+ * and the user has not bought it. Dana is out as well. The Manshoor
+ * package stays parked untouched in `fonts/manshoor/` for a possible
+ * later decision.
  */
 val Vazirmatn = FontFamily(
     Font(R.font.vazirmatn_regular, FontWeight.Normal),
@@ -20,22 +34,26 @@ val Vazirmatn = FontFamily(
     Font(R.font.vazirmatn_bold, FontWeight.Bold),
 )
 
+val Lalezar = FontFamily(
+    Font(R.font.lalezar_regular, FontWeight.Normal),
+)
+
 val AvaTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = Vazirmatn,
-        fontWeight = FontWeight.Bold,
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
         lineHeight = 40.sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = Vazirmatn,
-        fontWeight = FontWeight.Bold,
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
         fontSize = 24.sp,
         lineHeight = 32.sp,
     ),
     headlineSmall = TextStyle(
-        fontFamily = Vazirmatn,
-        fontWeight = FontWeight.SemiBold,
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
         fontSize = 20.sp,
         lineHeight = 28.sp,
     ),

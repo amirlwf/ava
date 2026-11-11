@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Ava play action: a softly rounded triangle (the 0.6.0 rounder
+         language, at notification size). Notification action icons are
+         tinted by the system, so white fill. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M8,7.6Q8,5.9 9.5,6.7L16.7,11Q18.3,12 16.7,13L9.5,17.3Q8,18.1 8,16.4Z" />
+</vector>

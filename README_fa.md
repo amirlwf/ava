@@ -28,7 +28,8 @@
 
 | نسخه | فایل | حجم |
 | ---- | ---- | --- |
-| [v0.5.7](https://github.com/amirlwf/ava/releases/tag/v0.5.7) | [ava-0.5.7-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.5.7-debug.apk) | ۵۷ مگابایت |
+| [v0.6.0](https://github.com/amirlwf/ava/releases/tag/v0.6.0) | [ava-0.6.0-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.6.0-debug.apk) | ۵۷ مگابایت |
+| [v0.5.7](https://github.com/amirlwf/ava/releases/tag/v0.5.7) | [ava-0.5.7-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.5.7/ava-0.5.7-debug.apk) | ۵۷ مگابایت |
 
 ## نصب
 
@@ -51,7 +52,7 @@
 
 ## وضعیت پروژه
 
-**نسخه ۰٫۵٫۷ کرش موقع پخش دوبارهٔ آهنگ را رفع می‌کند.** برنامه حالا باز می‌شود و پخش می‌کند (۰٫۵٫۵ کرش موقع باز شدن و ۰٫۵٫۶ کرش کلید تکراری را رفع کردند)، ولی با زدن روی یک آهنگ دیگر وسط گوش دادن، بیرون از اپ کرش می‌کرد — و هیچ نوتیفیکیشن پخشی هم ظاهر نمی‌شد. علت: MediaSession هرگز به سرویس پخش ثبت نشده بود، پس Media3 هیچ‌وقت نوتیفیکیشن مدیا نساخت و `startForeground()` را صدا نزد. این نسخه سشن را ثبت می‌کند (پس نوتیفیکیشن با دکمه‌های پخش/توقف/بعدی/قبلی در نوار اعلان و روی صفحه قفل می‌آید) و سرویس را در هر استارت فوراً به حالت foreground می‌برد. دو اصلاح کوچک هم هست: هر مسیری که پخش را شروع می‌کند حالا سرویس را (دوباره) استارت می‌کند (بعد از توقف، سرویس تنزل پیدا کرده بود)، و برگرداندن صف ذخیره‌شده دیگر با هر چرخش صفحه یا تغییر زبان دوباره اجرا نمی‌شود. همچنان یک نسخه تشخیصی است: اگر به کرش خوردید، لطفاً فایل `Downloads/Ava/ava-crash-log.txt` یا `Downloads/Ava/ava-startup-trace.txt` را بفرستید — یا از دکمه «اشتراک‌گذاری لاگ کرش» در حالت امن استفاده کنید.
+**نسخه ۰٫۶٫۰ دور دیزاین است.** رابط کاربری مینیمال و cute شد (MiniPlayer، صفحه در حال پخش، ردیف آهنگ‌ها، خانه و کتابخانه بازطراحی شدند، با توکن‌ها و رنگ‌های ملایم‌تر)، و به‌جای نوتیفیکیشن آمادهٔ Media3، نوتیفیکیشن اختصاصی خود آوا آمد — آیکون آوا، دکمه‌های پخش/توقف/قبلی/بعدی مخصوص آوا و رنگ اکسنت. این نسخه روی اصلاح سرویس پخش ۰٫۵٫۷ سوار است (سشن ثبت می‌شود، نوتیفیکیشن می‌آید، سرویس فوراً foreground می‌شود). **فونت‌ها: وزیرمتن فونت بدنه و رابط کاربری می‌ماند و لاله‌زار به‌عنوان فونت نمایشی اضافه شد** (تیترهای بزرگ، نام اپ، سرتیتر بخش‌ها) — هر دو رایگان با لایسنس SIL Open Font License. منشور آماده شده بود ولی عمداً باندل نشد: فونت تجاری پولی است و خریده نشده؛ دانا هم بیرون است. همچنان یک نسخه تشخیصی است: اگر به کرش خوردید، لطفاً فایل `Downloads/Ava/ava-crash-log.txt` یا `Downloads/Ava/ava-startup-trace.txt` را بفرستید — یا از دکمه «اشتراک‌گذاری لاگ کرش» در حالت امن استفاده کنید. این بیلد هنوز روی دستگاه واقعی تست نشده است.
 
 ## مشارکت
 
@@ -62,7 +63,8 @@
 - [Media3 / ExoPlayer](https://developer.android.com/media/media3) برای پخش
 - [Jetpack Compose](https://developer.android.com/jetpack/compose) و [Room](https://developer.android.com/training/data-storage/room) برای رابط کاربری و لایه داده
 - فونت [Vazirmatn](https://github.com/rastikerdar/vazirmatn) با لایسنس SIL Open Font License
+- فونت [Lalezar](https://github.com/BornaIz/Lalezar) با لایسنس SIL Open Font License
 
 ## لایسنس
 
-سورس کد همان‌طور که هست، برای استفاده شخصی ارائه می‌شود. فونت Vazirmatn تحت لایسنس SIL Open Font License است.
+سورس کد همان‌طور که هست، برای استفاده شخصی ارائه می‌شود. فونت‌های Vazirmatn و Lalezar تحت لایسنس SIL Open Font License هستند.

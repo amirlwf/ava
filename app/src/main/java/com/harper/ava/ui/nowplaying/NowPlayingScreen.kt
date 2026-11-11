@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -256,7 +257,7 @@ fun NowPlayingScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
-            Spacer(modifier = Modifier.height(AvaTokens.space16))
+            Spacer(modifier = Modifier.height(AvaTokens.space20))
 
             // Cover + titles animate softly when the track changes.
             AnimatedContent(
@@ -266,10 +267,12 @@ fun NowPlayingScreen(
             ) { current ->
                 // Stage 6: a soft shadow lifts the cover off the blurred
                 // background (premium depth instead of a flat tile).
+                // 0.6.0: the cover is rounder (28dp via the token) and the
+                // lift is the shared soft elevation, not a hard 16dp drop.
                 Box(
                     modifier = Modifier
                         .size(coverSize)
-                        .shadow(16.dp, RoundedCornerShape(AvaTokens.radiusExtraLarge))
+                        .shadow(AvaTokens.elevationLifted, RoundedCornerShape(AvaTokens.radiusExtraLarge))
                         .clip(RoundedCornerShape(AvaTokens.radiusExtraLarge))
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
@@ -293,6 +296,9 @@ fun NowPlayingScreen(
                 }
             }
             Spacer(modifier = Modifier.height(AvaTokens.space24))
+            // 0.6.0: clear hierarchy — headline title, medium artist,
+            // small quiet album — with a breath between the lines instead
+            // of three same-weight lines stacked tight.
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.headlineSmall,
@@ -302,6 +308,7 @@ fun NowPlayingScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(modifier = Modifier.height(AvaTokens.space4))
             Text(
                 text = artist,
                 style = MaterialTheme.typography.titleMedium,
@@ -312,9 +319,10 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             if (song.album.isNotBlank()) {
+                Spacer(modifier = Modifier.height(AvaTokens.space2))
                 Text(
                     text = song.album,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -336,6 +344,11 @@ fun NowPlayingScreen(
                 },
                 valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
                 modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                ),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -354,6 +367,10 @@ fun NowPlayingScreen(
             }
             Spacer(modifier = Modifier.height(AvaTokens.space8))
 
+            // 0.6.0: skip buttons sit on soft tonal discs (48dp) so the
+            // row reads as three friendly pills around one hero button,
+            // not five bare icons floating in space. Shuffle/repeat stay
+            // bare — their color already says whether they are on.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -367,17 +384,22 @@ fun NowPlayingScreen(
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { viewModel.playPrevious() }) {
+                IconButton(
+                    onClick = { viewModel.playPrevious() },
+                    modifier = Modifier
+                        .size(AvaTokens.touchTargetMin)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                ) {
                     Icon(
                         imageVector = Icons.Filled.SkipPrevious,
                         contentDescription = stringResource(R.string.player_previous),
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(32.dp),
                     )
                 }
                 IconButton(
                     onClick = { viewModel.togglePlayPause() },
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(AvaTokens.nowPlayingPlaySize)
                         .background(MaterialTheme.colorScheme.primary, CircleShape),
                 ) {
                     Icon(
@@ -386,14 +408,19 @@ fun NowPlayingScreen(
                             if (state.isPlaying) R.string.player_pause else R.string.player_play,
                         ),
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(40.dp),
                     )
                 }
-                IconButton(onClick = { viewModel.playNext() }) {
+                IconButton(
+                    onClick = { viewModel.playNext() },
+                    modifier = Modifier
+                        .size(AvaTokens.touchTargetMin)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
                         contentDescription = stringResource(R.string.player_next),
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(32.dp),
                     )
                 }
                 IconButton(onClick = { viewModel.cycleRepeatMode() }) {
@@ -418,13 +445,28 @@ fun NowPlayingScreen(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(AvaTokens.space8))
+            Spacer(modifier = Modifier.height(AvaTokens.space12))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { viewModel.toggleFavorite() }) {
+                // 0.6.0: a favorited song gets a soft tonal disc behind the
+                // heart, so the state is visible at a glance, not only by
+                // the icon's fill/color.
+                IconButton(
+                    onClick = { viewModel.toggleFavorite() },
+                    modifier = Modifier
+                        .size(AvaTokens.touchTargetMin)
+                        .background(
+                            if (isFavorite) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            } else {
+                                Color.Transparent
+                            },
+                            CircleShape,
+                        ),
+                ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = stringResource(

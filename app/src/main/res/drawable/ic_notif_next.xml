@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Ava next action: a softly rounded right-pointing triangle plus a
+         rounded bar. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6.5,8.1Q6.5,6.5 8,7.3L13.4,11.2Q14.8,12 13.4,12.8L8,16.7Q6.5,17.5 6.5,15.9Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M17.7,6.5H17.8Q19,6.5 19,7.7V16.3Q19,17.5 17.8,17.5H17.7Q16.5,17.5 16.5,16.3V7.7Q16.5,6.5 17.7,6.5Z" />
+</vector>

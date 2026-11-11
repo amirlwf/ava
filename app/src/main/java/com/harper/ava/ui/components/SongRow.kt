@@ -2,6 +2,7 @@ package com.harper.ava.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -105,7 +106,13 @@ fun SongRow(
             }
         }
         Spacer(modifier = Modifier.width(AvaTokens.space12))
-        Column(modifier = Modifier.weight(1f)) {
+        // 0.6.0: rounder cover (16dp via the token), a breath between
+        // title and artist • duration, and a slightly taller row (68dp)
+        // so the 52dp cover is not squeezed. Same taps, same menu.
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AvaTokens.space2),
+        ) {
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.titleMedium,

@@ -2,6 +2,7 @@ package com.harper.ava.ui.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -442,7 +443,12 @@ private fun GroupRow(
             }
         }
         Spacer(modifier = Modifier.width(AvaTokens.space12))
-        Column(modifier = Modifier.weight(1f)) {
+        // 0.6.0: same soft language as SongRow — rounder cover (16dp via
+        // the token), taller row (68dp), a breath between name/subtitle.
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AvaTokens.space2),
+        ) {
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,

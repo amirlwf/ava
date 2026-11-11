@@ -16,3 +16,7 @@ app/build/
 .build-tools/
 .build-out/
 dist/
+
+# Unlicensed commercial fonts — never track or push (Manshoor: paid, not bought; Dana: per-product licence, no code)
+fonts/dana/
+fonts/manshoor/

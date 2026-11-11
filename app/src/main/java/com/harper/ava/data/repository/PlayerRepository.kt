@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.harper.ava.core.util.SLEEP_TIMER_FADE_MS
 import com.harper.ava.core.util.SleepTimerState
 import com.harper.ava.core.util.StartupTracer
+import com.harper.ava.core.util.needsPlayerRebuild
 import com.harper.ava.core.util.restoreSleepTimerMinutes
 import com.harper.ava.core.util.insertPlayNext
 import com.harper.ava.core.util.moveItem
@@ -418,9 +419,30 @@ class PlayerRepository(
     // disagree about the order.
     // ------------------------------------------------------------------
 
+    /**
+     * Rebuilds the player's playlist from the repository state after the
+     * player was reset (round 8). ExoPlayer.stop() leaves the player
+     * IDLE with no current media item, and the playback service used to
+     * call stop() in onDestroy — the service is destroyed when the user
+     * dismisses the media notification, so after a dismiss the queue,
+     * the index and the position still lived here while the player had
+     * nothing to play, and play() was a silent no-op until a new song
+     * was picked. No-op when the player is healthy (items present and
+     * not idle), so normal playback never pays for it.
+     */
+    private fun ensurePlayable() {
+        val current = _state.value
+        if (!needsPlayerRebuild(player.mediaItemCount, player.playbackState == Player.STATE_IDLE, current.queue.size)) return
+        val index = current.queueIndex.coerceIn(0, current.queue.lastIndex)
+        val position = current.positionMs.coerceAtLeast(0L)
+        player.setMediaItems(current.queue.map { it.toMediaItem() }, index, position)
+        player.prepare()
+    }
+
     /** Jumps to a queue item and starts it. */
     fun playQueueItem(index: Int) {
         if (index !in _state.value.queue.indices) return
+        ensurePlayable()
         player.seekTo(index, 0L)
         player.play()
         ensurePlaybackService()
@@ -554,6 +576,10 @@ class PlayerRepository(
                 saveCheckpoint()
             }
         } else {
+            // Round 8: the player may have been reset (service destroyed
+            // on notification dismiss) — rebuild it from the saved queue
+            // first, or play() below is a silent no-op.
+            ensurePlayable()
             // 0.5.7: play from the Mini Player / Now Playing must also
             // (re)start the service — after a pause Media3 demotes it,
             // and playing without a service leaves playback with no
@@ -570,14 +596,19 @@ class PlayerRepository(
     }
 
     fun playNext() {
+        ensurePlayable()
         if (player.hasNextMediaItem()) player.seekToNextMediaItem()
     }
 
     fun playPrevious() {
+        ensurePlayable()
         if (player.hasPreviousMediaItem()) player.seekToPreviousMediaItem()
     }
 
     fun seekTo(positionMs: Long) {
+        // Round 8: rebuild first — on a reset player this seek (and the
+        // position update below) would silently do nothing.
+        ensurePlayable()
         // Stage 6: an unknown duration used to clamp every seek to 0
         // (duration TIME_UNSET -> max 0), so the seekbar was dead on files
         // whose duration ExoPlayer had not resolved yet. ExoPlayer clamps
@@ -589,7 +620,11 @@ class PlayerRepository(
             positionMs.coerceAtLeast(0L)
         }
         player.seekTo(target)
-        _state.update { it.copy(positionMs = player.currentPosition) }
+        // After a rebuild the player is still preparing, so
+        // currentPosition reads 0 even though the seek will land at
+        // target — keep the requested target instead of clobbering the
+        // resume position with 0.
+        _state.update { it.copy(positionMs = player.currentPosition.takeIf { it > 0L } ?: target) }
     }
 
     fun toggleShuffle() {
@@ -670,6 +705,15 @@ class PlayerRepository(
         val queueIds = _state.value.queue.map { it.id }
         val queueIndex = _state.value.queueIndex.coerceAtLeast(0)
         scope.launch { prefs.setLastPlayback(song.id, position, queueIds, queueIndex) }
+    }
+
+    /**
+     * Persists the resume checkpoint now. The playback service calls
+     * this in onDestroy (round 8): the position is still valid there,
+     * and the next in-app play rebuilds from it.
+     */
+    fun saveCheckpointNow() {
+        saveCheckpoint()
     }
 
     fun release() {

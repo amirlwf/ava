@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -34,8 +36,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -47,6 +51,15 @@ import com.harper.ava.ui.theme.AvaTokens
  * Mini player shown above the bottom bar whenever something is loaded in the
  * player. Play/pause and next are fully wired to the PlayerRepository, and
  * tapping the song info opens the full Now Playing screen.
+ *
+ * 0.6.0 design round: the old full-width flat strip is now a floating
+ * pill — rounded (28dp), softly lifted (8dp shadow), with breathing
+ * room around it. The cover is bigger (52dp) with a soft 16dp radius,
+ * the title is SemiBold over a quieter artist line, and play/pause is
+ * a filled primary circle (48dp) so the one control people reach for
+ * is unmistakable. The progress line is inset, thin and round-ended.
+ * Nothing was removed: same callbacks, same tap-to-open, same
+ * cross-fade on track change.
  */
 @Composable
 fun MiniPlayer(
@@ -63,14 +76,23 @@ fun MiniPlayer(
     } else {
         0f
     }
+    val pillShape = RoundedCornerShape(AvaTokens.radiusExtraLarge)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            // Floating pill: air around it, a soft shadow, no hard edge.
+            .padding(
+                horizontal = AvaTokens.space12,
+                vertical = AvaTokens.space8,
+            )
+            .shadow(AvaTokens.elevationSoft, pillShape)
+            .clip(pillShape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(
                 start = AvaTokens.space12,
-                end = AvaTokens.space8,
+                end = AvaTokens.space6,
                 top = AvaTokens.space8,
+                bottom = AvaTokens.space8,
             ),
     ) {
         // Stage 6: the whole row opens Now Playing (the cover used to be a
@@ -88,8 +110,8 @@ fun MiniPlayer(
             ) { current ->
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(AvaTokens.radiusSmall))
+                        .size(AvaTokens.coverSmall)
+                        .clip(RoundedCornerShape(AvaTokens.radiusMedium))
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -99,14 +121,14 @@ fun MiniPlayer(
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             onError = { artFailed = true },
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier.size(AvaTokens.coverSmall),
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Filled.MusicNote,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                 }
@@ -118,10 +140,12 @@ fun MiniPlayer(
                 label = "mini-player-titles",
                 modifier = Modifier.weight(1f),
             ) { current ->
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(AvaTokens.space2)) {
                     Text(
                         text = current.title,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -137,30 +161,48 @@ fun MiniPlayer(
                     )
                 }
             }
-            IconButton(onClick = onTogglePlayPause) {
+            // The hero control: a filled primary circle, big enough to
+            // hit without looking. Next stays a quiet ghost button.
+            IconButton(
+                onClick = onTogglePlayPause,
+                modifier = Modifier
+                    .size(AvaTokens.miniPlayerPlaySize)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+            ) {
                 Icon(
                     imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = stringResource(
                         if (state.isPlaying) R.string.player_pause else R.string.player_play,
                     ),
-                    tint = MaterialTheme.colorScheme.onSurface,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(28.dp),
                 )
             }
-            IconButton(onClick = onNext) {
+            Spacer(modifier = Modifier.width(AvaTokens.space4))
+            IconButton(
+                onClick = onNext,
+                modifier = Modifier.size(AvaTokens.touchTargetMin),
+            ) {
                 Icon(
                     imageVector = Icons.Filled.SkipNext,
                     contentDescription = stringResource(R.string.player_next),
                     tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
         Spacer(modifier = Modifier.height(AvaTokens.space8))
+        // Inset, thin, round-ended progress — a quiet line, not a bar
+        // slammed against the pill's edge.
         LinearProgressIndicator(
             progress = { progress },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AvaTokens.space4)
+                .height(4.dp)
+                .clip(RoundedCornerShape(AvaTokens.radiusFull)),
             color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
         )
     }
 }

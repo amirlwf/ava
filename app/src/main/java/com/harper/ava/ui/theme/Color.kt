@@ -90,12 +90,20 @@ fun accentPalette(accent: Accent): AccentPalette = when (accent) {
     )
 }
 
-/** Surfaces for the three dark-ish appearances and light mode. */
+/** Surfaces for the three dark-ish appearances and light mode.
+ *
+ * 0.6.0 design round: the variants are a touch lighter/softer than
+ * before (dark `#262636` -> `#282838`, light `#F0F0F5` -> `#F4F4F9`)
+ * so tonal surfaces — covers, pills, the mini player — feel soft
+ * rather than flat grey. Backgrounds, text colors and all 7 accent
+ * palettes are unchanged, so contrast and every theme mode behave
+ * exactly as before.
+ */
 object AvaSurfaces {
     // Dark (charcoal, not pure black — keeps depth and elevation visible)
     val darkBackground = Color(0xFF12121A)
     val darkSurface = Color(0xFF1C1C28)
-    val darkSurfaceVariant = Color(0xFF262636)
+    val darkSurfaceVariant = Color(0xFF282838)
     val darkOnBackground = Color(0xFFF4F4F8)
     val darkOnSurface = Color(0xFFE8E8F0)
     val darkOnSurfaceVariant = Color(0xFF9C9CAD)
@@ -108,7 +116,7 @@ object AvaSurfaces {
     // Light
     val lightBackground = Color(0xFFFAFAFC)
     val lightSurface = Color.White
-    val lightSurfaceVariant = Color(0xFFF0F0F5)
+    val lightSurfaceVariant = Color(0xFFF4F4F9)
     val lightOnBackground = Color(0xFF17171C)
     val lightOnSurface = Color(0xFF1E1E26)
     val lightOnSurfaceVariant = Color(0xFF5F5F6E)

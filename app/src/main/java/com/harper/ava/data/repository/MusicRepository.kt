@@ -188,8 +188,19 @@ class MusicRepository(private val db: AppDatabase) {
         }
     }
 
+    /**
+     * Flips a song's favorite state. Round 8: the decision is read from
+     * the database, never from [Song.isFavorite].
+     *
+     * The Song handed to the toggle is a snapshot: in Now Playing it
+     * comes from the player's queue, which is built at play time and
+     * never refreshed with favorite state — so `isFavorite` was always
+     * false there, the toggle always inserted (IGNORE on conflict), and
+     * a like could never be removed. Lists were unaffected because
+     * their flows re-emit fresh Song objects after every change.
+     */
     suspend fun toggleFavorite(song: Song) {
-        if (song.isFavorite) {
+        if (db.favoriteDao().isFavorite(song.id)) {
             db.favoriteDao().remove(song.id)
         } else {
             db.favoriteDao().add(FavoriteEntity(songId = song.id, addedAtMs = System.currentTimeMillis()))

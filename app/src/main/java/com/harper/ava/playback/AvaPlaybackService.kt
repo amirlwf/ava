@@ -15,6 +15,10 @@ import androidx.media3.session.MediaSessionService
 import com.harper.ava.AvaApplication
 import com.harper.ava.MainActivity
 import com.harper.ava.R
+import com.harper.ava.data.preferences.Accent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Background playback service (Media3 MediaSessionService).
@@ -40,6 +44,13 @@ import com.harper.ava.R
  * synchronously in onStartCommand() with a placeholder notification,
  * so the timeout is satisfied on every start even before Media3's
  * async notification arrives.
+ *
+ * 0.6.0 — the notification itself is Ava's own now, not the stock
+ * Media3 one: [AvaMediaNotificationProvider] is wired in below via
+ * `setMediaNotificationProvider()` before `addSession()`. Only the
+ * look changed (Ava small icon, Ava action drawables, accent colour,
+ * channel name, artist/album fallback); the lifecycle above is
+ * untouched.
  */
 class AvaPlaybackService : MediaSessionService() {
 
@@ -58,9 +69,21 @@ class AvaPlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
+    /**
+     * Accent colour for the notification (placeholder + Media3 media
+     * notification), resolved once in [onCreate] from the user's theme.
+     */
+    private var accentColorArgb: Int = notificationAccentArgb(Accent.VIOLET, null)
+
     override fun onCreate() {
         super.onCreate()
         val app = application as AvaApplication
+        // 0.6.0: Ava's own notification look (see
+        // AvaMediaNotificationProvider). Wired in BEFORE addSession() so
+        // the manager uses it from the first notification; lifecycle and
+        // playback behaviour are untouched.
+        accentColorArgb = resolveNotificationAccent(app)
+        setMediaNotificationProvider(AvaMediaNotificationProvider(this, accentColorArgb))
         val player = app.container.playerRepository.player
         val sessionActivity = PendingIntent.getActivity(
             this,
@@ -91,18 +114,43 @@ class AvaPlaybackService : MediaSessionService() {
     }
 
     /**
+     * Reads the user's accent for the notification colour. DataStore has
+     * no synchronous read; the value is normally already loaded (the app
+     * container read it at startup), so this is a fast cached read, capped
+     * at 500 ms with a Violet fallback. A changed accent is picked up on
+     * the next service creation. Never throws (safe mode: the container
+     * is not initialised yet).
+     */
+    private fun resolveNotificationAccent(app: AvaApplication): Int {
+        val settings = runCatching {
+            runBlocking {
+                withTimeoutOrNull(500) { app.container.userPreferences.settings.first() }
+            }
+        }.getOrNull()
+        return settings?.let { notificationAccentArgb(it.accent, it.customAccentArgb) }
+            ?: notificationAccentArgb(Accent.VIOLET, null)
+    }
+
+    /**
      * Posts a minimal placeholder notification and promotes the service
      * to the foreground right now. Media3 replaces this notification
      * (same id) with the real media notification once playback starts,
      * and demotes the service (stopForeground, notification kept) when
      * playback pauses — the standard Media3 behaviour from then on.
+     *
+     * 0.6.0: the placeholder wears Ava's look too (own small icon,
+     * accent colour, playback channel name) so the brief flash before
+     * Media3's notification arrives does not look like the stock one.
+     * NOTE on the channel name: Android keeps the name a channel was
+     * first created with, so installs that already ran 0.5.7 keep the
+     * old ("Ava") name; fresh installs get "Music playback".
      */
     private fun startForegroundNow() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                getString(R.string.app_name),
+                getString(R.string.player_notification_channel),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )
@@ -113,7 +161,8 @@ class AvaPlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_ava_notification)
+            .setColor(accentColorArgb)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.now_playing_title))
             .setContentIntent(openApp)
@@ -131,10 +180,24 @@ class AvaPlaybackService : MediaSessionService() {
         mediaSession
 
     override fun onDestroy() {
-        mediaSession?.run {
-            player.stop()
-            release()
-        }
+        // Round 8: save the resume checkpoint FIRST (the position is
+        // still valid here), then pause — do NOT stop() the player.
+        // stop() resets the player to IDLE with no current media item
+        // (verified from the Media3 1.11.1 bytecode), and this service
+        // is destroyed when the user dismisses the media notification
+        // (on some devices the dismiss stops the service): the
+        // repository still knew the queue, but the player had no media
+        // items, so in-app play did nothing until a new song was
+        // picked. Pausing keeps the playlist + position in the shared
+        // player, so the next play resumes the same song from the same
+        // spot (and PlayerRepository.ensurePlayable rebuilds the
+        // playlist if it was reset some other way). The explicit stop
+        // path (PlayerRepository.stop()) still calls player.stop().
+        val app = application as AvaApplication
+        val playerRepository = app.container.playerRepository
+        playerRepository.saveCheckpointNow()
+        playerRepository.player.pause()
+        mediaSession?.release()
         mediaSession = null
         super.onDestroy()
     }

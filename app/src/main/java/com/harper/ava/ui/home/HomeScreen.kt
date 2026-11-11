@@ -126,7 +126,9 @@ fun HomeScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(AvaTokens.space12))
+                // 0.6.0: a little more air under the greeting so the
+                // header breathes instead of crowding the first section.
+                Spacer(modifier = Modifier.height(AvaTokens.space16))
                 when (scanState) {
                     ScanUiState.Scanning -> {
                         Text(
@@ -253,8 +255,8 @@ fun HomeScreen(
                             .padding(
                                 start = AvaTokens.space20,
                                 end = AvaTokens.space20,
-                                top = AvaTokens.space16,
-                                bottom = AvaTokens.space8,
+                                top = AvaTokens.space20,
+                                bottom = AvaTokens.space12,
                             ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -359,7 +361,12 @@ private fun HomePlaylistRow(playlist: Playlist, onOpenPlaylist: (Long) -> Unit) 
             }
         }
         Spacer(modifier = Modifier.width(AvaTokens.space12))
-        Column(modifier = Modifier.weight(1f)) {
+        // 0.6.0: same soft language as SongRow — a breath between the
+        // playlist name and its song count.
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AvaTokens.space2),
+        ) {
             Text(
                 text = playlist.name,
                 style = MaterialTheme.typography.titleMedium,
@@ -379,6 +386,8 @@ private fun HomePlaylistRow(playlist: Playlist, onOpenPlaylist: (Long) -> Unit) 
 
 @Composable
 private fun SectionTitle(text: String) {
+    // 0.6.0: more air above/below section titles — sections read as
+    // calm groups, not a dense list.
     Text(
         text = text,
         style = MaterialTheme.typography.titleLarge,
@@ -386,8 +395,8 @@ private fun SectionTitle(text: String) {
         modifier = Modifier.padding(
             start = AvaTokens.space20,
             end = AvaTokens.space20,
-            top = AvaTokens.space16,
-            bottom = AvaTokens.space8,
+            top = AvaTokens.space20,
+            bottom = AvaTokens.space12,
         ),
     )
 }
