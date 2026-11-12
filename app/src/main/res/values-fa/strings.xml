@@ -121,15 +121,7 @@
     <string name="player_speed">سرعت</string>
     <string name="player_queue">صف</string>
     <string name="player_notification_channel">پخش موسیقی</string>
-    <string name="player_notification_channel_desc">کنترل پخش موسیقی آوا</string>
 
-    <!-- Custom media notification (0.7.2) -->
-    <string name="notif_action_previous">قبلی</string>
-    <string name="notif_action_play">پخش</string>
-    <string name="notif_action_pause">مکث</string>
-    <string name="notif_action_next">بعدی</string>
-    <string name="notif_action_like">افزودن به علاقه‌مندی‌ها</string>
-    <string name="notif_unknown_artist">خوانندهٔ نامشخص</string>
 
     <!-- Now Playing -->
     <string name="now_playing_title">در حال پخش</string>
@@ -156,13 +148,9 @@
     <string name="settings_title">تنظیمات</string>
     <string name="settings_back">بازگشت</string>
     <string name="settings_appearance">ظاهر</string>
-    <string name="settings_appearance_sub">تم و رنگ تأکیدی</string>
     <string name="settings_language">زبان</string>
-    <string name="settings_language_sub">زبان اپ، مستقل از زبان گوشی</string>
     <string name="settings_playback">پخش</string>
-    <string name="settings_playback_sub">سرعت، ادامه پخش و محو شدن صدا</string>
     <string name="settings_storage">حافظه و کتابخانه</string>
-    <string name="settings_storage_sub">حجم کتابخانه، اسکن مجدد و کش</string>
     <string name="settings_about">درباره آوا</string>
     <string name="settings_about_sub">نسخه و حریم خصوصی آفلاین</string>
     <string name="settings_insights">آمار گوش دادن</string>
@@ -198,7 +186,6 @@
     <string name="insights_peak_hour">پرگوش‌ترین ساعت</string>
     <string name="insights_streak">روزهای پیاپی</string>
     <string name="insights_total_plays">کل پخش‌ها</string>
-    <string name="insights_total_time">کل زمان گوش دادن</string>
     <string name="insights_top_songs">پرگوش‌ترین آهنگ‌ها</string>
     <string name="insights_top_artists">پرگوش‌ترین خواننده‌ها</string>
     <string name="insights_top_albums">پرگوش‌ترین آلبوم‌ها</string>
@@ -209,7 +196,6 @@
     <string name="insights_unknown_artist">خواننده ناشناس</string>
 
     <!-- Appearance -->
-    <string name="appearance_theme_title">تم</string>
     <string name="theme_system">پیش‌فرض سیستم</string>
     <string name="theme_system_sub">مطابق تنظیم گوشی</string>
     <string name="theme_dark">تیره</string>
@@ -218,7 +204,6 @@
     <string name="theme_light_sub">پس‌زمینه روشن</string>
     <string name="theme_amoled">مشکی AMOLED</string>
     <string name="theme_amoled_sub">مشکی واقعی، پیکسل‌ها خاموش</string>
-    <string name="appearance_accent_title">رنگ تأکیدی</string>
     <string name="appearance_custom_title">رنگ دلخواه</string>
     <string name="appearance_custom_active">رنگ دلخواه فعال است</string>
     <string name="appearance_custom_clear">استفاده از یک رنگ آماده</string>

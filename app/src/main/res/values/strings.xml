@@ -121,15 +121,7 @@
     <string name="player_speed">Speed</string>
     <string name="player_queue">Queue</string>
     <string name="player_notification_channel">Music playback</string>
-    <string name="player_notification_channel_desc">Ava music playback controls</string>
 
-    <!-- Custom media notification (0.7.2) -->
-    <string name="notif_action_previous">Previous</string>
-    <string name="notif_action_play">Play</string>
-    <string name="notif_action_pause">Pause</string>
-    <string name="notif_action_next">Next</string>
-    <string name="notif_action_like">Add to favorites</string>
-    <string name="notif_unknown_artist">Unknown artist</string>
 
     <!-- Now Playing -->
     <string name="now_playing_title">Now Playing</string>
@@ -156,13 +148,9 @@
     <string name="settings_title">Settings</string>
     <string name="settings_back">Back</string>
     <string name="settings_appearance">Appearance</string>
-    <string name="settings_appearance_sub">Theme and accent color</string>
     <string name="settings_language">Language</string>
-    <string name="settings_language_sub">App language, independent of the system</string>
     <string name="settings_playback">Playback</string>
-    <string name="settings_playback_sub">Speed, resume and fade</string>
     <string name="settings_storage">Storage and library</string>
-    <string name="settings_storage_sub">Library size, rescan and cache</string>
     <string name="settings_about">About Ava</string>
     <string name="settings_about_sub">Version and offline privacy</string>
     <string name="settings_insights">Listening insights</string>
@@ -198,7 +186,6 @@
     <string name="insights_peak_hour">Most active hour</string>
     <string name="insights_streak">Day streak</string>
     <string name="insights_total_plays">Total plays</string>
-    <string name="insights_total_time">Total listening</string>
     <string name="insights_top_songs">Top songs</string>
     <string name="insights_top_artists">Top artists</string>
     <string name="insights_top_albums">Top albums</string>
@@ -209,7 +196,6 @@
     <string name="insights_unknown_artist">Unknown artist</string>
 
     <!-- Appearance -->
-    <string name="appearance_theme_title">Theme</string>
     <string name="theme_system">System default</string>
     <string name="theme_system_sub">Follows the phone setting</string>
     <string name="theme_dark">Dark</string>
@@ -218,7 +204,6 @@
     <string name="theme_light_sub">Bright background</string>
     <string name="theme_amoled">AMOLED black</string>
     <string name="theme_amoled_sub">True black, pixels off</string>
-    <string name="appearance_accent_title">Accent color</string>
     <string name="appearance_custom_title">Custom color</string>
     <string name="appearance_custom_active">Custom color is active</string>
     <string name="appearance_custom_clear">Use a preset instead</string>

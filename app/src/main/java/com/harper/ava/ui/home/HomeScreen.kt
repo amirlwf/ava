@@ -50,6 +50,7 @@ import com.harper.ava.core.util.homeSectionSongKey
 import com.harper.ava.data.media.AudioPermission
 import com.harper.ava.data.preferences.SettingsState
 import com.harper.ava.ui.theme.SeasonalDecor
+import com.harper.ava.ui.theme.rememberIsResumed
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.SkeletonList
@@ -114,6 +115,7 @@ fun HomeScreen(
             theme = settings.appTheme,
             effectsEnabled = settings.seasonalEffectsEnabled,
             modifier = Modifier.fillMaxSize(),
+            active = rememberIsResumed(),
         )
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

@@ -66,6 +66,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/InsightsLogic.kt \
   app/src/main/java/com/harper/ava/core/util/DeleteSongLogic.kt \
   app/src/main/java/com/harper/ava/core/util/UpdateLogic.kt \
+  app/src/main/java/com/harper/ava/core/util/MediaItemLogic.kt \
   app/src/main/java/com/harper/ava/ui/theme/SeasonalDecor.kt \
   app/src/main/java/com/harper/ava/data/local/db/Database.kt \
   app/src/main/java/com/harper/ava/data/local/db/AppDatabase.kt \
@@ -73,6 +74,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/domain/model/Models.kt \
   app/src/main/java/com/harper/ava/ui/theme/AppTheme.kt \
   app/src/main/java/com/harper/ava/playback/AvaMediaNotificationProvider.kt \
+  app/src/main/java/com/harper/ava/playback/NotificationLikeLogic.kt \
   app/src/test/java/com/harper/ava/TimeFormatTest.kt \
   app/src/test/java/com/harper/ava/QueueLogicTest.kt \
   app/src/test/java/com/harper/ava/ScanNormalizeTest.kt \
@@ -84,6 +86,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/SearchHistoryLogicTest.kt \
   app/src/test/java/com/harper/ava/ToggleFavoriteTest.kt \
   app/src/test/java/com/harper/ava/PlaybackRecoveryTest.kt \
+  app/src/test/java/com/harper/ava/MediaItemLogicTest.kt \
   app/src/test/java/com/harper/ava/AppThemeTest.kt \
   app/src/test/java/com/harper/ava/InsightsLogicTest.kt \
   app/src/test/java/com/harper/ava/DeleteSongLogicTest.kt \
@@ -91,6 +94,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/SeasonalDecorTest.kt \
   app/src/test/java/com/harper/ava/CustomNotificationLogicTest.kt \
   app/src/test/java/com/harper/ava/AddToPlaylistTest.kt \
+  app/src/test/java/com/harper/ava/StringsParityTest.kt \
+  app/src/test/java/com/harper/ava/NotificationLikeTest.kt \
   "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
 java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
@@ -106,10 +111,13 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.SearchHistoryLogicTest \
   com.harper.ava.ToggleFavoriteTest \
   com.harper.ava.PlaybackRecoveryTest \
+  com.harper.ava.MediaItemLogicTest \
   com.harper.ava.AppThemeTest \
   com.harper.ava.InsightsLogicTest \
   com.harper.ava.DeleteSongLogicTest \
   com.harper.ava.UpdateLogicTest \
   com.harper.ava.SeasonalDecorTest \
   com.harper.ava.CustomNotificationLogicTest \
-  com.harper.ava.AddToPlaylistTest 2>&1 | tail -5
+  com.harper.ava.AddToPlaylistTest \
+  com.harper.ava.StringsParityTest \
+  com.harper.ava.NotificationLikeTest 2>&1 | tail -5

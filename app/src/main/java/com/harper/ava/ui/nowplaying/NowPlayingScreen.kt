@@ -80,6 +80,7 @@ import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.preferences.SettingsState
 import com.harper.ava.data.repository.RepeatMode
 import com.harper.ava.ui.theme.SeasonalDecor
+import com.harper.ava.ui.theme.rememberIsResumed
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
@@ -244,6 +245,7 @@ fun NowPlayingScreen(
             theme = settings.appTheme,
             effectsEnabled = settings.seasonalEffectsEnabled,
             modifier = Modifier.fillMaxSize(),
+            active = rememberIsResumed(),
         )
 
         Column(

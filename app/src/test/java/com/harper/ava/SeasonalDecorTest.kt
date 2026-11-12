@@ -10,6 +10,11 @@ import com.harper.ava.ui.theme.GALAXY_MID_STAR_COUNT
 import com.harper.ava.ui.theme.GALAXY_MILKY_WAY_DUST_COUNT
 import com.harper.ava.ui.theme.GALAXY_NEBULA_BLOBS
 import com.harper.ava.ui.theme.GALAXY_PLANET_COUNT
+import com.harper.ava.ui.theme.GALAXY_PLANET_RADII_DP
+import com.harper.ava.ui.theme.METEOR_TAIL_ALPHAS
+import com.harper.ava.ui.theme.METEOR_TAIL_FRACTIONS
+import com.harper.ava.ui.theme.METEOR_TAIL_WIDTHS_DP
+import com.harper.ava.ui.theme.MILKY_WAY_GLOW_STOPS
 import com.harper.ava.ui.theme.SeasonalDecorKind
 import com.harper.ava.ui.theme.argbLuminance
 import com.harper.ava.ui.theme.contrastRatio
@@ -581,5 +586,47 @@ class SeasonalDecorTest {
         val moonGain = gained { p -> moonAngle(1, p) }
         val planetGain = gained { p -> planetAngle(1, p) }
         assertTrue("moon $moonGain <= planet $planetGain", moonGain > planetGain)
+    }
+
+    // --- Improve run 3 (2026-11-12): per-frame allocations removed ---
+    // The draw code used to rebuild these small tables every frame
+    // (60×/s); they are now hoisted to file-level vals. These tests pin
+    // the exact numbers that were previously inline literals, so a
+    // transcription slip fails here instead of silently changing the sky.
+
+    @Test
+    fun `meteor tail tables are consistent and fade outward`() {
+        // 5 segments need 6 fraction stops (head..tip) and 5 alphas/widths.
+        assertEquals(6, METEOR_TAIL_FRACTIONS.size)
+        assertEquals(5, METEOR_TAIL_ALPHAS.size)
+        assertEquals(5, METEOR_TAIL_WIDTHS_DP.size)
+        assertEquals(0f, METEOR_TAIL_FRACTIONS.first())
+        assertEquals(1f, METEOR_TAIL_FRACTIONS.last())
+        for (i in 1 until METEOR_TAIL_FRACTIONS.size) {
+            assertTrue(METEOR_TAIL_FRACTIONS[i] > METEOR_TAIL_FRACTIONS[i - 1])
+        }
+        // Brightest + thickest at the head, faintest + thinnest at the tip.
+        assertEquals(1f, METEOR_TAIL_ALPHAS.first())
+        assertEquals(0.12f, METEOR_TAIL_ALPHAS.last())
+        assertEquals(2.2f, METEOR_TAIL_WIDTHS_DP.first())
+        assertEquals(0.8f, METEOR_TAIL_WIDTHS_DP.last())
+        for (i in 1 until METEOR_TAIL_ALPHAS.size) {
+            assertTrue(METEOR_TAIL_ALPHAS[i] < METEOR_TAIL_ALPHAS[i - 1])
+            assertTrue(METEOR_TAIL_WIDTHS_DP[i] < METEOR_TAIL_WIDTHS_DP[i - 1])
+        }
+    }
+
+    @Test
+    fun `milky way glow stops are violet pink violet`() {
+        assertEquals(listOf(0.25f, 0.50f, 0.75f), MILKY_WAY_GLOW_STOPS)
+    }
+
+    @Test
+    fun `planet radii table has one entry per planet`() {
+        assertEquals(GALAXY_PLANET_COUNT, GALAXY_PLANET_RADII_DP.size)
+        assertEquals(listOf(4.5f, 3.5f, 3f, 4f, 5f), GALAXY_PLANET_RADII_DP)
+        for (radius in GALAXY_PLANET_RADII_DP) {
+            assertTrue("planet radius $radius", radius in 2f..6f)
+        }
     }
 }

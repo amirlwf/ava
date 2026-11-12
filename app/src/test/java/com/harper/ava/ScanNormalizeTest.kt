@@ -17,6 +17,7 @@ class ScanNormalizeTest {
         album: String? = "Album",
         durationMs: Long = 180_000L,
         uri: String = "content://media/external/audio/media/1",
+        fileName: String? = null,
     ) = RawScannedSong(
         mediaStoreId = id,
         title = title,
@@ -28,6 +29,7 @@ class ScanNormalizeTest {
         dateAddedMs = 1_700_000_000_000L,
         trackNumber = null,
         year = null,
+        fileName = fileName,
     )
 
     @Test
@@ -45,6 +47,33 @@ class ScanNormalizeTest {
             raw(title = "  ", uri = "content://media/external/audio/media/7/my-song.mp3"),
         )
         assertEquals("my-song", entity?.title)
+    }
+
+    @Test
+    fun `blank title prefers DISPLAY_NAME over the numeric uri segment`() {
+        // 0.7.6: a real MediaStore audio URI carries no file name
+        // ("content://media/external/audio/media/7" -> "7"), so an
+        // untagged song used to be titled with its numeric id. The
+        // stored DISPLAY_NAME wins over the URI segment.
+        val entity = normalizeScannedSong(
+            raw(
+                title = null,
+                uri = "content://media/external/audio/media/7",
+                fileName = "my-song.mp3",
+            ),
+        )
+        assertEquals("my-song", entity?.title)
+    }
+
+    @Test
+    fun `blank title without a file name keeps the numeric uri segment`() {
+        // Last resort before the synthetic "track-<id>": the URI's
+        // last segment. Documents the pre-0.7.6 behaviour for rows
+        // with no DISPLAY_NAME at all.
+        val entity = normalizeScannedSong(
+            raw(title = "", uri = "content://media/external/audio/media/7"),
+        )
+        assertEquals("7", entity?.title)
     }
 
     @Test

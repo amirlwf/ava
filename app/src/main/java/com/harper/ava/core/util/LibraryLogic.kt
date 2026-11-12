@@ -52,7 +52,14 @@ fun normalizeScannedSong(raw: RawScannedSong): SongEntity? {
     if (raw.uri.isBlank()) return null
     if (raw.durationMs <= 0L) return null
     val title = raw.title?.trim().orEmpty().ifEmpty {
-        filenameFromUri(raw.uri).ifEmpty { "track-${raw.mediaStoreId}" }
+        // 0.7.6: a real MediaStore audio URI carries no file name
+        // ("content://media/external/audio/media/7" -> "7"), so an
+        // untagged song used to be titled with its numeric id. Prefer
+        // the stored DISPLAY_NAME; the URI segment is only a last
+        // resort before the synthetic "track-<id>".
+        raw.fileName?.let { filenameFromUri(it) }.orEmpty()
+            .ifEmpty { filenameFromUri(raw.uri) }
+            .ifEmpty { "track-${raw.mediaStoreId}" }
     }
     return SongEntity(
         mediaStoreId = raw.mediaStoreId,

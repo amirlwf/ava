@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp
 import com.harper.ava.data.preferences.AppTheme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -54,6 +55,30 @@ import kotlin.math.sin
  * and alphas low (0.03–0.16 for dust, nebula ≤ 0.07, brightest
  * sparkles ≤ 0.45, only a meteor head briefly reaches 0.35) —
  * decoration, not noise.
+ *
+ * Battery (improve run 3, 2026-11-12): the Canvas is NOT drawn while
+ * its screen is not the current destination — each screen passes
+ * `active = rememberIsResumed()` (see DecorVisibility.kt), which reads
+ * the destination's NavBackStackEntry lifecycle: a back-stack entry
+ * drops below RESUMED the moment another screen opens above it (and
+ * when the app backgrounds), so Home's sky stops the moment Now
+ * Playing opens above it instead of redrawing a full-screen canvas
+ * behind a screen nobody sees. The 36 s clock itself keeps running
+ * while hidden (one float per frame — cheap) so the sky resumes
+ * mid-loop with no visual jump when the user navigates back; only the
+ * expensive part — the full-screen redraw — is skipped. Per-frame
+ * allocations are also gone: sparkle/leaf [Path]s are cached by radius
+ * (they were rebuilt ~35× per frame) and the small constant lists
+ * (meteor tail segments, planet radii, Milky Way glow stops) are
+ * hoisted to file-level vals instead of being rebuilt per frame.
+ *
+ * NOTE: this file must not read a CompositionLocal directly
+ * (`LocalLifecycleOwner.current` and friends): the unit-test compile
+ * in `scripts/verify.sh` runs kotlinc without the Compose plugin, and
+ * the inline `CompositionLocal.current` getter cannot be inlined
+ * there — the build fails. Lifecycle reads live in DecorVisibility.kt
+ * (not in the test-compile list); this file only takes a plain
+ * `active` Boolean.
  *
  * The decor is only drawn when [seasonalDecorKind] returns a kind other
  * than [SeasonalDecorKind.NONE]; with effects off (or a non-seasonal
@@ -95,21 +120,31 @@ fun seasonalDecorKind(theme: AppTheme, effectsEnabled: Boolean): SeasonalDecorKi
  * Seasonal background decor for Home / Now Playing. Place it as the first
  * child of the screen's root [androidx.compose.foundation.layout.Box]
  * (behind the content) with `Modifier.fillMaxSize()`.
+ *
+ * @param active false while this screen is not the current destination
+ * (the caller reads its NavBackStackEntry lifecycle — see
+ * [rememberIsResumed]); the Canvas then draws no frames, so a hidden
+ * screen's sky costs nothing. Defaults to true.
  */
 @Composable
 fun SeasonalDecor(
     theme: AppTheme,
     effectsEnabled: Boolean,
     modifier: Modifier = Modifier,
+    active: Boolean = true,
 ) {
     val kind = seasonalDecorKind(theme, effectsEnabled)
     if (kind == SeasonalDecorKind.NONE) return
-    SeasonalDecorCanvas(kind = kind, modifier = modifier)
+    SeasonalDecorCanvas(kind = kind, modifier = modifier, active = active)
 }
 
 @Composable
-private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Modifier) {
+private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Modifier, active: Boolean) {
     // One slow loop for every particle: 36 s, linear, restarts seamlessly.
+    // The transition is created BEFORE the visibility gate on purpose:
+    // while this screen is hidden its clock keeps ticking (one float per
+    // frame — cheap), so the sky resumes mid-loop with no jump when the
+    // user navigates back. Only the Canvas — the expensive part — stops.
     val transition = rememberInfiniteTransition(label = "seasonal-decor")
     val progress by transition.animateFloat(
         initialValue = 0f,
@@ -120,6 +155,10 @@ private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Mo
         ),
         label = "seasonal-progress",
     )
+    // Paused while this screen is not the current destination (or the
+    // app is backgrounded): a canvas nobody sees draws no frames, so
+    // Home's sky stops the moment Now Playing opens above it.
+    if (!active) return
     val scheme = MaterialTheme.colorScheme
     Canvas(modifier = modifier.fillMaxSize()) {
         drawDecor(kind, progress, scheme.primary, scheme.secondary, scheme.tertiary, scheme.onBackground)
@@ -163,6 +202,76 @@ const val GALAXY_BRIGHT_STAR_COUNT = 10
 
 /** Dust grains packed along the Milky Way band. */
 const val GALAXY_MILKY_WAY_DUST_COUNT = 34
+
+// ---------------------------------------------------------------------------
+// Per-frame allocations removed (improve run 3, 2026-11-12). The Canvas
+// redraws 60×/s, so every `listOf` / fresh `Path` inside a draw function
+// was that many small allocations per second. These vals hold the exact
+// numbers the draw code used to build inline, every frame; the tests in
+// SeasonalDecorTest pin their contents, so a transcription slip fails
+// loudly instead of silently changing the sky.
+// ---------------------------------------------------------------------------
+
+/** Meteor tail segments: where each of the five segments starts along the tail (0..1). */
+val METEOR_TAIL_FRACTIONS = listOf(0f, 0.18f, 0.38f, 0.60f, 0.82f, 1f)
+
+/** Meteor tail segment alphas: brightest at the head, fading to the tip. */
+val METEOR_TAIL_ALPHAS = listOf(1f, 0.70f, 0.45f, 0.25f, 0.12f)
+
+/** Meteor tail segment widths in dp: thick at the head, thin at the tip. */
+val METEOR_TAIL_WIDTHS_DP = listOf(2.2f, 1.8f, 1.4f, 1.1f, 0.8f)
+
+/** Milky Way glow stops along the band (0..1); colours are violet, pink, violet. */
+val MILKY_WAY_GLOW_STOPS = listOf(0.25f, 0.50f, 0.75f)
+
+/** Planet radii in dp, inner to outer — one entry per planet. */
+val GALAXY_PLANET_RADII_DP = listOf(4.5f, 3.5f, 3f, 4f, 5f)
+
+/**
+ * Origin-centred sparkle / leaf paths, cached by radius: the galaxy
+ * draws ~25 sparkles and the seasons ~10 leaves every frame, and a
+ * fresh [Path] per shape per frame is pure GC churn (each one wraps a
+ * native SkPath). Radii are deterministic hashes, so the distinct set
+ * is tiny (~30 sparkles, ~12 leaves) and the cache stays small.
+ * Drawing happens only on the UI thread, so no synchronisation is
+ * needed; a cached path is never mutated after creation — callers draw
+ * it inside [translate] (and [rotate] for leaves).
+ */
+private val sparklePathCache = mutableMapOf<Float, Path>()
+private val leafPathCache = mutableMapOf<Float, Path>()
+
+/**
+ * A four-point sparkle centred on the origin with the given [radius]
+ * — the same outline [drawStar] used to build around `center` every
+ * frame, only shifted to the origin so it can be cached and drawn via
+ * [translate]. Geometry is unchanged by construction (every coordinate
+ * is the old one minus `center`); not unit-testable here — [Path]
+ * delegates to android.graphics.Path, which is a stub on the JVM.
+ */
+private fun sparklePath(radius: Float): Path = sparklePathCache.getOrPut(radius) {
+    Path().apply {
+        moveTo(0f, -radius)
+        quadraticTo(0f, 0f, radius, 0f)
+        quadraticTo(0f, 0f, 0f, radius)
+        quadraticTo(0f, 0f, -radius, 0f)
+        quadraticTo(0f, 0f, 0f, -radius)
+        close()
+    }
+}
+
+/**
+ * A pointed-oval leaf centred on the origin, `radius` tall — cached
+ * like [sparklePath]; the outline is byte-for-byte the old `leafPath`,
+ * which was already origin-centred.
+ */
+private fun leafPath(radius: Float): Path = leafPathCache.getOrPut(radius) {
+    Path().apply {
+        moveTo(0f, -radius)
+        quadraticTo(radius * 0.75f, -radius * 0.25f, 0f, radius)
+        quadraticTo(-radius * 0.75f, -radius * 0.25f, 0f, -radius)
+        close()
+    }
+}
 
 /** Peak alpha of meteor [index]: the first meteor is the bright one. */
 fun meteorMaxAlpha(index: Int): Float = if (index == 0) GALAXY_METEOR_MAX_ALPHA else 0.25f
@@ -423,7 +532,8 @@ private fun DrawScope.drawDecor(
         SeasonalDecorKind.SPRING_LEAVES -> drawFallingLeaves(
             progress = progress,
             count = 10,
-            colors = listOf(primary, tertiary),
+            colorA = primary,
+            colorB = tertiary,
             alpha = 0.28f,
         )
         SeasonalDecorKind.SUMMER_SUN -> {
@@ -431,14 +541,16 @@ private fun DrawScope.drawDecor(
             drawFallingLeaves(
                 progress = progress,
                 count = 5,
-                colors = listOf(primary, tertiary),
+                colorA = primary,
+                colorB = tertiary,
                 alpha = 0.22f,
             )
         }
         SeasonalDecorKind.AUTUMN_LEAVES -> drawFallingLeaves(
             progress = progress,
             count = 12,
-            colors = listOf(primary, secondary),
+            colorA = primary,
+            colorB = secondary,
             alpha = 0.32f,
         )
         SeasonalDecorKind.WINTER_SNOW -> drawSnow(progress, tertiary, onBackground)
@@ -447,19 +559,12 @@ private fun DrawScope.drawDecor(
     }
 }
 
-/** A pointed-oval leaf centred on the origin, `radius` tall. */
-private fun leafPath(radius: Float): Path = Path().apply {
-    moveTo(0f, -radius)
-    quadraticTo(radius * 0.75f, -radius * 0.25f, 0f, radius)
-    quadraticTo(-radius * 0.75f, -radius * 0.25f, 0f, -radius)
-    close()
-}
-
 /** Leaves falling slowly, swaying side to side, gently spinning. */
 private fun DrawScope.drawFallingLeaves(
     progress: Float,
     count: Int,
-    colors: List<Color>,
+    colorA: Color,
+    colorB: Color,
     alpha: Float,
 ) {
     for (i in 0 until count) {
@@ -471,7 +576,7 @@ private fun DrawScope.drawFallingLeaves(
         val x = x0 * size.width + sway
         val y = ((y0 + progress * speed) % 1f) * size.height
         val rotation = progress * 360f * (if (i % 2 == 0) 1f else -1f) + i * 40f
-        val color = colors[i % colors.size].copy(alpha = alpha)
+        val color = (if (i % 2 == 0) colorA else colorB).copy(alpha = alpha)
         translate(left = x, top = y) {
             rotate(degrees = rotation) {
                 drawPath(leafPath(leafRadius), color)
@@ -564,8 +669,7 @@ private fun DrawScope.drawGalaxy(
     white: Color,
 ) {
     val indigo = Color(0xFF6366F1)
-    val nebulaColors = listOf(violet, pink, blue, indigo)
-    drawNebula(progress, nebulaColors)
+    drawNebula(progress, violet, pink, blue, indigo)
     drawMilkyWay(progress, violet, pink, white)
     drawStarLayer(progress, layer = 0, violet, pink, blue, white)
     drawConstellations(progress, white)
@@ -576,12 +680,18 @@ private fun DrawScope.drawGalaxy(
 }
 
 /** Six soft nebula clouds, each with a brighter core; they sway with the far layer. */
-private fun DrawScope.drawNebula(progress: Float, colors: List<Color>) {
+private fun DrawScope.drawNebula(progress: Float, violet: Color, pink: Color, blue: Color, indigo: Color) {
     val drift = galaxyParallaxDrift(0, progress) * size.width
     for (blob in GALAXY_NEBULA_BLOBS) {
         val center = Offset(blob.centerX * size.width + drift, blob.centerY * size.height)
         val radius = blob.radius * size.width
-        val color = colors[blob.colorIndex]
+        // colorIndex 0 violet, 1 pink, 2 blue, 3 indigo (was a per-frame list).
+        val color = when (blob.colorIndex) {
+            0 -> violet
+            1 -> pink
+            2 -> blue
+            else -> indigo
+        }
         drawCircle(color = color.copy(alpha = blob.alpha), radius = radius, center = center)
         drawCircle(color = color.copy(alpha = blob.alpha * 0.7f), radius = radius * 0.55f, center = center)
     }
@@ -590,8 +700,9 @@ private fun DrawScope.drawNebula(progress: Float, colors: List<Color>) {
 /** The Milky Way: three overlapping glows along the band + dust grains packed inside it. */
 private fun DrawScope.drawMilkyWay(progress: Float, violet: Color, pink: Color, white: Color) {
     val drift = galaxyParallaxDrift(0, progress) * size.width
-    val glowStops = listOf(0.25f to violet, 0.50f to pink, 0.75f to violet)
-    for ((t, color) in glowStops) {
+    for ((index, t) in MILKY_WAY_GLOW_STOPS.withIndex()) {
+        // Stops are violet, pink, violet (was a per-frame list of pairs).
+        val color = if (index == 1) pink else violet
         val center = Offset(t * size.width + drift, milkyWayBandCenterY(t) * size.height)
         drawCircle(color = color.copy(alpha = 0.05f), radius = size.width * 0.20f, center = center)
     }
@@ -760,8 +871,6 @@ private fun DrawScope.drawSolarSystem(
         center = sunCenter + Offset(-2.5.dp.toPx(), 3.dp.toPx()),
     )
 
-    val planetColors = listOf(pink, blue, white, Color(0xFFFBBF24), Color(0xFFD9B36C))
-    val planetRadii = listOf(4.5f, 3.5f, 3f, 4f, 5f)
     for (i in 0 until GALAXY_PLANET_COUNT) {
         val (rxNorm, ryNorm) = planetOrbitRadius(i)
         val rx = rxNorm * size.width
@@ -782,8 +891,15 @@ private fun DrawScope.drawSolarSystem(
             radiusY = ryNorm,
         )
         val center = Offset(pos.x * size.width, pos.y * size.height)
-        val radius = planetRadii[i].dp.toPx()
-        val color = planetColors[i]
+        val radius = GALAXY_PLANET_RADII_DP[i].dp.toPx()
+        // Inner to outer: pink, blue, white, amber, pale gold.
+        val color = when (i) {
+            0 -> pink
+            1 -> blue
+            2 -> white
+            3 -> Color(0xFFFBBF24)
+            else -> Color(0xFFD9B36C)
+        }
         // Saturn-like ring on the outermost planet: a tilted ellipse around the disc.
         if (planetHasRing(i)) {
             drawOval(
@@ -812,18 +928,16 @@ private fun DrawScope.drawMeteors(progress: Float) {
         val tail = Offset(meteor.tailX * size.width, meteor.tailY * size.height)
         // Halo around the head, so the brightest meteor reads as burning, not just white.
         drawCircle(color = Color.White.copy(alpha = meteor.alpha * 0.30f), radius = 5.dp.toPx(), center = head)
-        // Tail in five segments, each fainter and thinner than the last.
-        val fractions = listOf(0f, 0.18f, 0.38f, 0.60f, 0.82f, 1f)
-        val alphas = listOf(1f, 0.70f, 0.45f, 0.25f, 0.12f)
-        val widths = listOf(2.2f, 1.8f, 1.4f, 1.1f, 0.8f)
-        for (s in alphas.indices) {
-            val from = head + (tail - head) * fractions[s]
-            val to = head + (tail - head) * fractions[s + 1]
+        // Tail in five segments, each fainter and thinner than the last
+        // (segment tables hoisted to file level — no per-frame lists).
+        for (s in METEOR_TAIL_ALPHAS.indices) {
+            val from = head + (tail - head) * METEOR_TAIL_FRACTIONS[s]
+            val to = head + (tail - head) * METEOR_TAIL_FRACTIONS[s + 1]
             drawLine(
-                color = Color.White.copy(alpha = meteor.alpha * alphas[s]),
+                color = Color.White.copy(alpha = meteor.alpha * METEOR_TAIL_ALPHAS[s]),
                 start = from,
                 end = to,
-                strokeWidth = widths[s].dp.toPx(),
+                strokeWidth = METEOR_TAIL_WIDTHS_DP[s].dp.toPx(),
                 cap = StrokeCap.Round,
             )
         }
@@ -832,15 +946,9 @@ private fun DrawScope.drawMeteors(progress: Float) {
     }
 }
 
-/** A four-point sparkle centred on [center]. */
+/** A four-point sparkle centred on [center] (path cached by radius — see [sparklePath]). */
 private fun DrawScope.drawStar(center: Offset, radius: Float, color: Color) {
-    val path = Path().apply {
-        moveTo(center.x, center.y - radius)
-        quadraticTo(center.x, center.y, center.x + radius, center.y)
-        quadraticTo(center.x, center.y, center.x, center.y + radius)
-        quadraticTo(center.x, center.y, center.x - radius, center.y)
-        quadraticTo(center.x, center.y, center.x, center.y - radius)
-        close()
+    translate(left = center.x, top = center.y) {
+        drawPath(sparklePath(radius), color)
     }
-    drawPath(path, color)
 }

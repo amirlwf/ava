@@ -59,30 +59,75 @@ import com.harper.ava.ui.theme.spec
  *   subclass — so the visible notification picks the new accent up
  *   on the next refresh (play / pause / track change), not the
  *   instant the theme changes.
- * - Rounded artwork: NOT done, and the reason was verified, not
- *   assumed. `PlayerRepository.Song.toMediaItem()` sets NO
- *   `MediaMetadata` at all (uri + media id only) — no `artworkData`,
- *   no `artworkUri` — even though `Song.albumArtUri` exists. Media3
- *   loads the large icon inside the final `createNotification()`
- *   from `metadata.artworkData` / `artworkUri`, both absent here, so
- *   there is no bitmap in the subclass path to round, and no hook to
- *   round it. Putting metadata (incl. artwork) on the media items
- *   is a separate change — it would also change the lock-screen
- *   artwork — and is out of scope for this round. The 0.7.3 note
- *   above still stands for the case artwork ever arrives: rounding
- *   in a custom `BitmapLoader` would also round the lock-screen art.
- * - `setColorized(true)`: OFF, deliberately. Verified with `javap`
- *   on the shipped media3-session 1.11.1 classes: the stock
- *   provider never calls `setColor` or `setColorized` at all; the
- *   only place either can be applied is the `builder` handed to
- *   [addNotificationActions]. A fully tinted background in the theme
- *   accent would fight the system dark/light theme (and any artwork
- *   colours) and would hurt the contrast of the SystemUI-rendered
- *   text on light themes — a saturated violet / crimson / amber
- *   background behind system text is a real readability risk, and
- *   it cannot be checked here without the device. Personality comes
- *   from `setColor` (small-icon tint) + Ava's own action drawables
- *   + the PNG small icon instead. Revisit only with a device check.
+ * - Rounded artwork: the reason it was NOT done in 0.7.5 was verified,
+ *   not assumed — `PlayerRepository.Song.toMediaItem()` set NO
+ *   `MediaMetadata` at all (uri + media id only), so Media3 had no
+ *   `artworkData` / `artworkUri` to load a large icon from. Improve
+ *   loop, run 1 (2026-11-12) is the separate change the 0.7.5 note
+ *   deferred: `core/util/MediaItemLogic.songToMediaItem()` now puts
+ *   title / artist / album / artwork uri on every media item, so the
+ *   notification and the lock screen finally show the song. Rounding
+ *   the bitmap is STILL deliberately not done: the large icon is
+ *   loaded inside the final `createNotification()` from the session's
+ *   `BitmapLoader`, which also feeds the lock-screen artwork (rounded
+ *   corners there would show as transparent wedges on a full-bleed
+ *   image), and SystemUI draws the notification's large icon in its
+ *   own frame on modern Android.
+ * - `setColorized(true)`: NOT set, and NOT needed — corrected in
+ *   0.7.6 with evidence (the 0.7.5 note below got the semantics
+ *   backwards). Per developer.android.com (`Notification.MediaStyle`):
+ *   "Starting at Android O any notification that has a media session
+ *   attached with `setMediaSession(MediaSession.Token)` will be
+ *   colorized. You can opt-out of this behavior by using
+ *   `Notification.Builder.setColorized(boolean)`." So a MediaStyle
+ *   notification is colorized BY DEFAULT: `setColorized(true)` is a
+ *   no-op and `setColorized(false)` would REMOVE the tint. The
+ *   accent tint from `setColor` in [addNotificationActions] is
+ *   therefore already live wherever the system uses the notification
+ *   colour. On Android 13+ the shade's media player additionally
+ *   derives its background from the artwork, which the app cannot
+ *   override. Personality comes from `setColor` (small-icon tint)
+ *   + Ava's own action drawables + the PNG small icon instead.
+ *   Revisit only with a device check.
+ *
+ * 0.7.6 — the notification is Ava's own, still inside this safe
+ * subclass path (nothing here is RemoteViews, nothing is a
+ * from-scratch provider):
+ *
+ * - Artwork: since improve loop run 1 every media item carries
+ *   title / artist / album / artwork uri, so the notification and
+ *   the lock screen show the song. Verified from the 1.11.1
+ *   SOURCES (not bytecode): the session's default BitmapLoader is
+ *   `CacheBitmapLoader(DataSourceBitmapLoader)` (DefaultDataSource
+ *   — content:// album-art URIs load), and the provider wraps it
+ *   in `CacheBitmapLoader(SizeLimitedBitmapLoader(loader,
+ *   maxNotificationIconSize, makeShared=true))`, so the large icon
+ *   is capped to the system icon size and made shared for Binder
+ *   transfer — the huge-bitmap Binder risk is already handled by
+ *   the stock provider. A failed artwork load is caught (log
+ *   warning, no large icon) and can never crash the post. No
+ *   custom BitmapLoader is needed or added.
+ * - Title: never blank. [songMediaMetadata] guarantees a title
+ *   (file-name fallback), and [getNotificationContentTitle] falls
+ *   back to the album as a last defence before the notification
+ *   posts. The scanner (0.7.6, `normalizeScannedSong`) also
+ *   prefers the file's DISPLAY_NAME over the numeric MediaStore id
+ *   segment, so untagged songs are titled with their file name
+ *   instead of "123" (fixed on the next rescan for songs already
+ *   in the library).
+ * - Like button: a heart action in the notification's EXPANDED
+ *   view (compact view has only three slots, all taken by
+ *   transport) via a MediaSession custom command — see
+ *   `NotificationLikeLogic` / `AvaSessionCallback`. Stock Media3
+ *   plumbing only: the button is built with
+ *   `CommandButton.ICON_HEART_FILLED/UNFILLED` + Ava's own heart
+ *   drawables, and tapping it toggles the current song's
+ *   favourite state. Its failure modes are benign by
+ *   construction: if the command is not in the controller's
+ *   available commands the button is disabled and filtered out
+ *   (absent, not broken), and an unhandled tap is a no-op — the
+ *   notification itself is still built by the same final
+ *   `createNotification()` and cannot fail over the like button.
  *
  * Honest trade-off of this revert: the subclass CANNOT do
  * `setOngoing(true)` while playing — Media3's final
@@ -90,8 +135,8 @@ import com.harper.ava.ui.theme.spec
  * notification away while playing is possible again. Playback loss
  * on dismiss is still guarded by the round-8 fix (pause, never
  * stop(), in the service's `onDestroy()` + queue rebuild), not by
- * ongoing. The custom provider's like button, progress bar and
- * rounded artwork go away with it.
+ * ongoing. The custom provider's progress bar and rounded artwork
+ * go away with it.
  *
  * The 0.5.7 notification was the stock Media3 one. This subclass keeps
  * Media3's behaviour (same three buttons, same compact-view slots, same
@@ -140,10 +185,10 @@ import com.harper.ava.ui.theme.spec
  *   the system on modern Android). Rounding the bitmap in a custom
  *   `BitmapLoader` was rejected: that loader also feeds the lock-screen
  *   artwork, where rounded corners would show as transparent wedges on
- *   a full-bleed image. 0.7.5 adds: in this app there is currently no
- *   artwork in the notification at all — see the 0.7.5 note above
- *   (`Song.toMediaItem()` sets no `MediaMetadata`), so there is
- *   nothing to round in the first place.
+ *   a full-bleed image. Since improve loop run 1 (2026-11-12) artwork
+ *   does arrive in the notification (via `songToMediaItem`), so this
+ *   is now a live decision, not a missing-input one — and the decision
+ *   stands.
  * - A fully custom layout: `MediaStyle` is rendered by SystemUI, not by
  *   the app; a `DecoratedCustomViewStyle` replacement would lose the
  *   shade's media-player integration (seek bar, output switcher).
@@ -151,9 +196,11 @@ import com.harper.ava.ui.theme.spec
  * The accent colour starts from the user's theme at service creation
  * ([notificationAccentArgb]) and is then kept live by the service via
  * [updateAccentColor] (see the 0.7.5 note above). `setColor` tints the
- * small icon — on Android 13+ the shade's media player additionally
- * derives its own colours from the artwork, which the app cannot
- * override. `setColorized(true)` is deliberately NOT set: see above.
+ * small icon and, because MediaStyle is colorized by default (see
+ * the 0.7.6 `setColorized` note above), tints the notification where
+ * the system uses the notification colour. On Android 13+ the
+ * shade's media player additionally derives its own colours from
+ * the artwork, which the app cannot override.
  */
 class AvaMediaNotificationProvider(
     context: Context,
@@ -235,9 +282,10 @@ class AvaMediaNotificationProvider(
 
     /**
      * The stock actions, then the one accent hook Media3 offers:
-     * `setColor` tints the small icon with Ava's accent. Deliberately no
-     * `setColorized(true)` — a fully tinted background would fight the
-     * system dark/light theme and the artwork.
+     * `setColor` tints the small icon with Ava's accent (and, because
+     * MediaStyle is colorized by default, tints the notification
+     * wherever the system uses the notification colour — see the
+     * 0.7.6 `setColorized` note in the class KDoc).
      */
     override fun addNotificationActions(
         session: MediaSession,
@@ -252,13 +300,40 @@ class AvaMediaNotificationProvider(
     }
 
     /**
+     * Stock title is `metadata.title` with no fallback — an untagged
+     * song would post an empty first line. The metadata layer
+     * ([songMediaMetadata]) already guarantees a title, but this is
+     * the last line of defence before the notification posts: fall
+     * back to the album (see [notificationContentTitle]).
+     */
+    override fun getNotificationContentTitle(metadata: MediaMetadata): CharSequence? =
+        notificationContentTitle(metadata)
+
+    /**
      * Stock text is the artist and nothing else; a file whose tags carry
-     * only an album fell back to a blank line. Title is left at the
-     * stock default (`metadata.title`).
+     * only an album fell back to a blank line. The title is handled by
+     * [getNotificationContentTitle] above.
      */
     override fun getNotificationContentText(metadata: MediaMetadata): CharSequence? =
         metadata.artist?.takeIf { it.isNotBlank() } ?: metadata.albumTitle
 }
+
+/**
+ * Notification title for [metadata] — never blank (0.7.6).
+ *
+ * The stock title is `metadata.title` with no fallback, so an
+ * untagged song would post an empty first line. The metadata layer
+ * ([songMediaMetadata], via `notificationTitle`) already guarantees
+ * a title, but this is the last line of defence before the
+ * notification posts: a blank title falls back to the album, and
+ * only a song with neither shows no title at all.
+ *
+ * Public (not `internal`): see [notificationAccentArgb] — the
+ * offline `verify.sh` compiles the tests as a separate module.
+ */
+fun notificationContentTitle(metadata: MediaMetadata): CharSequence? =
+    metadata.title?.takeIf { it.isNotBlank() }
+        ?: metadata.albumTitle?.takeIf { it.isNotBlank() }
 
 /**
  * Notification accent colour (ARGB) for the user's theme choice.

@@ -20,6 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -58,6 +59,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  * look changed (Ava small icon, Ava action drawables, accent colour,
  * channel name, artist/album fallback); the lifecycle above is
  * untouched.
+ *
+ * 0.7.6 — the notification gains a like button (heart in the
+ * expanded view) via a MediaSession custom command: the session is
+ * built with [AvaSessionCallback] (which grants the like command to
+ * connecting controllers and routes the tap to
+ * `MusicRepository.toggleFavorite`), and a collector below keeps
+ * the button's heart in sync with the current song's favourite
+ * state via `MediaSession.setMediaButtonPreferences`. Stock Media3
+ * plumbing only — see `NotificationLikeLogic` for the full chain
+ * and its benign failure modes.
  */
 class AvaPlaybackService : MediaSessionService() {
 
@@ -112,7 +123,9 @@ class AvaPlaybackService : MediaSessionService() {
         accentColorArgb = resolveNotificationAccent(app)
         val provider = AvaMediaNotificationProvider(this, accentColorArgb)
         setMediaNotificationProvider(provider)
-        val player = app.container.playerRepository.player
+        val playerRepository = app.container.playerRepository
+        val musicRepository = app.container.musicRepository
+        val player = playerRepository.player
         val sessionActivity = PendingIntent.getActivity(
             this,
             0,
@@ -121,6 +134,21 @@ class AvaPlaybackService : MediaSessionService() {
         )
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(sessionActivity)
+            // 0.7.6: session callback for the notification like button
+            // (see AvaSessionCallback) — the like custom command must
+            // be in a controller's available commands or the tap is
+            // dropped and the button filtered out of the notification.
+            .setCallback(
+                AvaSessionCallback(
+                    onToggleFavorite = {
+                        serviceScope.launch {
+                            playerRepository.state.value.currentSong?.let { song ->
+                                musicRepository.toggleFavorite(song)
+                            }
+                        }
+                    },
+                ),
+            )
             .build()
         // 0.5.7: register the session with the service (see the class
         // doc). Without this, Media3 never builds the media notification
@@ -143,6 +171,41 @@ class AvaPlaybackService : MediaSessionService() {
                 .collect { accent ->
                     accentColorArgb = accent
                     provider.updateAccentColor(accent)
+                }
+        }
+        // 0.7.6: keep the notification like button live. The button
+        // shows in the notification's EXPANDED view only (compact
+        // view has three slots, all taken by transport); its heart
+        // fills when the current song is a favourite. Pushing
+        // preferences rebuilds the notification (Media3 refreshes on
+        // preferences change), so the icon follows the favourite
+        // state. distinctUntilChanged on (songId, isFavorite) so
+        // unchanged state never re-posts the notification. No song
+        // loaded means no like button at all (empty preferences).
+        serviceScope.launch {
+            combine(
+                playerRepository.state.map { it.currentSong?.id },
+                musicRepository.observeFavorites()
+                    .map { favorites -> favorites.map { it.id }.toSet() },
+            ) { songId, favoriteIds ->
+                songId to (songId != null && songId in favoriteIds)
+            }
+                .distinctUntilChanged()
+                .collect { (songId, isFavorite) ->
+                    val session = mediaSession ?: return@collect
+                    if (songId == null) {
+                        session.setMediaButtonPreferences(emptyList())
+                    } else {
+                        session.setMediaButtonPreferences(
+                            listOf(
+                                likeButton(
+                                    isFavorite = isFavorite,
+                                    addLabel = getString(R.string.player_favorite_add),
+                                    removeLabel = getString(R.string.player_favorite_remove),
+                                ),
+                            ),
+                        )
+                    }
                 }
         }
     }

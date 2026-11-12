@@ -12,6 +12,7 @@ import com.harper.ava.core.util.SLEEP_TIMER_FADE_MS
 import com.harper.ava.core.util.SleepTimerState
 import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.needsPlayerRebuild
+import com.harper.ava.core.util.songToMediaItem
 import com.harper.ava.core.util.segmentListenedMs
 import com.harper.ava.core.util.shouldRecordPlay
 import com.harper.ava.data.local.db.AppDatabase
@@ -444,8 +445,13 @@ class PlayerRepository(
     /** ExoPlayer reports TIME_UNSET (-2^63+1) for an unknown duration; never leak that into state. */
     private fun safeDuration(): Long = player.duration.takeIf { it > 0L } ?: 0L
 
-    private fun Song.toMediaItem(): MediaItem =
-        MediaItem.Builder().setUri(uri.toUri()).setMediaId(id.toString()).build()
+    /**
+     * Improve loop, run 1: media items now carry title / artist / album
+     * / artwork in their MediaMetadata (see `core/util/MediaItemLogic`),
+     * so the notification and lock screen show the song instead of
+     * blank lines. Uri + media id are unchanged.
+     */
+    private fun Song.toMediaItem(): MediaItem = songToMediaItem(this)
 
     init {
         positionJob = scope.launch {

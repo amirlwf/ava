@@ -1,5 +1,6 @@
 package com.harper.ava
 
+import androidx.media3.common.MediaMetadata
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import com.harper.ava.core.util.deriveAccentColors
@@ -8,9 +9,11 @@ import com.harper.ava.playback.AvaMediaNotificationProvider
 import com.harper.ava.playback.AvaPlaybackService
 import com.harper.ava.playback.avaNotificationIconRes
 import com.harper.ava.playback.notificationAccentArgb
+import com.harper.ava.playback.notificationContentTitle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -123,6 +126,26 @@ class CustomNotificationLogicTest {
         assertNotEquals(0, R.drawable.ic_notif_play)
         assertNotEquals(0, R.drawable.ic_notif_pause)
         assertNotEquals(0, R.drawable.ic_notif_next)
+        // 0.7.6: the notification like button's heart drawables.
+        assertNotEquals(0, R.drawable.ic_notif_heart)
+        assertNotEquals(0, R.drawable.ic_notif_heart_outline)
+    }
+
+    @Test
+    fun `notification title is never blank`() {
+        // 0.7.6: the stock title is metadata.title with no fallback,
+        // so an untagged song would post an empty first line. The
+        // metadata layer already guarantees a title; this is the
+        // last line of defence before the notification posts.
+        val normal = MediaMetadata.Builder().setTitle("Midnight Rain").build()
+        assertEquals("Midnight Rain", notificationContentTitle(normal))
+        val untagged = MediaMetadata.Builder()
+            .setTitle("")
+            .setAlbumTitle("Night Sessions")
+            .build()
+        assertEquals("Night Sessions", notificationContentTitle(untagged))
+        val bare = MediaMetadata.Builder().setTitle("  ").build()
+        assertNull(notificationContentTitle(bare))
     }
 
     @Test

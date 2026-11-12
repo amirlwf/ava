@@ -120,6 +120,20 @@ echo "KSP OK: generated files:"
 find "$OUT/ksp/generated" -type f | sort
 
 echo "== [3/7] kotlinc compile (app + R + KSP output) =="
+# 0.7.6: WIPE the classes dir first. kotlinc overwrites the classes
+# for current sources but NEVER deletes stale ones — renamed lambdas
+# and inner classes of rewritten files accumulate, and dex-input.py
+# dexes them straight into the APK. The 0.7.5 and first 0.7.6 builds
+# shipped 117 dead classes this way, including the 0.7.4 RemoteViews
+# notification provider's inner classes (refreshArtwork$1,
+# progressTicker$1, refreshFavoriteState$1, handleCustomCommand$1) —
+# DEFINED in the dex (dexdump class_defs), unreferenced by the current
+# code, but dead code of the twice-crashed custom notification sitting
+# in a release whose whole point is a clean notification. Wiping is
+# safe: kotlinc regenerates every class from the current sources +
+# KSP output + R.java list, and javac (3b) adds the R classes after.
+rm -rf "$OUT/classes"
+mkdir -p "$OUT/classes"
 find app/src/main/java -name "*.kt" | sort > "$OUT/sources.txt"
 find "$OUT/ksp/generated" \( -name '*.kt' -o -name '*.java' \) | sort >> "$OUT/sources.txt"
 # shellcheck disable=SC2086
