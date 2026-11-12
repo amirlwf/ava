@@ -1,109 +1,124 @@
 package com.harper.ava
 
+import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
-import androidx.media3.session.MediaNotification
+import com.harper.ava.core.util.deriveAccentColors
+import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.playback.AvaMediaNotificationProvider
 import com.harper.ava.playback.AvaPlaybackService
-import com.harper.ava.playback.notificationIsOngoing
-import com.harper.ava.playback.notificationLikeIconRes
-import com.harper.ava.playback.notificationPlayPauseIconRes
-import com.harper.ava.playback.notificationProgressPercent
+import com.harper.ava.playback.avaNotificationIconRes
+import com.harper.ava.playback.notificationAccentArgb
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Unit tests for the 0.7.4 custom notification provider's pure logic
- * and structure.
+ * Unit tests for the 0.7.5 notification provider's pure logic and
+ * structure.
  *
- * 0.7.4 rebuilt the 0.7.2 from-scratch custom provider with the 0.7.3
- * PNG small icon (the vector icon is the crash suspect — see the
- * provider KDoc). The 0.7.3 test asserting the provider IS a
- * [DefaultMediaNotificationProvider] subclass is deleted here, not
- * skipped: it pinned the revert, and this round undoes the revert.
- * What lives here, testable without an Android runtime:
+ * 0.7.5 reverted to the 0.7.3 subclass for the second and final time:
+ * the 0.7.4 RemoteViews retry crashed on play on Harper's Redmi Note
+ * 12 / Android 15 with the identical exception even with the PNG
+ * small icon, so the RemoteViews path itself is the cause and is
+ * never repeated (see the provider KDoc). What lives here, testable
+ * without an Android runtime:
  *
- * - The ongoing rule, the play/pause + like icon choice, and the
- *   progress percentage (0.7.2 logic, unchanged).
- * - Structure: the provider really is a from-scratch
- *   [MediaNotification.Provider] (not the subclass), the small icon,
- *   both RemoteViews layouts and the channel id are present, and the
- *   like custom-action string is the pinned value the manager routes
- *   back to [AvaMediaNotificationProvider.handleCustomCommand].
+ * - Structure: the provider really IS a [DefaultMediaNotificationProvider]
+ *   subclass again, it has the live-accent `updateAccentColor` hook
+ *   and NO `release()` / `ACTION_TOGGLE_FAVORITE` leftovers from the
+ *   RemoteViews rounds.
+ * - The theme accent: [notificationAccentArgb] reads the user's
+ *   [AppTheme] (dark primary), and a user-picked custom colour wins.
+ * - The Ava action drawables and the PNG small icon are present in
+ *   resources; the channel id is set and the notification id matches
+ *   Media3's default.
  *
- * Building the RemoteViews, the artwork decode and the like toggle
- * itself need a device/emulator and are NOT covered here (see the
- * round report for what is still unverified — above all whether
- * playback still crashes on Harper's phone).
+ * Building the notification, the shade rendering and the live accent
+ * update on a theme change need a device/emulator and are NOT covered
+ * here — above all whether playback still crashes on Harper's phone
+ * (the 0.7.3 base played fine there, which is the whole point of
+ * this revert).
  */
 class CustomNotificationLogicTest {
 
     @Test
-    fun `ongoing while playing, dismissible while paused`() {
-        assertTrue(notificationIsOngoing(true))
-        assertFalse(notificationIsOngoing(false))
-    }
-
-    @Test
-    fun `play-pause icon follows playback state`() {
-        assertEquals(R.drawable.ic_notif_pause, notificationPlayPauseIconRes(true))
-        assertEquals(R.drawable.ic_notif_play, notificationPlayPauseIconRes(false))
-    }
-
-    @Test
-    fun `like icon is filled when liked, outline otherwise`() {
-        assertEquals(R.drawable.ic_notif_heart_filled, notificationLikeIconRes(true))
-        assertEquals(R.drawable.ic_notif_heart, notificationLikeIconRes(false))
-    }
-
-    @Test
-    fun `progress percent is a clamped 0 to 100`() {
-        assertEquals(0, notificationProgressPercent(0L, 0L))
-        assertEquals(0, notificationProgressPercent(0L, 120_000L))
-        assertEquals(25, notificationProgressPercent(30_000L, 120_000L))
-        assertEquals(50, notificationProgressPercent(60_000L, 120_000L))
-        assertEquals(100, notificationProgressPercent(120_000L, 120_000L))
-        assertEquals(100, notificationProgressPercent(999_000L, 120_000L))
-        assertEquals(0, notificationProgressPercent(-5_000L, 120_000L))
-        assertEquals(0, notificationProgressPercent(30_000L, -1L))
-    }
-
-    @Test
-    fun `like custom action string is the pinned value`() {
+    fun `provider is the Media3 subclass again, not a from-scratch provider`() {
         assertEquals(
-            "com.harper.ava.action.TOGGLE_FAVORITE",
-            AvaMediaNotificationProvider.ACTION_TOGGLE_FAVORITE,
-        )
-    }
-
-    @Test
-    fun `provider is a from-scratch MediaNotification Provider, not the Media3 subclass`() {
-        assertTrue(
-            MediaNotification.Provider::class.java
-                .isAssignableFrom(AvaMediaNotificationProvider::class.java),
-        )
-        assertNotEquals(
             DefaultMediaNotificationProvider::class.java,
             AvaMediaNotificationProvider::class.java.superclass,
         )
     }
 
     @Test
-    fun `small icon and both custom layouts are present in resources`() {
-        // The 0.7.4 small icon must exist (it is the 0.7.3 PNG in all
-        // five densities); a missing icon is exactly the kind of
-        // resource failure the system rejects at startForeground.
+    fun `provider has the live accent hook and no RemoteViews leftovers`() {
+        // updateAccentColor(Int) is the 0.7.5 live-theme hook the
+        // service calls when the settings change.
+        val update = runCatching {
+            AvaMediaNotificationProvider::class.java.getDeclaredMethod(
+                "updateAccentColor",
+                Int::class.javaPrimitiveType,
+            )
+        }.getOrNull()
+        assertNotNull(update)
+        // The RemoteViews rounds' release() ticker scope and like
+        // custom action must be gone with the revert.
+        try {
+            AvaMediaNotificationProvider::class.java.getDeclaredMethod("release")
+            fail("release() must not exist on the reverted subclass provider")
+        } catch (_: NoSuchMethodException) {
+            // Expected: no ticker scope to release.
+        }
+        try {
+            AvaMediaNotificationProvider::class.java.getDeclaredField("ACTION_TOGGLE_FAVORITE")
+            fail("ACTION_TOGGLE_FAVORITE must not exist on the reverted subclass provider")
+        } catch (_: NoSuchFieldException) {
+            // Expected: no like custom action.
+        }
+    }
+
+    @Test
+    fun `notification accent comes from the chosen theme`() {
+        // Pinned dark primaries from ui/theme/AppTheme.kt.
+        assertEquals(0xFF7C5CFF.toInt(), notificationAccentArgb(AppTheme.VIOLET, null))
+        assertEquals(0xFFC4B5FD.toInt(), notificationAccentArgb(AppTheme.GALAXY, null))
+        assertNotEquals(
+            notificationAccentArgb(AppTheme.VIOLET, null),
+            notificationAccentArgb(AppTheme.GALAXY, null),
+        )
+    }
+
+    @Test
+    fun `a user-picked custom colour wins over the theme`() {
+        val custom = 0xFF112233.toInt()
+        assertEquals(
+            deriveAccentColors(custom).primary,
+            notificationAccentArgb(AppTheme.VIOLET, custom),
+        )
+        assertEquals(
+            deriveAccentColors(custom).primary,
+            notificationAccentArgb(AppTheme.GALAXY, custom),
+        )
+    }
+
+    @Test
+    fun `Ava action drawables map the three stock media buttons`() {
+        assertEquals(R.drawable.ic_notif_prev, avaNotificationIconRes(CommandButton.ICON_PREVIOUS))
+        assertEquals(R.drawable.ic_notif_play, avaNotificationIconRes(CommandButton.ICON_PLAY))
+        assertEquals(R.drawable.ic_notif_pause, avaNotificationIconRes(CommandButton.ICON_PAUSE))
+        assertEquals(R.drawable.ic_notif_next, avaNotificationIconRes(CommandButton.ICON_NEXT))
+        // Anything else keeps the stock Media3 icon.
+        assertEquals(null, avaNotificationIconRes(CommandButton.ICON_STOP))
+    }
+
+    @Test
+    fun `small icon and Ava action drawables are present in resources`() {
+        // The small icon must exist (the 0.7.3 PNG in all five
+        // densities); a missing icon is exactly the kind of resource
+        // failure the system rejects at startForeground.
         assertNotEquals(0, R.drawable.ic_ava_notification)
-        assertNotEquals(0, R.layout.notification_ava_compact)
-        assertNotEquals(0, R.layout.notification_ava_expanded)
-        // Every drawable the RemoteViews reference must resolve too.
-        assertNotEquals(0, R.drawable.ic_notif_art_placeholder)
-        assertNotEquals(0, R.drawable.ic_notif_heart)
-        assertNotEquals(0, R.drawable.ic_notif_heart_filled)
-        assertNotEquals(0, R.drawable.notif_circle_dark)
-        assertNotEquals(0, R.drawable.notif_circle_white)
         assertNotEquals(0, R.drawable.ic_notif_prev)
         assertNotEquals(0, R.drawable.ic_notif_play)
         assertNotEquals(0, R.drawable.ic_notif_pause)

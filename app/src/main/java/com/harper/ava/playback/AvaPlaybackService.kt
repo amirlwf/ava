@@ -16,7 +16,14 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.MainActivity
 import com.harper.ava.R
 import com.harper.ava.data.preferences.Accent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -70,15 +77,19 @@ class AvaPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
 
     /**
-     * The custom notification provider, kept so [onDestroy] can stop
-     * its progress ticker and coroutine scope (see
-     * [AvaMediaNotificationProvider.release]).
+     * 0.7.5: scope for the settings collector that keeps the
+     * notification accent live (see [onCreate]). Cancelled in
+     * [onDestroy]; it owns no provider — the collector only captures
+     * the local provider instance, so there is no `notificationProvider`
+     * field and no `release()` call (the 0.7.4 RemoteViews provider
+     * and its ticker scope are gone with the revert).
      */
-    private var notificationProvider: AvaMediaNotificationProvider? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * Accent colour for the notification (placeholder + Media3 media
-     * notification), resolved once in [onCreate] from the user's theme.
+     * notification), resolved once in [onCreate] from the user's theme
+     * and then kept live by the settings collector.
      */
     private var accentColorArgb: Int = notificationAccentArgb(Accent.VIOLET, null)
 
@@ -89,22 +100,18 @@ class AvaPlaybackService : MediaSessionService() {
         // AvaMediaNotificationProvider). Wired in BEFORE addSession() so
         // the manager uses it from the first notification; lifecycle and
         // playback behaviour are untouched.
-        // 0.7.4: the provider is again a from-scratch
-        // MediaNotification.Provider (custom RemoteViews, ongoing while
-        // playing, like button) — rebuilt from 0.7.2 with the 0.7.3 PNG
-        // small icon (see AvaMediaNotificationProvider: the vector icon
-        // is the crash suspect; if it crashes again on device, the
-        // RemoteViews path is the cause and we revert to the 0.7.3
-        // subclass). It reads the current song from the shared
-        // PlayerRepository state and the favorite state from the
-        // MusicRepository — no repository file is modified for it.
+        // 0.7.5: reverted to the 0.7.3 DefaultMediaNotificationProvider
+        // subclass — the 0.7.4 from-scratch RemoteViews provider crashed
+        // on play with the identical exception even with the PNG small
+        // icon, so the RemoteViews path itself is the cause and is never
+        // repeated (see AvaMediaNotificationProvider). The subclass has
+        // no ticker/scope, so there is no provider field and no
+        // release() call in onDestroy(); the accent still comes from
+        // the user's AppTheme via resolveNotificationAccent(), and is
+        // now also kept LIVE by the collector below.
         accentColorArgb = resolveNotificationAccent(app)
-        notificationProvider = AvaMediaNotificationProvider(
-            this,
-            accentColorArgb,
-            app.container.musicRepository,
-        ) { app.container.playerRepository.state.value.currentSong }
-        setMediaNotificationProvider(notificationProvider!!)
+        val provider = AvaMediaNotificationProvider(this, accentColorArgb)
+        setMediaNotificationProvider(provider)
         val player = app.container.playerRepository.player
         val sessionActivity = PendingIntent.getActivity(
             this,
@@ -119,6 +126,25 @@ class AvaPlaybackService : MediaSessionService() {
         // doc). Without this, Media3 never builds the media notification
         // and never calls startForeground() for this session.
         mediaSession?.let { addSession(it) }
+        // 0.7.5: keep the notification accent live. When the user
+        // changes the theme (or a custom accent) while the service is
+        // running, push the new colour into the provider AND the
+        // placeholder field; Media3's next notification refresh picks
+        // it up (see AvaMediaNotificationProvider.updateAccentColor).
+        // The settings flow already falls back to defaults on error
+        // (UserPreferences.settings), so this never throws; the
+        // collector is cancelled with serviceScope in onDestroy.
+        // Deliberately only the local `provider` is captured — no
+        // field, nothing to release.
+        serviceScope.launch {
+            app.container.userPreferences.settings
+                .map { notificationAccentArgb(it.appTheme, it.customAccentArgb) }
+                .distinctUntilChanged()
+                .collect { accent ->
+                    accentColorArgb = accent
+                    provider.updateAccentColor(accent)
+                }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -138,8 +164,9 @@ class AvaPlaybackService : MediaSessionService() {
      * Reads the user's accent for the notification colour. DataStore has
      * no synchronous read; the value is normally already loaded (the app
      * container read it at startup), so this is a fast cached read, capped
-     * at 500 ms with a Violet fallback. A changed accent is picked up on
-     * the next service creation. Never throws (safe mode: the container
+     * at 500 ms with a Violet fallback. A changed accent is also picked
+     * up live by the settings collector in [onCreate], so this is only
+     * the starting value. Never throws (safe mode: the container
      * is not initialised yet).
      */
     private fun resolveNotificationAccent(app: AvaApplication): Int {
@@ -220,8 +247,7 @@ class AvaPlaybackService : MediaSessionService() {
         playerRepository.player.pause()
         mediaSession?.release()
         mediaSession = null
-        notificationProvider?.release()
-        notificationProvider = null
+        serviceScope.cancel()
         super.onDestroy()
     }
 }
