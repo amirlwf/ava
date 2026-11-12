@@ -30,12 +30,12 @@ enum class ThemeMode { SYSTEM, DARK, LIGHT, AMOLED }
 enum class Accent { VIOLET, ELECTRIC_BLUE, EMERALD, CRIMSON, AMBER, ROSE, MONOCHROME }
 
 /**
- * 0.7.0: the eight full Ava themes (see `ui/theme/AppTheme.kt` for the
+ * 0.7.0: the nine full Ava themes (see `ui/theme/AppTheme.kt` for the
  * spec behind each one). A theme replaces the old [Accent] preset as the
  * colour source; the stored [Accent] value is kept for compatibility but
  * no longer drives any colour. Default VIOLET keeps the exact 0.6.0 look.
  */
-enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SUNSET }
+enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SUNSET, GALAXY }
 
 enum class AppLanguage { SYSTEM, FA, EN }
 
@@ -70,6 +70,8 @@ data class SettingsState(
     val accent: Accent = Accent.VIOLET,
     /** 0.7.0: the chosen full theme (palette + gradient + shapes). */
     val appTheme: AppTheme = AppTheme.VIOLET,
+    /** 0.7.2: seasonal / galaxy background decor on Home + Now Playing. */
+    val seasonalEffectsEnabled: Boolean = true,
     /** User-picked accent color (ARGB int) or null to use the [accent] palette. */
     val customAccentArgb: Int? = null,
     val language: AppLanguage = AppLanguage.SYSTEM,
@@ -101,6 +103,12 @@ data class SettingsState(
     val recentSearches: List<String> = emptyList(),
     /** First-run onboarding completed (stage 6). */
     val onboardingSeen: Boolean = false,
+    /** Automatic update check on launch (0.7.2). */
+    val autoUpdateCheck: Boolean = true,
+    /** Epoch ms of the last automatic/manual update-check attempt. */
+    val lastUpdateCheckMs: Long = 0L,
+    /** Release tag the user asked not to be reminded about again (null = none). */
+    val dismissedUpdateVersion: String? = null,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
@@ -127,6 +135,7 @@ class UserPreferences(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val ACCENT = stringPreferencesKey("accent")
         val APP_THEME = stringPreferencesKey("app_theme")
+        val SEASONAL_EFFECTS_ENABLED = booleanPreferencesKey("seasonal_effects_enabled")
         val CUSTOM_ACCENT_ARGB = longPreferencesKey("custom_accent_argb")
         val LANGUAGE = stringPreferencesKey("language")
         val APP_ICON = stringPreferencesKey("app_icon")
@@ -144,6 +153,9 @@ class UserPreferences(private val context: Context) {
         val MUSIC_FOLDER_URIS = stringPreferencesKey("music_folder_uris")
         val RECENT_SEARCHES = stringPreferencesKey("recent_searches")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
+        val AUTO_UPDATE_CHECK = booleanPreferencesKey("auto_update_check")
+        val LAST_UPDATE_CHECK_MS = longPreferencesKey("last_update_check_ms")
+        val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
     }
 
     val settings: Flow<SettingsState> = context.dataStore.data
@@ -162,6 +174,7 @@ class UserPreferences(private val context: Context) {
                 ?: Accent.VIOLET,
             appTheme = prefs[Keys.APP_THEME]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
                 ?: AppTheme.VIOLET,
+            seasonalEffectsEnabled = prefs[Keys.SEASONAL_EFFECTS_ENABLED] ?: true,
             customAccentArgb = prefs[Keys.CUSTOM_ACCENT_ARGB]?.toInt(),
             language = prefs[Keys.LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
                 ?: AppLanguage.SYSTEM,
@@ -183,6 +196,9 @@ class UserPreferences(private val context: Context) {
                 ?.split("\n")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
             recentSearches = decodeRecentSearches(prefs[Keys.RECENT_SEARCHES]),
             onboardingSeen = prefs[Keys.ONBOARDING_SEEN] ?: false,
+            autoUpdateCheck = prefs[Keys.AUTO_UPDATE_CHECK] ?: true,
+            lastUpdateCheckMs = prefs[Keys.LAST_UPDATE_CHECK_MS]?.coerceAtLeast(0L) ?: 0L,
+            dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -193,6 +209,11 @@ class UserPreferences(private val context: Context) {
     /** 0.7.0: persists the chosen full theme; applies app-wide on next recomposition. */
     suspend fun setAppTheme(theme: AppTheme) {
         context.dataStore.edit { it[Keys.APP_THEME] = theme.name }
+    }
+
+    /** 0.7.2: seasonal / galaxy decor on Home + Now Playing, on or off. */
+    suspend fun setSeasonalEffectsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SEASONAL_EFFECTS_ENABLED] = enabled }
     }
 
     suspend fun setAccent(accent: Accent) {
@@ -353,6 +374,21 @@ class UserPreferences(private val context: Context) {
     /** Marks the first-run onboarding as completed (shown once). */
     suspend fun setOnboardingSeen() {
         context.dataStore.edit { it[Keys.ONBOARDING_SEEN] = true }
+    }
+
+    /** Automatic update check on/off (0.7.2). */
+    suspend fun setAutoUpdateCheck(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_UPDATE_CHECK] = enabled }
+    }
+
+    /** Stamps the last update-check attempt (automatic or manual). */
+    suspend fun setLastUpdateCheckMs(epochMs: Long) {
+        context.dataStore.edit { it[Keys.LAST_UPDATE_CHECK_MS] = epochMs.coerceAtLeast(0L) }
+    }
+
+    /** Remembers a release tag the user asked not to be reminded about. */
+    suspend fun setDismissedUpdateVersion(tag: String) {
+        context.dataStore.edit { it[Keys.DISMISSED_UPDATE_VERSION] = tag }
     }
 
     suspend fun addMusicFolder(treeUri: String) {

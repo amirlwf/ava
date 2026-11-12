@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
  * from here so the whole app stays visually consistent.
  *
  * 0.7.0: the radii below are the 0.6.0 defaults (the VIOLET theme).
- * Each of the eight themes carries its own radii in its [ThemeSpec]
+ * Each of the nine themes carries its own radii in its [ThemeSpec]
  * (`ui/theme/AppTheme.kt`), applied app-wide through MaterialTheme
  * shapes in `Theme.kt` — a theme's shapes win over these defaults for
  * every Material component. These tokens stay as the single source for

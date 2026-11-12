@@ -111,6 +111,14 @@
     <string name="player_notification_channel">Music playback</string>
     <string name="player_notification_channel_desc">Ava music playback controls</string>
 
+    <!-- Custom media notification (0.7.2) -->
+    <string name="notif_action_previous">Previous</string>
+    <string name="notif_action_play">Play</string>
+    <string name="notif_action_pause">Pause</string>
+    <string name="notif_action_next">Next</string>
+    <string name="notif_action_like">Add to favorites</string>
+    <string name="notif_unknown_artist">Unknown artist</string>
+
     <!-- Now Playing -->
     <string name="now_playing_title">Now Playing</string>
 
@@ -147,6 +155,22 @@
     <string name="settings_about_sub">Version and offline privacy</string>
     <string name="settings_insights">Listening insights</string>
     <string name="settings_insights_sub">Your top songs, artists and habits</string>
+
+    <!-- App updates (0.7.2) -->
+    <string name="update_title">App updates</string>
+    <string name="update_auto_title">Check for updates automatically</string>
+    <string name="update_auto_sub">Checks GitHub once a day when you are online</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_available_title">Update available: version %1$s</string>
+    <string name="update_available_body">A newer version of Ava is ready to download.</string>
+    <string name="update_available_short">Version %1$s is available — open the banner above to download it.</string>
+    <string name="update_uptodate">You are up to date (version %1$s).</string>
+    <string name="update_check_error">Could not check for updates. Check your connection and try again.</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_dont_remind">Don\'t tell me again for this version</string>
+    <string name="update_dismiss">Dismiss</string>
 
     <!-- Listening insights (0.7.0) -->
     <string name="insights_title">Listening insights</string>
@@ -187,6 +211,8 @@
     <string name="appearance_custom_active">Custom color is active</string>
     <string name="appearance_custom_clear">Use a preset instead</string>
     <string name="appearance_custom_hint">Pick any color. It is applied to the whole app as soon as you apply it.</string>
+    <string name="appearance_seasonal_title">Seasonal effects</string>
+    <string name="appearance_seasonal_sub">Leaves, snow, sun and stars behind Home and Now Playing, matching your theme</string>
     <string name="color_hue">Hue</string>
     <string name="color_saturation">Saturation</string>
     <string name="color_brightness">Brightness</string>
@@ -278,6 +304,13 @@
 
     <!-- Song actions -->
     <string name="song_details">Song details</string>
+    <string name="song_delete">Delete song</string>
+    <string name="song_delete_confirm_title">Delete this song?</string>
+    <string name="song_delete_confirm_body">“%1$s” will be permanently deleted from your phone. This cannot be undone.</string>
+    <string name="song_delete_confirm">Delete</string>
+    <string name="song_delete_success">Song deleted</string>
+    <string name="song_delete_cancelled">Delete cancelled — the song was kept</string>
+    <string name="song_delete_failed">Could not delete the song</string>
 
     <!-- Now Playing overflow menu -->
     <string name="player_lyrics">Lyrics</string>

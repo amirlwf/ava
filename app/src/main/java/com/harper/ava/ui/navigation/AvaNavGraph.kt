@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -39,6 +40,7 @@ import com.harper.ava.ui.settings.LanguageScreen
 import com.harper.ava.ui.settings.PlaybackSettingsScreen
 import com.harper.ava.ui.settings.SettingsScreen
 import com.harper.ava.ui.settings.StorageScreen
+import com.harper.ava.ui.update.UpdateBanner
 
 /**
  * Shared-element plumbing (0.7.0, spec §13).
@@ -79,10 +81,15 @@ fun AvaNavGraph(
 ) {
     SharedTransitionLayout {
         val sharedScope = this
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = modifier,
+        // 0.7.2: the update banner sits above the NavHost, so it is
+        // visible on every screen until dismissed. The NavHost takes the
+        // remaining space; the banner itself triggers the auto-check.
+        Column(modifier = modifier) {
+            UpdateBanner(app)
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = Modifier.weight(1f),
             // Default destination transition: a short fade with a
             // barely-there scale — calm, never a slide that fights RTL.
             enterTransition = {
@@ -254,6 +261,7 @@ fun AvaNavGraph(
             }
             composable(AboutRoute.ROUTE) {
                 AboutScreen { navController.popBackStack() }
+            }
             }
         }
     }

@@ -37,9 +37,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.common.SkeletonList
+import com.harper.ava.ui.components.DeleteSongOutcomeToasts
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.delay
@@ -56,6 +59,15 @@ fun FavoritesScreen(
     )
     val favorites by viewModel.favorites.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
+
+    // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+    DeleteSongOutcomeToasts()
+    SongDeleteConfirmDialog(
+        song = songToDelete,
+        onDismiss = { songToDelete = null },
+        onConfirm = { song -> viewModel.deleteSong(song); songToDelete = null },
+    )
 
     // 0.7.0: this ViewModel exposes no loading signal — Room's first
     // emission lands in milliseconds. So the skeleton only appears if
@@ -129,9 +141,11 @@ fun FavoritesScreen(
                         onToggleFavorite = { viewModel.toggleFavorite(song) },
                         playlists = playlists,
                         onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(song, playlistId) },
+                        onCreatePlaylistAndAdd = { name -> viewModel.createPlaylistAndAdd(song, name) },
                         onAddToQueue = { viewModel.addToQueue(song, playNext = false) },
                         onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                         onOpenDetails = { onOpenSongDetails(song.id) },
+                        onDeleteSong = { songToDelete = it },
                         modifier = Modifier.padding(horizontal = AvaTokens.space8),
                     )
                 }

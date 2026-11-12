@@ -111,6 +111,14 @@
     <string name="player_notification_channel">پخش موسیقی</string>
     <string name="player_notification_channel_desc">کنترل پخش موسیقی آوا</string>
 
+    <!-- Custom media notification (0.7.2) -->
+    <string name="notif_action_previous">قبلی</string>
+    <string name="notif_action_play">پخش</string>
+    <string name="notif_action_pause">مکث</string>
+    <string name="notif_action_next">بعدی</string>
+    <string name="notif_action_like">افزودن به علاقه‌مندی‌ها</string>
+    <string name="notif_unknown_artist">خوانندهٔ نامشخص</string>
+
     <!-- Now Playing -->
     <string name="now_playing_title">در حال پخش</string>
 
@@ -147,6 +155,22 @@
     <string name="settings_about_sub">نسخه و حریم خصوصی آفلاین</string>
     <string name="settings_insights">آمار گوش دادن</string>
     <string name="settings_insights_sub">آهنگ‌ها، خواننده‌ها و عادت‌های گوش دادنت</string>
+
+    <!-- به‌روزرسانی برنامه (0.7.2) -->
+    <string name="update_title">به‌روزرسانی برنامه</string>
+    <string name="update_auto_title">بررسی خودکار به‌روزرسانی</string>
+    <string name="update_auto_sub">وقتی آنلاین هستی، روزی یک‌بار در گیت‌هاب بررسی می‌کند</string>
+    <string name="update_check_now">بررسی الان</string>
+    <string name="update_checking">در حال بررسی به‌روزرسانی…</string>
+    <string name="update_available_title">نسخه جدید آماده است: %1$s</string>
+    <string name="update_available_body">نسخه جدیدتر آوا برای دانلود آماده است.</string>
+    <string name="update_available_short">نسخه %1$s آماده است — برای دانلود از بنر بالای صفحه استفاده کن.</string>
+    <string name="update_uptodate">به‌روز هستی (نسخه %1$s).</string>
+    <string name="update_check_error">بررسی به‌روزرسانی ممکن نشد. اتصالت را بررسی کن و دوباره تلاش کن.</string>
+    <string name="update_download">دانلود</string>
+    <string name="update_later">بعداً</string>
+    <string name="update_dont_remind">برای این نسخه دیگر نگو</string>
+    <string name="update_dismiss">بستن</string>
 
     <!-- Listening insights (0.7.0) -->
     <string name="insights_title">آمار گوش دادن</string>
@@ -187,6 +211,8 @@
     <string name="appearance_custom_active">رنگ دلخواه فعال است</string>
     <string name="appearance_custom_clear">استفاده از یک رنگ آماده</string>
     <string name="appearance_custom_hint">هر رنگی که بخواهی انتخاب کن. به‌محض اعمال، در کل اپ استفاده می‌شود.</string>
+    <string name="appearance_seasonal_title">جلوه‌های فصلی</string>
+    <string name="appearance_seasonal_sub">برگ، برف، خورشید و ستاره‌ها پشت خانه و «در حال پخش»، هماهنگ با تم شما</string>
     <string name="color_hue">رنگ (Hue)</string>
     <string name="color_saturation">اشباع</string>
     <string name="color_brightness">روشنایی</string>
@@ -278,6 +304,13 @@
 
     <!-- Song actions -->
     <string name="song_details">جزئیات آهنگ</string>
+    <string name="song_delete">حذف آهنگ</string>
+    <string name="song_delete_confirm_title">این آهنگ حذف شود؟</string>
+    <string name="song_delete_confirm_body">«%1$s» برای همیشه از گوشی شما حذف می‌شود. این کار قابل بازگشت نیست.</string>
+    <string name="song_delete_confirm">حذف</string>
+    <string name="song_delete_success">آهنگ حذف شد</string>
+    <string name="song_delete_cancelled">حذف لغو شد — آهنگ نگه داشته شد</string>
+    <string name="song_delete_failed">حذف آهنگ ممکن نشد</string>
 
     <!-- Now Playing overflow menu -->
     <string name="player_lyrics">متن آهنگ</string>

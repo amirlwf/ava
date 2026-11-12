@@ -17,6 +17,8 @@ import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
+import com.harper.ava.data.update.ManualUpdateCheckState
+import com.harper.ava.data.update.UpdateManager
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.toUiState
 import kotlinx.coroutines.Dispatchers
@@ -37,10 +39,27 @@ class SettingsViewModel(
     private val playerRepository: PlayerRepository,
     /** Only the Storage screen needs the SAF folder scanner; null elsewhere. */
     private val safFolderScanner: SafFolderScanner? = null,
+    /** 0.7.2: update check state; null when the caller has no update manager. */
+    private val updateManager: UpdateManager? = null,
 ) : ViewModel() {
 
     val settings: StateFlow<SettingsState> = userPreferences.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsState())
+
+    /** Outcome of the last manual "check now" (Idle until the first tap). */
+    val manualUpdateCheckState: StateFlow<ManualUpdateCheckState> =
+        updateManager?.manualCheckState
+            ?: MutableStateFlow<ManualUpdateCheckState>(ManualUpdateCheckState.Idle)
+                .asStateFlow()
+
+    fun setAutoUpdateCheck(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setAutoUpdateCheck(enabled) }
+    }
+
+    /** Manual "check now": ignores the 24 h cooldown, reports via [manualUpdateCheckState]. */
+    fun checkForUpdatesNow() {
+        updateManager?.checkNow()
+    }
 
     // -- appearance / language / playback (all DataStore-backed) -----------
 
@@ -193,6 +212,7 @@ class SettingsViewModel(
             music: MusicRepository,
             player: PlayerRepository,
             safFolders: SafFolderScanner? = null,
+            updateManager: UpdateManager? = null,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -203,6 +223,7 @@ class SettingsViewModel(
                         music,
                         player,
                         safFolders,
+                        updateManager,
                     ) as T
             }
     }

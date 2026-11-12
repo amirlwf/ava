@@ -4,7 +4,7 @@ import com.harper.ava.data.preferences.AppTheme
 import kotlin.math.pow
 
 /**
- * 0.7.0 design round — the eight Ava themes.
+ * 0.7.0 design round — the nine Ava themes.
  *
  * A theme is a complete design system, not just an accent colour: its own
  * primary/secondary/tertiary, its own dark + light surfaces, its own hero
@@ -24,6 +24,10 @@ import kotlin.math.pow
  * - VIOLET / بنفش — Ava's original violet (the 0.6.0 look, unchanged).
  * - OCEAN / اقیانوس — midnight deep-blue ocean.
  * - SUNSET / غروب — dusk orange + rose + purple, the roundest shapes with Summer.
+ * - GALAXY / مشکی کهکشانی (0.7.2) — deep space black with nebula violet /
+ *   pink / blue. NOT the same as AMOLED: AMOLED is pure black with no
+ *   identity, Galaxy is a space aesthetic — starfield decor, a nebula
+ *   hero gradient and indigo-tinted surfaces in every mode.
  *
  * Every theme works in all three [com.harper.ava.data.preferences.ThemeMode]s:
  * dark uses the theme-tinted charcoal surfaces, light uses a theme-tinted
@@ -408,6 +412,52 @@ fun appThemeSpec(theme: AppTheme): ThemeSpec = when (theme) {
         radiusMediumDp = 24,
         radiusLargeDp = 28,
         radiusExtraLargeDp = 36,
+    )
+    AppTheme.GALAXY -> ThemeSpec(
+        nameFa = "مشکی کهکشانی",
+        nameEn = "Galactic Black",
+        moodFa = "آسمان شب، ستاره‌ها و سحابی",
+        moodEn = "Night sky, stars and nebula",
+        // Starlight lavender primary: bright enough to read on deep
+        // space black in dark mode, deep indigo in light mode.
+        primaryDark = 0xFFC4B5FD,
+        onPrimaryDark = 0xFF1E1B4B,
+        primaryLight = 0xFF4338CA,
+        onPrimaryLight = 0xFFFFFFFF,
+        secondaryDark = 0xFFF9A8D4,
+        secondaryLight = 0xFFA21CAF,
+        tertiaryDark = 0xFF93C5FD,
+        tertiaryLight = 0xFF1D4ED8,
+        primaryContainerDark = 0xFF1E1B4B,
+        onPrimaryContainerDark = 0xFFE0E7FF,
+        primaryContainerLight = 0xFFE0E7FF,
+        onPrimaryContainerLight = 0xFF1E1B4B,
+        // Deep space black — darker than every other theme's dark
+        // background, but indigo-tinted, never the pure black AMOLED uses.
+        darkBackground = 0xFF05060F,
+        darkSurface = 0xFF0D0F1E,
+        darkSurfaceVariant = 0xFF171A2E,
+        darkOnBackground = 0xFFF2F3FA,
+        darkOnSurface = 0xFFE8EAF6,
+        darkOnSurfaceVariant = 0xFFA8ADC9,
+        // Light mode: pale starlight paper, same nebula accents.
+        lightBackground = 0xFFF6F5FB,
+        lightSurface = 0xFFFFFFFF,
+        lightSurfaceVariant = 0xFFEDEAF6,
+        lightOnBackground = 0xFF14121F,
+        lightOnSurface = 0xFF1C1A2E,
+        lightOnSurfaceVariant = 0xFF5B5872,
+        amoledSurface = 0xFF05060F,
+        amoledSurfaceVariant = 0xFF0B0D1C,
+        outlineDark = 0xFF2E3352,
+        outlineLight = 0xFFC6C2D8,
+        // Nebula hero: violet → pink → deep indigo.
+        heroDark = listOf(0xFF7C3AED, 0xFFDB2777, 0xFF1E1B4B),
+        heroLight = listOf(0xFFA78BFA, 0xFFF9A8D4, 0xFFE0E7FF),
+        radiusSmallDp = 16,
+        radiusMediumDp = 20,
+        radiusLargeDp = 24,
+        radiusExtraLargeDp = 32,
     )
 }
 

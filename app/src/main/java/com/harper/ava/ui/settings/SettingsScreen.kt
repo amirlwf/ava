@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -27,10 +28,12 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -53,6 +56,7 @@ import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppIcon
 import com.harper.ava.data.preferences.AppLanguage
 import com.harper.ava.data.preferences.ThemeMode
+import com.harper.ava.data.update.ManualUpdateCheckState
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.spec
 import java.util.Locale
@@ -125,10 +129,12 @@ fun SettingsScreen(
             app.container.userPreferences,
             app.container.musicRepository,
             app.container.playerRepository,
+            updateManager = app.container.updateManager,
         ),
     )
     val settings by viewModel.settings.collectAsState()
     val stats by viewModel.storageStats.collectAsState()
+    val manualUpdateCheck by viewModel.manualUpdateCheckState.collectAsState()
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -199,6 +205,49 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_about_sub),
                 onClick = onOpenAbout,
             )
+            // Updates (0.7.2): automatic check toggle + manual "check now".
+            // The automatic check itself runs from the update banner; this
+            // section only exposes its switch and a manual check.
+            SettingsSectionHeader(stringResource(R.string.update_title))
+            SettingsSwitchRow(
+                title = stringResource(R.string.update_auto_title),
+                subtitle = stringResource(R.string.update_auto_sub),
+                checked = settings.autoUpdateCheck,
+                onCheckedChange = { viewModel.setAutoUpdateCheck(it) },
+            )
+            Row(
+                modifier = Modifier.padding(
+                    horizontal = AvaTokens.space20,
+                    vertical = AvaTokens.space8,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.checkForUpdatesNow() },
+                    enabled = manualUpdateCheck != ManualUpdateCheckState.Checking,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SystemUpdate,
+                        contentDescription = null,
+                    )
+                    Spacer(modifier = Modifier.width(AvaTokens.space8))
+                    Text(stringResource(R.string.update_check_now))
+                }
+            }
+            when (val check = manualUpdateCheck) {
+                ManualUpdateCheckState.Idle -> Unit
+                ManualUpdateCheckState.Checking ->
+                    SettingsNote(stringResource(R.string.update_checking))
+
+                is ManualUpdateCheckState.Available ->
+                    SettingsNote(stringResource(R.string.update_available_short, check.versionName))
+
+                is ManualUpdateCheckState.UpToDate ->
+                    SettingsNote(stringResource(R.string.update_uptodate, check.currentVersion))
+
+                ManualUpdateCheckState.Error ->
+                    SettingsNote(stringResource(R.string.update_check_error))
+            }
             // App icon: three launcher-icon variants (Harper's own artwork,
             // activity-alias). Tapping one persists the choice and switches
             // Tapping one persists the choice and switches the launcher

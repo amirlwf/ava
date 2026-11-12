@@ -219,6 +219,23 @@ class MusicRepository(private val db: AppDatabase) {
         }
     }
 
+    /**
+     * Removes a song from the library after its file was deleted
+     * (0.7.2 song delete). Runs only AFTER the MediaStore delete
+     * succeeded — never before, so a cancelled/failed system dialog
+     * leaves the library untouched. One transaction: the song row goes
+     * (playlist memberships cascade via FK) and the favorite row is
+     * removed explicitly (no FK there). Listening history is kept on
+     * purpose — its snapshot survives the song leaving the library.
+     * Room flows re-emit, so every list refreshes by itself.
+     */
+    suspend fun deleteSongFromLibrary(songId: Long) {
+        db.withTransaction {
+            db.songDao().deleteById(songId)
+            db.favoriteDao().remove(songId)
+        }
+    }
+
     fun observePlaylists(): Flow<List<Playlist>> =
         db.playlistDao().observeAll().map { playlists ->
             playlists.map { entity ->

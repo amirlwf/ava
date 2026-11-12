@@ -61,7 +61,7 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 /**
- * Appearance (0.7.0): eight full themes + theme mode + custom colour.
+ * Appearance (0.7.0): nine full themes + theme mode + custom colour.
  *
  * - The theme picker is the main choice: each theme is a complete design
  *   system (palette, hero gradient, corner radii) and applies app-wide
@@ -145,6 +145,20 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
                     if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
+
+            // 0.7.2: seasonal effects — the leaves / snow / sun / stars
+            // decor on Home + Now Playing. Off hides every decor,
+            // including the Galaxy starfield.
+            SettingsSwitchRow(
+                title = stringResource(R.string.appearance_seasonal_title),
+                subtitle = stringResource(R.string.appearance_seasonal_sub),
+                checked = settings.seasonalEffectsEnabled,
+                onCheckedChange = { enabled ->
+                    scope.launch {
+                        app.container.userPreferences.setSeasonalEffectsEnabled(enabled)
+                    }
+                },
+            )
 
             SettingsSectionHeader(if (fa) "حالت نمایش" else "Display mode")
             SettingsChoiceRow(

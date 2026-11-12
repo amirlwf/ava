@@ -10,6 +10,7 @@ import com.harper.ava.data.local.db.GenreSummary
 import com.harper.ava.data.media.ScanResult
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
+import com.harper.ava.data.repository.SongDeleteCoordinator
 import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
@@ -129,12 +130,27 @@ class LibraryViewModel(
         viewModelScope.launch { musicRepository.toggleFavorite(song) }
     }
 
+    /** 0.7.2: deletes the song's file (system consent dialog on API 30+) + library rows. */
+    fun deleteSong(song: Song) {
+        viewModelScope.launch { SongDeleteCoordinator.requestDelete(song, musicRepository, playerRepository) }
+    }
+
     fun addToQueue(song: Song, playNext: Boolean) {
         playerRepository.addToQueue(song, playNext)
     }
 
     fun addToPlaylist(song: Song, playlistId: Long) {
         viewModelScope.launch { musicRepository.addSongToPlaylist(playlistId, song.id) }
+    }
+
+    /** 0.7.2 playlist-add fix: create a playlist from the song menu and add this song to it. */
+    fun createPlaylistAndAdd(song: Song, name: String) {
+        viewModelScope.launch {
+            runCatching {
+                val id = musicRepository.createPlaylist(name)
+                musicRepository.addSongToPlaylist(id, song.id)
+            }
+        }
     }
 
     companion object {

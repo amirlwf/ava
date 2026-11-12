@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 0.7.0 themes: every theme must be a complete, distinct, readable
+ * 0.7.0 themes (+ 0.7.2 Galaxy): every theme must be a complete, distinct, readable
  * design system in both dark and light mode. Pure JUnit — no Android
  * runtime, no Compose. Register in `scripts/verify.sh` (test-compile
  * list + JUnitCore list) alongside the other logic tests.
@@ -29,10 +29,10 @@ import org.junit.Test
 class AppThemeTest {
 
     @Test
-    fun `all eight themes exist`() {
-        assertEquals(8, AppTheme.entries.size)
+    fun `all nine themes exist`() {
+        assertEquals(9, AppTheme.entries.size)
         assertEquals(
-            setOf("SPRING", "SUMMER", "AUTUMN", "WINTER", "EMERALD", "VIOLET", "OCEAN", "SUNSET"),
+            setOf("SPRING", "SUMMER", "AUTUMN", "WINTER", "EMERALD", "VIOLET", "OCEAN", "SUNSET", "GALAXY"),
             AppTheme.entries.map { it.name }.toSet(),
         )
     }
@@ -46,14 +46,14 @@ class AppThemeTest {
             assertTrue(theme.name, spec.moodFa.isNotBlank())
             assertTrue(theme.name, spec.moodEn.isNotBlank())
         }
-        assertEquals(8, AppTheme.entries.map { it.spec.nameFa }.toSet().size)
-        assertEquals(8, AppTheme.entries.map { it.spec.nameEn }.toSet().size)
+        assertEquals(9, AppTheme.entries.map { it.spec.nameFa }.toSet().size)
+        assertEquals(9, AppTheme.entries.map { it.spec.nameEn }.toSet().size)
     }
 
     @Test
     fun `dark primaries are distinct per theme`() {
         val primaries = AppTheme.entries.map { it.spec.primaryDark }
-        assertEquals(8, primaries.toSet().size)
+        assertEquals(9, primaries.toSet().size)
     }
 
     @Test

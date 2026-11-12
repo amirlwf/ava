@@ -248,6 +248,16 @@ interface SongDao {
     @Query("DELETE FROM songs")
     suspend fun deleteAllSongs()
 
+    /**
+     * Deletes one song from the library (0.7.2 song delete). Playlist
+     * memberships cascade away via the PlaylistSongCrossRef FK; the
+     * favorite row has no FK and is removed explicitly by the caller
+     * ([MusicRepository.deleteSongFromLibrary]). Listening history is
+     * deliberately untouched (no FK — it keeps its snapshot).
+     */
+    @Query("DELETE FROM songs WHERE mediaStoreId = :id")
+    suspend fun deleteById(id: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(songs: List<SongEntity>)
 

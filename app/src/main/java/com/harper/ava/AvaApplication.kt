@@ -10,6 +10,7 @@ import com.harper.ava.data.media.SafFolderScanner
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
+import com.harper.ava.data.update.UpdateManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -42,6 +43,12 @@ class AppContainer(app: Application) {
     }
     val safFolderScanner = SafFolderScanner(app).also {
         StartupTracer.mark(app, "container.saf.ok")
+    }
+    // 0.7.2: auto-update check — shared by the banner (nav graph) and
+    // Settings. Built last: it only reads preferences + network, and its
+    // own IO scope means it can never block startup.
+    val updateManager = UpdateManager(app, userPreferences).also {
+        StartupTracer.mark(app, "container.update.ok")
     }
 }
 

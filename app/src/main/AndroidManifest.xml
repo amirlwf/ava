@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Offline music player: only the audio-media permission is needed.
-         No INTERNET permission is requested on purpose (fully offline app). -->
+    <!-- Offline music player: only the audio-media permission is needed
+         for playback. INTERNET + ACCESS_NETWORK_STATE (0.7.2) serve one
+         thing only: the automatic update check, a single GET to the
+         GitHub releases API on launch (24 h cooldown). No user data is
+         ever sent, and the app otherwise stays fully offline. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <!-- Pre-Android 13 fallback (READ_MEDIA_AUDIO does not exist there). -->
     <uses-permission

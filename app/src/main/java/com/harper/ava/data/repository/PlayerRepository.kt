@@ -606,6 +606,19 @@ class PlayerRepository(
         saveCheckpoint()
     }
 
+    /**
+     * Removes a song from the queue by id (0.7.2 song delete). A no-op
+     * when the song is not queued. When it IS the playing song,
+     * [removeFromQueue] applies: ExoPlayer advances to the next item
+     * (onMediaItemTransition fixes currentSong) — or stops playback
+     * when it was the only queued song. The checkpoint is saved, so a
+     * later resume never resurrects the deleted song.
+     */
+    fun removeSongById(songId: Long) {
+        val index = _state.value.queue.indexOfFirst { it.id == songId }
+        if (index >= 0) removeFromQueue(index)
+    }
+
     /** Removes one queue item. Removing the only item stops playback. */
     fun removeFromQueue(index: Int) {
         val current = _state.value

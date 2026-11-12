@@ -55,7 +55,9 @@ import com.harper.ava.R
 import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.SkeletonList
+import com.harper.ava.ui.components.DeleteSongOutcomeToasts
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.rememberScanLauncher
@@ -397,6 +399,16 @@ private fun SongList(
     onOpenSongDetails: (Long) -> Unit,
     isLoading: Boolean = false,
 ) {
+    // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
+    // (Before the isLoading early-return: remember calls must run on
+    // every composition, in the same order.)
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+    DeleteSongOutcomeToasts()
+    SongDeleteConfirmDialog(
+        song = songToDelete,
+        onDismiss = { songToDelete = null },
+        onConfirm = { song -> viewModel.deleteSong(song); songToDelete = null },
+    )
     // 0.7.0: an open group whose songs are still loading (scan running)
     // shows shimmer rows instead of a blank list.
     if (isLoading) {
@@ -411,9 +423,11 @@ private fun SongList(
                 onToggleFavorite = { viewModel.toggleFavorite(song) },
                 playlists = playlists,
                 onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(song, playlistId) },
+                onCreatePlaylistAndAdd = { name -> viewModel.createPlaylistAndAdd(song, name) },
                 onAddToQueue = { viewModel.addToQueue(song, playNext = false) },
                 onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                 onOpenDetails = { onOpenSongDetails(song.id) },
+                onDeleteSong = { songToDelete = it },
                 modifier = Modifier.padding(horizontal = AvaTokens.space8),
             )
         }

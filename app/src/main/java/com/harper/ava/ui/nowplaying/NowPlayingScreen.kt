@@ -77,7 +77,9 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.rememberAvaHaptics
+import com.harper.ava.data.preferences.SettingsState
 import com.harper.ava.data.repository.RepeatMode
+import com.harper.ava.ui.theme.SeasonalDecor
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
@@ -105,6 +107,8 @@ fun NowPlayingScreen(
     val state by viewModel.playback.collectAsState()
     val isFavorite by viewModel.isCurrentFavorite.collectAsState()
     val sleepTimer by viewModel.sleepTimer.collectAsState()
+    // 0.7.2: theme + seasonal-effects toggle drive the background decor.
+    val settings by app.container.userPreferences.settings.collectAsState(initial = SettingsState())
     var moreMenuOpen by remember { mutableStateOf(false) }
     val song = state.currentSong
 
@@ -233,6 +237,13 @@ fun NowPlayingScreen(
                         ),
                     ),
                 ),
+        )
+        // 0.7.2: seasonal decor above the blurred-art background, behind
+        // the content column.
+        SeasonalDecor(
+            theme = settings.appTheme,
+            effectsEnabled = settings.seasonalEffectsEnabled,
+            modifier = Modifier.fillMaxSize(),
         )
 
         Column(

@@ -144,7 +144,12 @@ echo "== [3b/7] javac compile (R.java -> R classes) =="
 # on the R class at runtime — the R classes must really exist in the
 # dex. Compile all generated R.java files with javac into $OUT/classes
 # (R.java files are pure int constants; no classpath needed).
-"$JAVA_HOME/bin/javac" -d "$OUT/classes" \
+# 0.7.2: aapt2 writes the string values as Javadoc comments in R.java,
+# and the new fa value of update_title is Persian — javac must read the
+# files as UTF-8. Without this the build dies with "unmappable character
+# for encoding US-ASCII" whenever this session's locale is POSIX/C
+# (LANG unset), which is exactly what happened on the first 0.7.2 build.
+"$JAVA_HOME/bin/javac" -encoding UTF-8 -d "$OUT/classes" \
   $(cat "$OUT/aapt2/r-java-files.txt") \
   > "$OUT/javac.log" 2>&1 || {
     echo "javac FAILED — see $OUT/javac.log"; tail -20 "$OUT/javac.log"; exit 1

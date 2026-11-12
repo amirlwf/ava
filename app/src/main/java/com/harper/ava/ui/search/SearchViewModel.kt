@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
+import com.harper.ava.data.repository.SongDeleteCoordinator
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,6 +65,16 @@ class SearchViewModel(
         viewModelScope.launch { musicRepository.addSongToPlaylist(playlistId, song.id) }
     }
 
+    /** 0.7.2 playlist-add fix: create a playlist from the song menu and add this song to it. */
+    fun createPlaylistAndAdd(song: Song, name: String) {
+        viewModelScope.launch {
+            runCatching {
+                val id = musicRepository.createPlaylist(name)
+                musicRepository.addSongToPlaylist(id, song.id)
+            }
+        }
+    }
+
     fun play(song: Song, allResults: List<Song>) {
         viewModelScope.launch {
             musicRepository.markPlayed(song.id)
@@ -76,6 +87,11 @@ class SearchViewModel(
 
     fun toggleFavorite(song: Song) {
         viewModelScope.launch { musicRepository.toggleFavorite(song) }
+    }
+
+    /** 0.7.2: deletes the song's file (system consent dialog on API 30+) + library rows. */
+    fun deleteSong(song: Song) {
+        viewModelScope.launch { SongDeleteCoordinator.requestDelete(song, musicRepository, playerRepository) }
     }
 
     companion object {

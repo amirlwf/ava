@@ -16,17 +16,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,14 +83,27 @@ fun SongRow(
     onRemoveFromPlaylist: (() -> Unit)? = null,
     playlists: List<Playlist>? = null,
     onAddToPlaylist: ((playlistId: Long) -> Unit)? = null,
+    /**
+     * 0.7.2 playlist-add fix: create a new playlist and add this song to
+     * it, from the song menu itself. The caller creates the playlist and
+     * adds [song]; the dialog below only collects the name. Without this
+     * the menu was a dead end when no playlist existed yet (the only
+     * "No playlists yet" item was disabled and creation lived only on
+     * the Playlists tab), so the first-ever add was impossible.
+     */
+    onCreatePlaylistAndAdd: ((name: String) -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onPlayNext: (() -> Unit)? = null,
     onOpenDetails: (() -> Unit)? = null,
+    /** 0.7.2: delete the song's file from the device (confirm dialog lives in the caller). */
+    onDeleteSong: ((Song) -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var showCreateDialog by remember { mutableStateOf(false) }
     var artFailed by remember(song.albumArtUri) { mutableStateOf(false) }
-    val showMenu = playlists != null || onAddToQueue != null || onPlayNext != null ||
-        onOpenDetails != null
+    val showMenu = playlists != null || onAddToPlaylist != null ||
+        onCreatePlaylistAndAdd != null || onAddToQueue != null || onPlayNext != null ||
+        onOpenDetails != null || onDeleteSong != null
     val artist = song.artist.ifBlank { stringResource(R.string.unknown_artist) }
     val haptics = rememberAvaHaptics()
 
@@ -220,13 +237,31 @@ fun SongRow(
                             onClick = { onOpenDetails(); menuOpen = false },
                         )
                     }
-                    if (playlists != null && onAddToPlaylist != null) {
-                        if (playlists.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.song_no_playlists)) },
-                                onClick = { menuOpen = false },
-                                enabled = false,
-                            )
+                    if ((playlists != null && onAddToPlaylist != null) ||
+                        onCreatePlaylistAndAdd != null
+                    ) {
+                        if (playlists.isNullOrEmpty()) {
+                            // Was a disabled dead end ("No playlists yet") with
+                            // no way forward — the first add from a song menu
+                            // was impossible. Now it opens the create dialog.
+                            if (onCreatePlaylistAndAdd != null) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.playlists_create)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = { menuOpen = false; showCreateDialog = true },
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.song_no_playlists)) },
+                                    onClick = { menuOpen = false },
+                                    enabled = false,
+                                )
+                            }
                         } else {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.song_add_to_playlist)) },
@@ -236,10 +271,40 @@ fun SongRow(
                             playlists.forEach { playlist ->
                                 DropdownMenuItem(
                                     text = { Text(playlist.name) },
-                                    onClick = { onAddToPlaylist(playlist.id); menuOpen = false },
+                                    onClick = { onAddToPlaylist?.invoke(playlist.id); menuOpen = false },
+                                )
+                            }
+                            if (onCreatePlaylistAndAdd != null) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.playlists_create)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = { menuOpen = false; showCreateDialog = true },
                                 )
                             }
                         }
+                    }
+                    if (onDeleteSong != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(R.string.song_delete),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = { onDeleteSong(song); menuOpen = false },
+                        )
                     }
                 }
             }
@@ -254,4 +319,53 @@ fun SongRow(
             }
         }
     }
+    if (showCreateDialog && onCreatePlaylistAndAdd != null) {
+        CreatePlaylistAndAddDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name ->
+                showCreateDialog = false
+                onCreatePlaylistAndAdd(name)
+            },
+        )
+    }
+}
+
+/**
+ * Name entry for "New playlist" from a song menu. Reuses the Playlists
+ * tab strings, so no new strings are needed. Create stays disabled on
+ * a blank name (the repository rejects blank names with require()).
+ */
+@Composable
+private fun CreatePlaylistAndAddDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.playlists_create_title)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                textStyle = MaterialTheme.typography.bodyLarge,
+                placeholder = { Text(stringResource(R.string.playlists_name_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onCreate(name.trim()) },
+                enabled = name.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.playlists_create_button))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.playlists_cancel))
+            }
+        },
+    )
 }

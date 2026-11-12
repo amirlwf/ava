@@ -1,5 +1,6 @@
 package com.harper.ava
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
@@ -11,8 +12,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,6 +47,7 @@ import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.preferences.UserPreferences
+import com.harper.ava.data.repository.SongDeleteCoordinator
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.components.MiniPlayer
 import com.harper.ava.ui.navigation.AvaNavGraph
@@ -144,6 +149,24 @@ class MainActivity : ComponentActivity() {
             }
             val playback by app.container.playerRepository.state
                 .collectAsState()
+
+            // 0.7.2 song delete: the system consent dialog (API 30+)
+            // launcher. Only the Activity can own an
+            // ActivityResultLauncher, so it lives here; the five screens'
+            // ViewModels reach it through SongDeleteCoordinator.
+            val deleteLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartIntentSenderForResult(),
+            ) { result ->
+                SongDeleteCoordinator.onSystemDeleteResult(
+                    result.resultCode == Activity.RESULT_OK,
+                )
+            }
+            LaunchedEffect(Unit) {
+                SongDeleteCoordinator.attachContext(applicationContext)
+                SongDeleteCoordinator.attachLauncher { sender ->
+                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                }
+            }
 
             // Push playback settings into the player whenever they change.
             LaunchedEffect(settings.fadeEnabled) {

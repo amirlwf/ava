@@ -22,13 +22,19 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.domain.model.Song
+import com.harper.ava.ui.components.DeleteSongOutcomeToasts
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
 
@@ -49,6 +55,17 @@ fun PlaylistDetailScreen(
     )
     val playlist by viewModel.playlist.collectAsState()
     val songs by viewModel.songs.collectAsState()
+    // 0.7.2 playlist-add fix: rows inside a playlist can now be added to other playlists.
+    val playlists by viewModel.playlists.collectAsState()
+
+    // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+    DeleteSongOutcomeToasts()
+    SongDeleteConfirmDialog(
+        song = songToDelete,
+        onDismiss = { songToDelete = null },
+        onConfirm = { song -> viewModel.deleteSong(song); songToDelete = null },
+    )
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -97,7 +114,11 @@ fun PlaylistDetailScreen(
                         onClick = { viewModel.playAll(songs.dropWhile { it.id != song.id }) },
                         onToggleFavorite = { viewModel.toggleFavorite(song) },
                         onRemoveFromPlaylist = { viewModel.removeSong(song) },
+                        playlists = playlists,
+                        onAddToPlaylist = { id -> viewModel.addToPlaylist(song, id) },
+                        onCreatePlaylistAndAdd = { name -> viewModel.createPlaylistAndAdd(song, name) },
                         onOpenDetails = { onOpenSongDetails(song.id) },
+                        onDeleteSong = { songToDelete = it },
                         modifier = Modifier.padding(horizontal = AvaTokens.space8),
                     )
                 }

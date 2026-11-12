@@ -48,10 +48,14 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.homeSectionSongKey
 import com.harper.ava.data.media.AudioPermission
+import com.harper.ava.data.preferences.SettingsState
+import com.harper.ava.ui.theme.SeasonalDecor
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.SkeletonList
+import com.harper.ava.ui.components.DeleteSongOutcomeToasts
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.openAppSettings
@@ -75,6 +79,8 @@ fun HomeScreen(
     val playlists by viewModel.playlists.collectAsState()
     val songCount by viewModel.songCount.collectAsState()
     val scanState by viewModel.scanState.collectAsState()
+    // 0.7.2: theme + seasonal-effects toggle drive the background decor.
+    val settings by app.container.userPreferences.settings.collectAsState(initial = SettingsState())
 
     val context = LocalContext.current
     val hasPermission = AudioPermission.isGranted(context)
@@ -93,10 +99,26 @@ fun HomeScreen(
 
     val isEmpty = songCount == 0 && playlists.isEmpty()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Top,
-    ) {
+    // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
+    var songToDelete by remember { mutableStateOf<Song?>(null) }
+    DeleteSongOutcomeToasts()
+    SongDeleteConfirmDialog(
+        song = songToDelete,
+        onDismiss = { songToDelete = null },
+        onConfirm = { song -> viewModel.deleteSong(song); songToDelete = null },
+    )
+
+    // 0.7.2: seasonal decor sits behind the whole list (Box, first child).
+    Box(modifier = Modifier.fillMaxSize()) {
+        SeasonalDecor(
+            theme = settings.appTheme,
+            effectsEnabled = settings.seasonalEffectsEnabled,
+            modifier = Modifier.fillMaxSize(),
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Top,
+        ) {
         item {
             Column(modifier = Modifier.padding(horizontal = AvaTokens.space20)) {
                 Spacer(modifier = Modifier.height(AvaTokens.space16))
@@ -241,7 +263,7 @@ fun HomeScreen(
                 // recentlyPlayed AND recentlyAdded as soon as it is played
                 // once, and a bare id key crashed 0.5.5 (duplicate key).
                 items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, recentlyPlayed, onOpenSongDetails)
+                    HomeSongRow(viewModel, playlists, song, recentlyPlayed, onOpenSongDetails) { songToDelete = it }
                 }
             }
             if (recentlyAdded.isNotEmpty()) {
@@ -249,7 +271,7 @@ fun HomeScreen(
                     SectionTitle(stringResource(R.string.home_recently_added))
                 }
                 items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, recentlyAdded, onOpenSongDetails)
+                    HomeSongRow(viewModel, playlists, song, recentlyAdded, onOpenSongDetails) { songToDelete = it }
                 }
             }
             if (favorites.isNotEmpty()) {
@@ -287,7 +309,7 @@ fun HomeScreen(
                     }
                 }
                 items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, favorites, onOpenSongDetails)
+                    HomeSongRow(viewModel, playlists, song, favorites, onOpenSongDetails) { songToDelete = it }
                 }
             }
             if (playlists.isNotEmpty()) {
@@ -303,6 +325,7 @@ fun HomeScreen(
         }
 
         item { Spacer(modifier = Modifier.height(AvaTokens.space24)) }
+        }
     }
 }
 
@@ -313,6 +336,7 @@ private fun HomeSongRow(
     song: Song,
     section: List<Song>,
     onOpenSongDetails: (Long) -> Unit,
+    onDeleteSong: (Song) -> Unit,
 ) {
     SongRow(
         song = song,
@@ -320,9 +344,11 @@ private fun HomeSongRow(
         onToggleFavorite = { viewModel.toggleFavorite(song) },
         playlists = playlists,
         onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(song, playlistId) },
+        onCreatePlaylistAndAdd = { name -> viewModel.createPlaylistAndAdd(song, name) },
         onAddToQueue = { viewModel.addToQueue(song, playNext = false) },
         onPlayNext = { viewModel.addToQueue(song, playNext = true) },
         onOpenDetails = { onOpenSongDetails(song.id) },
+        onDeleteSong = onDeleteSong,
         modifier = Modifier.padding(horizontal = AvaTokens.space8),
     )
 }
