@@ -202,12 +202,9 @@
     <!-- App icon (launcher icon variants) -->
     <string name="app_icon_title">آیکون برنامه</string>
     <string name="app_icon_hint">با تغییر آیکون، آیکون لانچر عوض می‌شود؛ ممکن است چند ثانیه طول بکشد تا دیده شود.</string>
-    <string name="app_icon_default">پیش‌فرض · بنفش</string>
-    <string name="app_icon_emerald">زمردی</string>
-    <string name="app_icon_sunset">غروب</string>
-    <string name="app_icon_ocean">اقیانوس</string>
-    <string name="app_icon_spring">شکوفهٔ بهار</string>
-    <string name="app_icon_mono">تک‌رنگ</string>
+    <string name="app_icon_default">پیش‌فرض · قرمز</string>
+    <string name="app_icon_purple">بنفش</string>
+    <string name="app_icon_green">سبز</string>
 
     <!-- Language -->
     <string name="language_title">زبان</string>

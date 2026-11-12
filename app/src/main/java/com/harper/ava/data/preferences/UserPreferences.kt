@@ -41,24 +41,27 @@ enum class AppLanguage { SYSTEM, FA, EN }
 
 /**
  * Launcher-icon variant, applied with an activity-alias + PackageManager
- * switch (see [UserPreferences.setAppIcon]). DEFAULT is the real
- * MainActivity launcher entry; every other value is an activity-alias
- * whose `targetActivity` is MainActivity. Only preset variants exist:
- * Android has no supported way to install a user-uploaded image as a
- * launcher icon, so no custom-upload variant is offered.
+ * switch (see [UserPreferences.setAppIcon]). DEFAULT is Harper's own
+ * artwork in red, on the real MainActivity launcher entry; PURPLE and
+ * GREEN are the same artwork in the other two colours, as activity-aliases
+ * whose `targetActivity` is MainActivity. Only these three preset variants
+ * exist: Android has no supported way to install a user-uploaded image as
+ * a launcher icon, so no custom-upload variant is offered.
+ *
+ * 0.7.1: replaced the six 0.7.0 note-icon variants (DEFAULT/EMERALD/
+ * SUNSET/OCEAN/SPRING/MONO). A stored old value no longer parses
+ * ([SettingsState] falls back to DEFAULT), so upgrading users land on
+ * the red artwork and the startup sync re-enables MainActivity.
  */
 enum class AppIcon {
-    DEFAULT, EMERALD, SUNSET, OCEAN, SPRING, MONO;
+    DEFAULT, PURPLE, GREEN;
 
     /** Manifest `android:name` of the activity-alias, or null for DEFAULT. */
     val aliasName: String?
         get() = when (this) {
             DEFAULT -> null
-            EMERALD -> ".LauncherEmerald"
-            SUNSET -> ".LauncherSunset"
-            OCEAN -> ".LauncherOcean"
-            SPRING -> ".LauncherSpring"
-            MONO -> ".LauncherMono"
+            PURPLE -> ".LauncherPurple"
+            GREEN -> ".LauncherGreen"
         }
 }
 

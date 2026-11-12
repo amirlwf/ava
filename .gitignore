@@ -20,3 +20,7 @@ dist/
 # Unlicensed commercial fonts — never track or push (Manshoor: paid, not bought; Dana: per-product licence, no code)
 fonts/dana/
 fonts/manshoor/
+
+# Harper's original icon artwork (1254px sources) — kept locally only;
+# the downscaled build inputs live in res/drawable-xxxhdpi + res/mipmap-xxxhdpi
+icons-harper/

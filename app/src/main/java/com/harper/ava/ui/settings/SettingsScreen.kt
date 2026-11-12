@@ -85,22 +85,16 @@ fun accentLabel(accent: Accent): String = stringResource(
 fun appIconLabel(icon: AppIcon): String = stringResource(
     when (icon) {
         AppIcon.DEFAULT -> R.string.app_icon_default
-        AppIcon.EMERALD -> R.string.app_icon_emerald
-        AppIcon.SUNSET -> R.string.app_icon_sunset
-        AppIcon.OCEAN -> R.string.app_icon_ocean
-        AppIcon.SPRING -> R.string.app_icon_spring
-        AppIcon.MONO -> R.string.app_icon_mono
+        AppIcon.PURPLE -> R.string.app_icon_purple
+        AppIcon.GREEN -> R.string.app_icon_green
     },
 )
 
 /** Preview drawable for an icon variant (the same foreground as the launcher icon). */
 private fun appIconPreviewRes(icon: AppIcon): Int = when (icon) {
     AppIcon.DEFAULT -> R.drawable.ic_launcher_foreground
-    AppIcon.EMERALD -> R.drawable.ic_launcher_emerald_foreground
-    AppIcon.SUNSET -> R.drawable.ic_launcher_sunset_foreground
-    AppIcon.OCEAN -> R.drawable.ic_launcher_ocean_foreground
-    AppIcon.SPRING -> R.drawable.ic_launcher_spring_foreground
-    AppIcon.MONO -> R.drawable.ic_launcher_mono_foreground
+    AppIcon.PURPLE -> R.drawable.ic_launcher_purple_foreground
+    AppIcon.GREEN -> R.drawable.ic_launcher_green_foreground
 }
 
 @Composable
@@ -205,7 +199,8 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_about_sub),
                 onClick = onOpenAbout,
             )
-            // App icon: six preset launcher-icon variants (activity-alias).
+            // App icon: three launcher-icon variants (Harper's own artwork,
+            // activity-alias). Tapping one persists the choice and switches
             // Tapping one persists the choice and switches the launcher
             // entry via PackageManager; the change shows up in the
             // launcher within seconds, no restart needed.
