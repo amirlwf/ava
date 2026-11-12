@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,10 +36,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
@@ -50,17 +52,34 @@ import com.harper.ava.R
 import com.harper.ava.core.util.argbToHex
 import com.harper.ava.core.util.argbToHsv
 import com.harper.ava.core.util.hsvToArgb
-import com.harper.ava.data.preferences.Accent
+import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.accentPalette
+import com.harper.ava.ui.theme.spec
+import java.util.Locale
+import kotlinx.coroutines.launch
 
 /**
- * Appearance: theme mode (System / Dark / Light / AMOLED) + accent.
- * Every change writes to DataStore and MainActivity re-themes the whole
- * app from the same flow, so the change is instant on every screen and
- * survives restarts. A custom color (HSV picker) overrides the preset
- * until a preset is picked again.
+ * Appearance (0.7.0): eight full themes + theme mode + custom colour.
+ *
+ * - The theme picker is the main choice: each theme is a complete design
+ *   system (palette, hero gradient, corner radii) and applies app-wide
+ *   the moment it is picked (MainActivity reads `settings.appTheme`
+ *   into `AvaTheme`), including the media-notification accent.
+ * - Theme mode (System / Dark / Light / AMOLED) is independent of the
+ *   theme: every theme is readable in all three modes, and AMOLED keeps
+ *   a pure black background.
+ * - The old Accent preset swatches are gone on purpose: the theme
+ *   *replaces* the accent preset (the stored `Accent` value is kept in
+ *   DataStore but no longer drives any colour). The HSV custom colour
+ *   stays: it overrides the theme's primary family until cleared, and
+ *   the theme's surfaces / gradient / shapes stay underneath it.
+ *
+ * Theme names and moods come from the spec itself (`ThemeSpec.nameFa` /
+ * `nameEn`), so no new string resources were needed; the two section
+ * headers below are the only hard-coded labels and follow the app
+ * language (fa/en).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +93,8 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
         ),
     )
     val settings by viewModel.settings.collectAsState()
+    val scope = rememberCoroutineScope()
+    val fa = Locale.getDefault().language == "fa"
 
     Scaffold(
         topBar = {
@@ -96,7 +117,36 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSectionHeader(stringResource(R.string.appearance_theme_title))
+            SettingsSectionHeader(if (fa) "تم‌های آوا" else "Ava themes")
+            SettingsNote(
+                if (fa) "هر تم یک دیزاین کامل است: رنگ، گرادیان و گوشه‌ها. با انتخاب تم، رنگ تأکیدی قبلی جای خود را به تم می‌دهد."
+                else "Each theme is a complete design: colours, gradient and corners. Picking a theme replaces the old accent preset.",
+            )
+            AppTheme.entries.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AvaTokens.space20, vertical = AvaTokens.space6),
+                    horizontalArrangement = Arrangement.spacedBy(AvaTokens.space12),
+                ) {
+                    row.forEach { theme ->
+                        AppThemeCard(
+                            theme = theme,
+                            fa = fa,
+                            selected = settings.appTheme == theme,
+                            onClick = {
+                                scope.launch {
+                                    app.container.userPreferences.setAppTheme(theme)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+
+            SettingsSectionHeader(if (fa) "حالت نمایش" else "Display mode")
             SettingsChoiceRow(
                 title = stringResource(R.string.theme_system),
                 subtitle = stringResource(R.string.theme_system_sub),
@@ -122,24 +172,6 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
                 onClick = { viewModel.setThemeMode(ThemeMode.AMOLED) },
             )
 
-            SettingsSectionHeader(stringResource(R.string.appearance_accent_title))
-            FlowRow(
-                modifier = Modifier.padding(horizontal = AvaTokens.space20),
-                horizontalArrangement = Arrangement.spacedBy(AvaTokens.space12),
-                verticalArrangement = Arrangement.spacedBy(AvaTokens.space12),
-            ) {
-                Accent.entries.forEach { accent ->
-                    val palette = accentPalette(accent)
-                    val selected = settings.customAccentArgb == null && settings.accent == accent
-                    AccentSwatch(
-                        color = palette.primary,
-                        label = accentLabel(accent),
-                        selected = selected,
-                        onClick = { viewModel.setAccent(accent) },
-                    )
-                }
-            }
-
             SettingsSectionHeader(stringResource(R.string.appearance_custom_title))
             SettingsNote(stringResource(R.string.appearance_custom_hint))
             CustomColorPicker(
@@ -153,38 +185,69 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
     }
 }
 
+/** One theme card: its hero gradient on top, name + mood below. */
 @Composable
-private fun AccentSwatch(color: Color, label: String, selected: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun AppThemeCard(
+    theme: AppTheme,
+    fa: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spec = theme.spec
+    val shape = RoundedCornerShape(AvaTokens.radiusLarge)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.outlineVariant,
+                shape = shape,
+            )
+            .clickable(onClick = onClick),
+    ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(color)
-                .then(
-                    if (selected) {
-                        Modifier.border(2.dp, MaterialTheme.colorScheme.onBackground, CircleShape)
-                    } else {
-                        Modifier
-                    },
-                )
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(
+                    Brush.linearGradient(spec.heroDark.map { Color(it) }),
+                ),
+            contentAlignment = Alignment.TopEnd,
         ) {
             if (selected) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                )
+                Box(
+                    modifier = Modifier
+                        .padding(AvaTokens.space8)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.height(AvaTokens.space4))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(modifier = Modifier.padding(AvaTokens.space12)) {
+            Text(
+                text = if (fa) spec.nameFa else spec.nameEn,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(AvaTokens.space2))
+            Text(
+                text = if (fa) spec.moodFa else spec.moodEn,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

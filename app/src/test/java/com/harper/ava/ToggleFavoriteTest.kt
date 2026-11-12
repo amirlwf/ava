@@ -4,6 +4,7 @@ import androidx.room.InvalidationTracker
 import com.harper.ava.data.local.db.AppDatabase
 import com.harper.ava.data.local.db.FavoriteDao
 import com.harper.ava.data.local.db.FavoriteEntity
+import com.harper.ava.data.local.db.ListeningHistoryDao
 import com.harper.ava.data.local.db.PlaylistDao
 import com.harper.ava.data.local.db.SongDao
 import com.harper.ava.data.repository.MusicRepository
@@ -57,6 +58,9 @@ class ToggleFavoriteTest {
             throw UnsupportedOperationException("not used by toggleFavorite")
 
         override fun favoriteDao(): FavoriteDao = fav
+
+        override fun listeningHistoryDao(): ListeningHistoryDao =
+            throw UnsupportedOperationException("not used by toggleFavorite")
 
         // RoomDatabase abstract members the toggle never touches.
         // The 4-arg InvalidationTracker constructor is the non-deprecated

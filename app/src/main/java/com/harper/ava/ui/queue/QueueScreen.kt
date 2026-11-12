@@ -51,6 +51,7 @@ import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.dragTargetIndex
+import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.queueRowKey
 import com.harper.ava.domain.model.Song
@@ -81,6 +82,8 @@ fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
 
     var draggedPos by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
+    var lastTickTarget by remember { mutableStateOf<Int?>(null) }
+    val haptics = rememberAvaHaptics()
     val rowHeightPx = with(LocalDensity.current) { AvaTokens.queueRowHeight.toPx() }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -189,6 +192,7 @@ fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
                                         onDragStart = {
                                             draggedPos = pos
                                             dragOffsetY = 0f
+                                            lastTickTarget = pos
                                         },
                                         onDragEnd = {
                                             val targetPos = dragTargetIndex(
@@ -205,13 +209,25 @@ fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
                                             }
                                             draggedPos = null
                                             dragOffsetY = 0f
+                                            lastTickTarget = null
                                         },
                                         onDragCancel = {
                                             draggedPos = null
                                             dragOffsetY = 0f
+                                            lastTickTarget = null
                                         },
                                         onDrag = { _, dragAmount ->
                                             dragOffsetY += dragAmount.y
+                                            val target = dragTargetIndex(
+                                                pos,
+                                                dragOffsetY,
+                                                rowHeightPx,
+                                                upcoming.size,
+                                            )
+                                            if (target != lastTickTarget) {
+                                                lastTickTarget = target
+                                                haptics.dragTick()
+                                            }
                                         },
                                     )
                                 },

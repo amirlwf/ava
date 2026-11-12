@@ -1,11 +1,16 @@
 package com.harper.ava.ui.nowplaying
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,11 +76,16 @@ import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.formatDuration
+import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.repository.RepeatMode
+import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
+import com.harper.ava.ui.navigation.LocalAvaSharedTransitionScope
+import com.harper.ava.ui.navigation.songCoverSharedKey
 import com.harper.ava.ui.theme.AvaTokens
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
     app: AvaApplication,
@@ -127,6 +138,44 @@ fun NowPlayingScreen(
     var coverFailed by remember(song.albumArtUri) { mutableStateOf(false) }
     var sliderDragging by remember { mutableStateOf(false) }
     var sliderValue by remember(song.id) { mutableStateOf(state.positionMs.toFloat()) }
+    val haptics = rememberAvaHaptics()
+
+    // 0.7.0 motion: the big cover is the other end of the shared element
+    // that starts in the list row ([songCoverSharedKey]) — the same key,
+    // so a tapped row's cover flies here and back. The AnimatedContent
+    // itself carries the modifier (its bounds ARE the cover bounds).
+    val sharedScope = LocalAvaSharedTransitionScope.current
+    val visibilityScope = LocalAvaAnimatedVisibilityScope.current
+    val coverModifier = if (sharedScope != null && visibilityScope != null) {
+        with(sharedScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = songCoverSharedKey(song.id)),
+                animatedVisibilityScope = visibilityScope,
+                boundsTransform = AvaMotion.coverBoundsTransform,
+            )
+        }
+    } else {
+        Modifier
+    }
+
+    // Hero play button: spring squash while pressed, like the mini player.
+    val playInteraction = remember { MutableInteractionSource() }
+    val playPressed by playInteraction.collectIsPressedAsState()
+    val playScale by animateFloatAsState(
+        targetValue = if (playPressed) 0.88f else 1f,
+        animationSpec = AvaMotion.pressSpring,
+        label = "now-playing-play-scale",
+    )
+
+    // Heart pop on every favorite tap (same spring as the rows).
+    val heartScale = remember { Animatable(1f) }
+    var heartPop by remember { mutableIntStateOf(0) }
+    LaunchedEffect(heartPop) {
+        if (heartPop > 0) {
+            heartScale.animateTo(1.3f, AvaMotion.pressSpring)
+            heartScale.animateTo(1f, AvaMotion.pressSpring)
+        }
+    }
     LaunchedEffect(state.positionMs) {
         if (!sliderDragging) sliderValue = state.positionMs.toFloat()
     }
@@ -264,6 +313,7 @@ fun NowPlayingScreen(
                 targetState = song,
                 transitionSpec = { (fadeIn() + scaleIn(initialScale = 0.96f)) togetherWith fadeOut() },
                 label = "now-playing-cover",
+                modifier = coverModifier,
             ) { current ->
                 // Stage 6: a soft shadow lifts the cover off the blurred
                 // background (premium depth instead of a flat tile).
@@ -376,7 +426,7 @@ fun NowPlayingScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { viewModel.toggleShuffle() }) {
+                IconButton(onClick = { haptics.toggle(); viewModel.toggleShuffle() }) {
                     Icon(
                         imageVector = Icons.Filled.Shuffle,
                         contentDescription = stringResource(R.string.player_shuffle),
@@ -385,7 +435,7 @@ fun NowPlayingScreen(
                     )
                 }
                 IconButton(
-                    onClick = { viewModel.playPrevious() },
+                    onClick = { haptics.tap(); viewModel.playPrevious() },
                     modifier = Modifier
                         .size(AvaTokens.touchTargetMin)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
@@ -397,9 +447,14 @@ fun NowPlayingScreen(
                     )
                 }
                 IconButton(
-                    onClick = { viewModel.togglePlayPause() },
+                    onClick = { haptics.playPause(); viewModel.togglePlayPause() },
+                    interactionSource = playInteraction,
                     modifier = Modifier
                         .size(AvaTokens.nowPlayingPlaySize)
+                        .graphicsLayer {
+                            scaleX = playScale
+                            scaleY = playScale
+                        }
                         .background(MaterialTheme.colorScheme.primary, CircleShape),
                 ) {
                     Icon(
@@ -412,7 +467,7 @@ fun NowPlayingScreen(
                     )
                 }
                 IconButton(
-                    onClick = { viewModel.playNext() },
+                    onClick = { haptics.tap(); viewModel.playNext() },
                     modifier = Modifier
                         .size(AvaTokens.touchTargetMin)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
@@ -423,7 +478,7 @@ fun NowPlayingScreen(
                         modifier = Modifier.size(32.dp),
                     )
                 }
-                IconButton(onClick = { viewModel.cycleRepeatMode() }) {
+                IconButton(onClick = { haptics.toggle(); viewModel.cycleRepeatMode() }) {
                     Icon(
                         imageVector = if (state.repeatMode == RepeatMode.ONE) {
                             Icons.Filled.RepeatOne
@@ -455,7 +510,7 @@ fun NowPlayingScreen(
                 // heart, so the state is visible at a glance, not only by
                 // the icon's fill/color.
                 IconButton(
-                    onClick = { viewModel.toggleFavorite() },
+                    onClick = { haptics.like(); heartPop++; viewModel.toggleFavorite() },
                     modifier = Modifier
                         .size(AvaTokens.touchTargetMin)
                         .background(
@@ -475,6 +530,10 @@ fun NowPlayingScreen(
                         ),
                         tint = if (isFavorite) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = heartScale.value
+                            scaleY = heartScale.value
+                        },
                     )
                 }
                 TextButton(onClick = { viewModel.cycleSpeed() }) {

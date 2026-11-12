@@ -54,6 +54,7 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Song
+import com.harper.ava.ui.common.SkeletonList
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
@@ -87,6 +88,10 @@ fun LibraryScreen(
         onScanStarted = viewModel::onScanStarted,
         onScanResult = viewModel::onScanResult,
     )
+    // 0.7.0: a running MediaStore scan means the lists below are
+    // genuinely still loading — an empty list shows shimmer rows until
+    // the scan lands, instead of flashing an empty state.
+    val isScanning = scanState is ScanUiState.Scanning
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -199,6 +204,7 @@ fun LibraryScreen(
                 viewModel = viewModel,
                 playlists = playlists,
                 onOpenSongDetails = onOpenSongDetails,
+                isLoading = isScanning && groupSongs.isEmpty(),
             )
             return@Column
         }
@@ -235,7 +241,7 @@ fun LibraryScreen(
         when (tab) {
             LibraryTab.SONGS -> {
                 if (songs.isEmpty()) {
-                    LibraryEmpty()
+                    if (isScanning) SkeletonList() else LibraryEmpty()
                 } else {
                     Text(
                         text = stringResource(R.string.library_songs_count, songs.size),
@@ -253,7 +259,7 @@ fun LibraryScreen(
             }
             LibraryTab.ARTISTS -> {
                 if (artists.isEmpty()) {
-                    LibraryEmpty()
+                    if (isScanning) SkeletonList() else LibraryEmpty()
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(artists, key = { it.name }) { artist ->
@@ -276,7 +282,7 @@ fun LibraryScreen(
             }
             LibraryTab.ALBUMS -> {
                 if (albums.isEmpty()) {
-                    LibraryEmpty()
+                    if (isScanning) SkeletonList() else LibraryEmpty()
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(albums, key = { "${it.artist}|${it.name}" }) { album ->
@@ -301,14 +307,18 @@ fun LibraryScreen(
             }
             LibraryTab.FOLDERS -> {
                 if (folders.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        EmptyState(
-                            title = stringResource(R.string.library_folders_empty_title),
-                            body = stringResource(R.string.library_folders_empty_body),
-                        )
+                    if (isScanning) {
+                        SkeletonList()
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                title = stringResource(R.string.library_folders_empty_title),
+                                body = stringResource(R.string.library_folders_empty_body),
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -331,14 +341,18 @@ fun LibraryScreen(
             }
             LibraryTab.GENRES -> {
                 if (genres.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        EmptyState(
-                            title = stringResource(R.string.library_genres_empty_title),
-                            body = stringResource(R.string.library_genres_empty_body),
-                        )
+                    if (isScanning) {
+                        SkeletonList()
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyState(
+                                title = stringResource(R.string.library_genres_empty_title),
+                                body = stringResource(R.string.library_genres_empty_body),
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -381,7 +395,14 @@ private fun SongList(
     viewModel: LibraryViewModel,
     playlists: List<com.harper.ava.domain.model.Playlist>,
     onOpenSongDetails: (Long) -> Unit,
+    isLoading: Boolean = false,
 ) {
+    // 0.7.0: an open group whose songs are still loading (scan running)
+    // shows shimmer rows instead of a blank list.
+    if (isLoading) {
+        SkeletonList()
+        return
+    }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(songs, key = { it.id }) { song ->
             SongRow(

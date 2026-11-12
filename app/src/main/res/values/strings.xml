@@ -145,6 +145,32 @@
     <string name="settings_storage_sub">Library size, rescan and cache</string>
     <string name="settings_about">About Ava</string>
     <string name="settings_about_sub">Version and offline privacy</string>
+    <string name="settings_insights">Listening insights</string>
+    <string name="settings_insights_sub">Your top songs, artists and habits</string>
+
+    <!-- Listening insights (0.7.0) -->
+    <string name="insights_title">Listening insights</string>
+    <string name="insights_subtitle">What you have been listening to — all on this device.</string>
+    <string name="insights_empty_title">No listening history yet</string>
+    <string name="insights_empty_body">Play some music and your top songs, artists and listening habits will show up here.</string>
+    <string name="insights_empty_note">Everything stays on this device.</string>
+    <string name="insights_today">Today</string>
+    <string name="insights_week">This week</string>
+    <string name="insights_month">This month</string>
+    <string name="insights_trend_title">Last 7 days</string>
+    <string name="insights_habit_title">Your listening habits</string>
+    <string name="insights_peak_hour">Most active hour</string>
+    <string name="insights_streak">Day streak</string>
+    <string name="insights_total_plays">Total plays</string>
+    <string name="insights_total_time">Total listening</string>
+    <string name="insights_top_songs">Top songs</string>
+    <string name="insights_top_artists">Top artists</string>
+    <string name="insights_top_albums">Top albums</string>
+    <string name="insights_top_genres">Top genres</string>
+    <string name="insights_plays_count">%1$d plays</string>
+    <string name="insights_days_count">%1$d days</string>
+    <string name="insights_hour_format">%1$d:00</string>
+    <string name="insights_unknown_artist">Unknown artist</string>
 
     <!-- Appearance -->
     <string name="appearance_theme_title">Theme</string>
@@ -172,6 +198,16 @@
     <string name="accent_amber">Amber</string>
     <string name="accent_rose">Rose</string>
     <string name="accent_monochrome">Monochrome</string>
+
+    <!-- App icon (launcher icon variants) -->
+    <string name="app_icon_title">App icon</string>
+    <string name="app_icon_hint">Changing the icon updates the launcher icon. It may take a few seconds to appear.</string>
+    <string name="app_icon_default">Default · violet</string>
+    <string name="app_icon_emerald">Emerald</string>
+    <string name="app_icon_sunset">Sunset</string>
+    <string name="app_icon_ocean">Ocean</string>
+    <string name="app_icon_spring">Spring blossom</string>
+    <string name="app_icon_mono">Monochrome</string>
 
     <!-- Language -->
     <string name="language_title">Language</string>

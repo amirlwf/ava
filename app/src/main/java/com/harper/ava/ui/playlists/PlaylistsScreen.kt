@@ -226,6 +226,7 @@ private fun CreatePlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Un
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
+                textStyle = MaterialTheme.typography.bodyLarge,
                 placeholder = { Text(stringResource(R.string.playlists_name_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),

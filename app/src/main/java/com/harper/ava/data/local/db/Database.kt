@@ -80,6 +80,33 @@ data class FavoriteEntity(
     val addedAtMs: Long,
 )
 
+/**
+ * One recorded play (0.7.0 Insights). The song's title/artist/album/
+ * genre/duration/art are snapshotted into the row so Insights keeps
+ * working after the song leaves the library (rescan / deleted file) —
+ * and so the top lists need no join. Deliberately NO foreign key to
+ * `songs`: deleting a song must not erase its listening history.
+ * `listenedMs` starts at 0 and is filled in as the song is actually
+ * listened to (pause / track change / stop); a row with 0 means the
+ * song started but was skipped almost immediately.
+ */
+@Entity(
+    tableName = "listening_history",
+    indices = [Index("playedAtMs"), Index("songId")],
+)
+data class ListeningHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    val songId: Long,
+    val playedAtMs: Long,
+    val listenedMs: Long = 0L,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val genre: String? = null,
+    val durationMs: Long = 0L,
+    val albumArtUri: String? = null,
+)
+
 /** One artist row for the Library Artists tab: name + song count + a sample cover. */
 data class ArtistSummary(
     val name: String,
@@ -233,6 +260,50 @@ interface SongDao {
 
     @Query("UPDATE songs SET lastPlayedMs = :atMs, playCount = playCount + 1 WHERE mediaStoreId = :id")
     suspend fun markPlayed(id: Long, atMs: Long)
+
+    /**
+     * Updates only the recency marker, without touching playCount.
+     * Used by the playback tracker (0.7.0): the tracker already knows
+     * the play is real, and the tap-path ViewModels still own the
+     * playCount increment — incrementing here too would double-count
+     * every tapped play.
+     */
+    @Query("UPDATE songs SET lastPlayedMs = :atMs WHERE mediaStoreId = :id")
+    suspend fun updateLastPlayed(id: Long, atMs: Long)
+
+    /**
+     * The play counters of every stored song, so a library rescan can
+     * carry them over to the freshly scanned rows instead of wiping
+     * them (upsertAll REPLACE used to reset every song to 0 plays).
+     */
+    @Query("SELECT mediaStoreId, playCount, lastPlayedMs FROM songs")
+    suspend fun playStates(): List<SongPlayState>
+}
+
+/** Play counters of one stored song (rescan preservation, 0.7.0). */
+data class SongPlayState(
+    val mediaStoreId: Long,
+    val playCount: Int,
+    val lastPlayedMs: Long?,
+)
+
+@Dao
+interface ListeningHistoryDao {
+    @Insert
+    suspend fun insert(event: ListeningHistoryEntity): Long
+
+    /** Sets the actually-listened time of one recorded play. */
+    @Query("UPDATE listening_history SET listenedMs = :listenedMs WHERE id = :id")
+    suspend fun setListened(id: Long, listenedMs: Long)
+
+    @Query("SELECT * FROM listening_history ORDER BY playedAtMs DESC")
+    fun observeAll(): Flow<List<ListeningHistoryEntity>>
+
+    @Query("SELECT * FROM listening_history WHERE playedAtMs >= :sinceMs ORDER BY playedAtMs DESC")
+    fun observeSince(sinceMs: Long): Flow<List<ListeningHistoryEntity>>
+
+    @Query("SELECT COUNT(*) FROM listening_history")
+    suspend fun count(): Int
 }
 
 @Dao

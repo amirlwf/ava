@@ -7,12 +7,14 @@ import androidx.compose.ui.unit.dp
  * motion. No screen hard-codes these values; every composable reads them
  * from here so the whole app stays visually consistent.
  *
- * 0.6.0 design round ("cute + minimal"): radii grew one step everywhere
- * (covers, rows, cards and pills are rounder and softer), rows and the
- * mini player got a little more air, and two soft elevation tokens were
- * added so floating surfaces lift gently instead of sitting flat. The
- * 4dp spacing grid, the 7 accent palettes and all theme modes are
- * unchanged — only the softness of the shapes changed.
+ * 0.7.0: the radii below are the 0.6.0 defaults (the VIOLET theme).
+ * Each of the eight themes carries its own radii in its [ThemeSpec]
+ * (`ui/theme/AppTheme.kt`), applied app-wide through MaterialTheme
+ * shapes in `Theme.kt` — a theme's shapes win over these defaults for
+ * every Material component. These tokens stay as the single source for
+ * spacing, component sizes and custom-clipped surfaces that read a
+ * fixed radius; screens that want the *current theme's* radii should
+ * read `MaterialTheme.shapes` (or `LocalAppThemeSpec`) instead.
  */
 object AvaTokens {
     // Spacing (4dp grid, plus 6dp for tight title/subtitle gaps)

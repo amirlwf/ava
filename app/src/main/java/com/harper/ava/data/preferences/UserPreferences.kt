@@ -1,6 +1,8 @@
 package com.harper.ava.data.preferences
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
@@ -27,14 +29,49 @@ enum class ThemeMode { SYSTEM, DARK, LIGHT, AMOLED }
 
 enum class Accent { VIOLET, ELECTRIC_BLUE, EMERALD, CRIMSON, AMBER, ROSE, MONOCHROME }
 
+/**
+ * 0.7.0: the eight full Ava themes (see `ui/theme/AppTheme.kt` for the
+ * spec behind each one). A theme replaces the old [Accent] preset as the
+ * colour source; the stored [Accent] value is kept for compatibility but
+ * no longer drives any colour. Default VIOLET keeps the exact 0.6.0 look.
+ */
+enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SUNSET }
+
 enum class AppLanguage { SYSTEM, FA, EN }
+
+/**
+ * Launcher-icon variant, applied with an activity-alias + PackageManager
+ * switch (see [UserPreferences.setAppIcon]). DEFAULT is the real
+ * MainActivity launcher entry; every other value is an activity-alias
+ * whose `targetActivity` is MainActivity. Only preset variants exist:
+ * Android has no supported way to install a user-uploaded image as a
+ * launcher icon, so no custom-upload variant is offered.
+ */
+enum class AppIcon {
+    DEFAULT, EMERALD, SUNSET, OCEAN, SPRING, MONO;
+
+    /** Manifest `android:name` of the activity-alias, or null for DEFAULT. */
+    val aliasName: String?
+        get() = when (this) {
+            DEFAULT -> null
+            EMERALD -> ".LauncherEmerald"
+            SUNSET -> ".LauncherSunset"
+            OCEAN -> ".LauncherOcean"
+            SPRING -> ".LauncherSpring"
+            MONO -> ".LauncherMono"
+        }
+}
 
 data class SettingsState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accent: Accent = Accent.VIOLET,
+    /** 0.7.0: the chosen full theme (palette + gradient + shapes). */
+    val appTheme: AppTheme = AppTheme.VIOLET,
     /** User-picked accent color (ARGB int) or null to use the [accent] palette. */
     val customAccentArgb: Int? = null,
     val language: AppLanguage = AppLanguage.SYSTEM,
+    /** Launcher icon variant (activity-alias). DEFAULT = MainActivity itself. */
+    val appIcon: AppIcon = AppIcon.DEFAULT,
     /** Default playback speed applied when playback starts (0.5x–2.0x). */
     val defaultSpeed: Float = 1.0f,
     /** Restore the last song + position (paused) when the app restarts. */
@@ -86,8 +123,10 @@ class UserPreferences(private val context: Context) {
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val ACCENT = stringPreferencesKey("accent")
+        val APP_THEME = stringPreferencesKey("app_theme")
         val CUSTOM_ACCENT_ARGB = longPreferencesKey("custom_accent_argb")
         val LANGUAGE = stringPreferencesKey("language")
+        val APP_ICON = stringPreferencesKey("app_icon")
         val DEFAULT_SPEED = floatPreferencesKey("default_speed")
         val RESUME_PLAYBACK = booleanPreferencesKey("resume_playback")
         val FADE_ENABLED = booleanPreferencesKey("fade_enabled")
@@ -118,9 +157,13 @@ class UserPreferences(private val context: Context) {
                 ?: ThemeMode.SYSTEM,
             accent = prefs[Keys.ACCENT]?.let { runCatching { Accent.valueOf(it) }.getOrNull() }
                 ?: Accent.VIOLET,
+            appTheme = prefs[Keys.APP_THEME]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
+                ?: AppTheme.VIOLET,
             customAccentArgb = prefs[Keys.CUSTOM_ACCENT_ARGB]?.toInt(),
             language = prefs[Keys.LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
                 ?: AppLanguage.SYSTEM,
+            appIcon = prefs[Keys.APP_ICON]?.let { runCatching { AppIcon.valueOf(it) }.getOrNull() }
+                ?: AppIcon.DEFAULT,
             defaultSpeed = prefs[Keys.DEFAULT_SPEED]?.let { clampPlaybackSpeed(it) } ?: 1.0f,
             resumePlayback = prefs[Keys.RESUME_PLAYBACK] ?: true,
             fadeEnabled = prefs[Keys.FADE_ENABLED] ?: false,
@@ -142,6 +185,11 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    /** 0.7.0: persists the chosen full theme; applies app-wide on next recomposition. */
+    suspend fun setAppTheme(theme: AppTheme) {
+        context.dataStore.edit { it[Keys.APP_THEME] = theme.name }
     }
 
     suspend fun setAccent(accent: Accent) {
@@ -169,6 +217,49 @@ class UserPreferences(private val context: Context) {
             .commit()
         context.dataStore.edit { it[Keys.LANGUAGE] = language.name }
         LocaleHelper.updateSystemAppLocale(context, language)
+    }
+
+    /**
+     * Persists the launcher-icon choice and switches the launcher entry
+     * to match. Standard activity-alias pattern: exactly one component
+     * carries the MAIN/LAUNCHER filter at a time — the chosen alias, or
+     * MainActivity itself for DEFAULT. The alias's targetActivity is
+     * MainActivity, so disabling MainActivity as a launcher entry does
+     * not stop the alias from launching it. DONT_KILL_APP keeps the app
+     * alive while the user is still in Settings; the launcher usually
+     * picks the new icon up within seconds.
+     */
+    suspend fun setAppIcon(icon: AppIcon) {
+        context.dataStore.edit { it[Keys.APP_ICON] = icon.name }
+        applyAppIconComponent(icon)
+    }
+
+    /** PackageManager half of [setAppIcon]: enables one launcher entry, disables the rest. */
+    fun applyAppIconComponent(icon: AppIcon) {
+        val pm = context.packageManager
+        val packageName = context.packageName
+        for (entry in AppIcon.entries) {
+            val alias = entry.aliasName ?: continue
+            val state = if (entry == icon) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            pm.setComponentEnabledSetting(
+                ComponentName(packageName, packageName + alias),
+                state,
+                PackageManager.DONT_KILL_APP,
+            )
+        }
+        pm.setComponentEnabledSetting(
+            ComponentName(packageName, "$packageName.MainActivity"),
+            if (icon == AppIcon.DEFAULT) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            },
+            PackageManager.DONT_KILL_APP,
+        )
     }
 
     suspend fun setDefaultSpeed(speed: Float) {

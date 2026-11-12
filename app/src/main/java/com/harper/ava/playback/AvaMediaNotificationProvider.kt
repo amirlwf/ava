@@ -12,6 +12,8 @@ import com.google.common.collect.ImmutableList
 import com.harper.ava.R
 import com.harper.ava.core.util.deriveAccentColors
 import com.harper.ava.data.preferences.Accent
+import com.harper.ava.data.preferences.AppTheme
+import com.harper.ava.ui.theme.spec
 
 /**
  * Ava's own media notification (0.6.0 design round).
@@ -187,6 +189,18 @@ fun notificationAccentArgb(accent: Accent, customAccentArgb: Int?): Int =
             Accent.ROSE -> 0xFFF43F5E.toInt()
             Accent.MONOCHROME -> 0xFFE4E4E7.toInt()
         }
+
+/**
+ * 0.7.0: notification accent from the chosen [AppTheme] — the theme's
+ * dark-mode primary, so the notification matches the in-app theme. A
+ * custom colour still wins. The [Accent] overload above is kept
+ * unchanged (PlaybackServiceTest pins it); the service should call this
+ * one with `settings.appTheme` (see `AvaPlaybackService` wiring — the
+ * service file itself is owned by another agent in this round).
+ */
+fun notificationAccentArgb(appTheme: AppTheme, customAccentArgb: Int?): Int =
+    customAccentArgb?.let { deriveAccentColors(it).primary }
+        ?: appTheme.spec.primaryDark.toInt()
 
 /**
  * Ava's own drawable for a Media3 media-button icon constant, or null to

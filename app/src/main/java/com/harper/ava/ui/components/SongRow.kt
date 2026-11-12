@@ -1,5 +1,7 @@
 package com.harper.ava.ui.components
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,13 +28,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,8 +45,13 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.harper.ava.R
 import com.harper.ava.core.util.formatDuration
+import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
+import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
+import com.harper.ava.ui.navigation.LocalAvaSharedTransitionScope
+import com.harper.ava.ui.navigation.songCoverSharedKey
 import com.harper.ava.ui.theme.AvaTokens
 
 /**
@@ -52,7 +62,14 @@ import com.harper.ava.ui.theme.AvaTokens
  * playlist actions — a row never shows a menu that does nothing. Cover
  * art that fails to load falls back to the music-note placeholder instead
  * of a blank square.
+ *
+ * 0.7.0 motion: the cover is a shared element — tapping a row flies it
+ * into the Now Playing cover ([songCoverSharedKey]) whenever the row
+ * lives in a destination that provides the shared-transition locals
+ * (Home/Library/Search/Favorites); elsewhere the row is unchanged. The
+ * heart pops on a spring and buzzes when tapped.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SongRow(
     song: Song,
@@ -71,6 +88,35 @@ fun SongRow(
     val showMenu = playlists != null || onAddToQueue != null || onPlayNext != null ||
         onOpenDetails != null
     val artist = song.artist.ifBlank { stringResource(R.string.unknown_artist) }
+    val haptics = rememberAvaHaptics()
+
+    // Shared-element cover: only when the enclosing destination provides
+    // the transition scopes (Home/Library/Search/Favorites via the nav
+    // graph). Anywhere else the locals are null and the row is plain.
+    val sharedScope = LocalAvaSharedTransitionScope.current
+    val visibilityScope = LocalAvaAnimatedVisibilityScope.current
+    val coverModifier = if (sharedScope != null && visibilityScope != null) {
+        with(sharedScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = songCoverSharedKey(song.id)),
+                animatedVisibilityScope = visibilityScope,
+                boundsTransform = AvaMotion.coverBoundsTransform,
+            )
+        }
+    } else {
+        Modifier
+    }
+
+    // Heart pop: a spring overshoot on every favorite tap, driven by a
+    // counter so it replays even when the state toggles back and forth.
+    val heartScale = remember { Animatable(1f) }
+    var heartPop by remember { mutableIntStateOf(0) }
+    LaunchedEffect(heartPop) {
+        if (heartPop > 0) {
+            heartScale.animateTo(1.3f, AvaMotion.pressSpring)
+            heartScale.animateTo(1f, AvaMotion.pressSpring)
+        }
+    }
 
     Row(
         modifier = modifier
@@ -85,6 +131,7 @@ fun SongRow(
             modifier = Modifier
                 .size(AvaTokens.coverSmall)
                 .clip(RoundedCornerShape(AvaTokens.radiusSmall))
+                .then(coverModifier)
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
@@ -128,7 +175,7 @@ fun SongRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onToggleFavorite) {
+        IconButton(onClick = { haptics.like(); heartPop++; onToggleFavorite() }) {
             Icon(
                 imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = stringResource(
@@ -136,6 +183,10 @@ fun SongRow(
                 ),
                 tint = if (song.isFavorite) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = heartScale.value
+                    scaleY = heartScale.value
+                },
             )
         }
         if (showMenu) {

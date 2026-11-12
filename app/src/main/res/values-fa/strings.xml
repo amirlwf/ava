@@ -145,6 +145,32 @@
     <string name="settings_storage_sub">حجم کتابخانه، اسکن مجدد و کش</string>
     <string name="settings_about">درباره آوا</string>
     <string name="settings_about_sub">نسخه و حریم خصوصی آفلاین</string>
+    <string name="settings_insights">آمار گوش دادن</string>
+    <string name="settings_insights_sub">آهنگ‌ها، خواننده‌ها و عادت‌های گوش دادنت</string>
+
+    <!-- Listening insights (0.7.0) -->
+    <string name="insights_title">آمار گوش دادن</string>
+    <string name="insights_subtitle">آنچه گوش داده‌ای — همه روی همین گوشی.</string>
+    <string name="insights_empty_title">هنوز سابقه‌ای نیست</string>
+    <string name="insights_empty_body">کمی موسیقی پخش کن تا آهنگ‌ها، خواننده‌ها و عادت‌های گوش دادنت اینجا نمایش داده شوند.</string>
+    <string name="insights_empty_note">همه‌چیز روی همین گوشی می‌ماند.</string>
+    <string name="insights_today">امروز</string>
+    <string name="insights_week">این هفته</string>
+    <string name="insights_month">این ماه</string>
+    <string name="insights_trend_title">۷ روز اخیر</string>
+    <string name="insights_habit_title">عادت‌های گوش دادن تو</string>
+    <string name="insights_peak_hour">پرگوش‌ترین ساعت</string>
+    <string name="insights_streak">روزهای پیاپی</string>
+    <string name="insights_total_plays">کل پخش‌ها</string>
+    <string name="insights_total_time">کل زمان گوش دادن</string>
+    <string name="insights_top_songs">پرگوش‌ترین آهنگ‌ها</string>
+    <string name="insights_top_artists">پرگوش‌ترین خواننده‌ها</string>
+    <string name="insights_top_albums">پرگوش‌ترین آلبوم‌ها</string>
+    <string name="insights_top_genres">پرگوش‌ترین ژانرها</string>
+    <string name="insights_plays_count">%1$d بار پخش</string>
+    <string name="insights_days_count">%1$d روز</string>
+    <string name="insights_hour_format">%1$d:00</string>
+    <string name="insights_unknown_artist">خواننده ناشناس</string>
 
     <!-- Appearance -->
     <string name="appearance_theme_title">تم</string>
@@ -172,6 +198,16 @@
     <string name="accent_amber">کهربایی</string>
     <string name="accent_rose">رز</string>
     <string name="accent_monochrome">تک‌رنگ</string>
+
+    <!-- App icon (launcher icon variants) -->
+    <string name="app_icon_title">آیکون برنامه</string>
+    <string name="app_icon_hint">با تغییر آیکون، آیکون لانچر عوض می‌شود؛ ممکن است چند ثانیه طول بکشد تا دیده شود.</string>
+    <string name="app_icon_default">پیش‌فرض · بنفش</string>
+    <string name="app_icon_emerald">زمردی</string>
+    <string name="app_icon_sunset">غروب</string>
+    <string name="app_icon_ocean">اقیانوس</string>
+    <string name="app_icon_spring">شکوفهٔ بهار</string>
+    <string name="app_icon_mono">تک‌رنگ</string>
 
     <!-- Language -->
     <string name="language_title">زبان</string>

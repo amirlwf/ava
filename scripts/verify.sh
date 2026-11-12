@@ -37,6 +37,9 @@ sed 's|<manifest |<manifest package="com.harper.ava" |' \
   "$OUT/aapt2/res.zip" || exit 1
 echo "aapt2 OK: $(find "$OUT/aapt2/r" -name R.java)"
 
+echo "== [1b/3] font audit (no system fonts) =="
+./scripts/font-audit.sh || exit 1
+
 echo "== [2/3] kotlinc type-check (all main + test sources) =="
 find app/src/main/java app/src/test/java -name "*.kt" | sort > "$OUT/sources.txt"
 "$KOTLINC" -cp "$CP" -d "$OUT/classes" \
@@ -60,6 +63,9 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/SleepTimerLogic.kt \
   app/src/main/java/com/harper/ava/core/util/SearchHistoryLogic.kt \
   app/src/main/java/com/harper/ava/data/preferences/UserPreferences.kt \
+  app/src/main/java/com/harper/ava/core/util/InsightsLogic.kt \
+  app/src/main/java/com/harper/ava/ui/theme/AppTheme.kt \
+  app/src/main/java/com/harper/ava/playback/AvaMediaNotificationProvider.kt \
   app/src/test/java/com/harper/ava/TimeFormatTest.kt \
   app/src/test/java/com/harper/ava/QueueLogicTest.kt \
   app/src/test/java/com/harper/ava/ScanNormalizeTest.kt \
@@ -71,6 +77,9 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/SearchHistoryLogicTest.kt \
   app/src/test/java/com/harper/ava/ToggleFavoriteTest.kt \
   app/src/test/java/com/harper/ava/PlaybackRecoveryTest.kt \
+  app/src/test/java/com/harper/ava/AppThemeTest.kt \
+  app/src/test/java/com/harper/ava/InsightsLogicTest.kt \
+  "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
 java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   org.junit.runner.JUnitCore \
@@ -84,4 +93,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.SleepTimerLogicTest \
   com.harper.ava.SearchHistoryLogicTest \
   com.harper.ava.ToggleFavoriteTest \
-  com.harper.ava.PlaybackRecoveryTest 2>&1 | tail -5
+  com.harper.ava.PlaybackRecoveryTest \
+  com.harper.ava.AppThemeTest \
+  com.harper.ava.InsightsLogicTest 2>&1 | tail -5

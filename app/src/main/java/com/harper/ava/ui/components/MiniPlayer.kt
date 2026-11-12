@@ -1,11 +1,16 @@
 package com.harper.ava.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +34,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +51,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.harper.ava.R
+import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.repository.PlaybackState
+import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.theme.AvaTokens
 
 /**
@@ -60,6 +69,11 @@ import com.harper.ava.ui.theme.AvaTokens
  * is unmistakable. The progress line is inset, thin and round-ended.
  * Nothing was removed: same callbacks, same tap-to-open, same
  * cross-fade on track change.
+ *
+ * 0.7.0 motion: the pill springs up from 28dp below with a fade the
+ * first time it appears (real spring, [AvaMotion.miniPlayerEnterSpring]),
+ * the play button squashes to 0.88x on a spring while pressed, and
+ * play/pause + next buzz through [rememberAvaHaptics].
  */
 @Composable
 fun MiniPlayer(
@@ -76,10 +90,36 @@ fun MiniPlayer(
     } else {
         0f
     }
+    val haptics = rememberAvaHaptics()
+    // Spring entrance: the pill rises into place whenever it (re)appears
+    // — e.g. the first play after launch — instead of popping in.
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val enterOffset by animateDpAsState(
+        targetValue = if (entered) 0.dp else 28.dp,
+        animationSpec = AvaMotion.miniPlayerEnterSpring,
+        label = "mini-player-enter-offset",
+    )
+    val enterAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = AvaMotion.miniPlayerEnterFade,
+        label = "mini-player-enter-alpha",
+    )
+    // Press squash on the hero play button: 0.88x while held, springing
+    // back on release.
+    val playInteraction = remember { MutableInteractionSource() }
+    val playPressed by playInteraction.collectIsPressedAsState()
+    val playScale by animateFloatAsState(
+        targetValue = if (playPressed) 0.88f else 1f,
+        animationSpec = AvaMotion.pressSpring,
+        label = "mini-player-play-scale",
+    )
     val pillShape = RoundedCornerShape(AvaTokens.radiusExtraLarge)
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .offset(y = enterOffset)
+            .graphicsLayer { alpha = enterAlpha }
             // Floating pill: air around it, a soft shadow, no hard edge.
             .padding(
                 horizontal = AvaTokens.space12,
@@ -101,7 +141,7 @@ fun MiniPlayer(
         // localized "Unknown artist" instead of an empty line.
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(onClick = onOpenNowPlaying),
+            modifier = Modifier.clickable(onClick = { haptics.tap(); onOpenNowPlaying() }),
         ) {
             AnimatedContent(
                 targetState = song,
@@ -164,9 +204,14 @@ fun MiniPlayer(
             // The hero control: a filled primary circle, big enough to
             // hit without looking. Next stays a quiet ghost button.
             IconButton(
-                onClick = onTogglePlayPause,
+                onClick = { haptics.playPause(); onTogglePlayPause() },
+                interactionSource = playInteraction,
                 modifier = Modifier
                     .size(AvaTokens.miniPlayerPlaySize)
+                    .graphicsLayer {
+                        scaleX = playScale
+                        scaleY = playScale
+                    }
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
             ) {
                 Icon(
@@ -180,7 +225,7 @@ fun MiniPlayer(
             }
             Spacer(modifier = Modifier.width(AvaTokens.space4))
             IconButton(
-                onClick = onNext,
+                onClick = { haptics.tap(); onNext() },
                 modifier = Modifier.size(AvaTokens.touchTargetMin),
             ) {
                 Icon(

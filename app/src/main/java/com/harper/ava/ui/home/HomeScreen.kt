@@ -50,6 +50,7 @@ import com.harper.ava.core.util.homeSectionSongKey
 import com.harper.ava.data.media.AudioPermission
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
+import com.harper.ava.ui.common.SkeletonList
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
@@ -215,14 +216,21 @@ fun HomeScreen(
 
         if (isEmpty) {
             item {
-                EmptyState(
-                    title = stringResource(R.string.home_empty_title),
-                    body = stringResource(R.string.home_empty_body),
-                    note = stringResource(R.string.home_empty_note),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = AvaTokens.space48),
-                )
+                // 0.7.0: while the first MediaStore scan is still running
+                // the library is genuinely loading — shimmer rows, not a
+                // "no songs" state that would flash away a second later.
+                if (scanState is ScanUiState.Scanning) {
+                    SkeletonList()
+                } else {
+                    EmptyState(
+                        title = stringResource(R.string.home_empty_title),
+                        body = stringResource(R.string.home_empty_body),
+                        note = stringResource(R.string.home_empty_note),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = AvaTokens.space48),
+                    )
+                }
             }
         } else {
             if (recentlyPlayed.isNotEmpty()) {

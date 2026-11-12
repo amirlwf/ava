@@ -127,7 +127,7 @@ class AvaPlaybackService : MediaSessionService() {
                 withTimeoutOrNull(500) { app.container.userPreferences.settings.first() }
             }
         }.getOrNull()
-        return settings?.let { notificationAccentArgb(it.accent, it.customAccentArgb) }
+        return settings?.let { notificationAccentArgb(it.appTheme, it.customAccentArgb) }
             ?: notificationAccentArgb(Accent.VIOLET, null)
     }
 

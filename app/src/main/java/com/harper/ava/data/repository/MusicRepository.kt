@@ -160,13 +160,25 @@ class MusicRepository(private val db: AppDatabase) {
      * scanned song, then deletes songs the device no longer has. Favorites
      * and playlist memberships of surviving songs are untouched (they live
      * in their own tables); cross-refs of deleted songs cascade away.
+     *
+     * 0.7.0: the scanned rows are fresh (playCount 0, lastPlayedMs null),
+     * so the stored counters are carried over first — before this fix a
+     * rescan silently reset every song to 0 plays.
      */
     suspend fun syncLibrary(entities: List<SongEntity>): SyncResult {
         val beforeIds = db.songDao().allIds()
         val keepIds = entities.map { it.mediaStoreId }.toSet()
         val removedStale = beforeIds.count { it !in keepIds }
         db.withTransaction {
-            db.songDao().upsertAll(entities)
+            val playStates = db.songDao().playStates().associateBy { it.mediaStoreId }
+            val withCounters = entities.map { entity ->
+                val saved = playStates[entity.mediaStoreId]
+                if (saved == null) entity else entity.copy(
+                    playCount = saved.playCount,
+                    lastPlayedMs = saved.lastPlayedMs,
+                )
+            }
+            db.songDao().upsertAll(withCounters)
             if (keepIds.isEmpty()) {
                 db.songDao().deleteAllSongs()
             } else {
@@ -281,4 +293,64 @@ class MusicRepository(private val db: AppDatabase) {
 
     suspend fun markPlayed(songId: Long) =
         db.songDao().markPlayed(songId, System.currentTimeMillis())
+
+    // ------------------------------------------------------------------
+    // Listening history (0.7.0 Insights) — one row per real play.
+    // ------------------------------------------------------------------
+
+    /**
+     * Records the start of a real play: inserts a history row (with a
+     * metadata snapshot) and refreshes the song's lastPlayedMs so the
+     * Home "recently played" list also sees auto-advanced and queued
+     * plays. playCount is NOT touched here — the tap-path ViewModels
+     * still own that increment, and doing it here too would count every
+     * tapped play twice. Returns the history row id (0 on failure).
+     */
+    suspend fun recordPlayStart(song: Song, atMs: Long = System.currentTimeMillis()): Long {
+        val row = com.harper.ava.data.local.db.ListeningHistoryEntity(
+            songId = song.id,
+            playedAtMs = atMs,
+            listenedMs = 0L,
+            title = song.title,
+            artist = song.artist,
+            album = song.album,
+            genre = song.genre,
+            durationMs = song.durationMs,
+            albumArtUri = song.albumArtUri,
+        )
+        return try {
+            db.withTransaction {
+                val id = db.listeningHistoryDao().insert(row)
+                db.songDao().updateLastPlayed(song.id, atMs)
+                id
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    /** Stores how long one recorded play was actually listened to. */
+    suspend fun setHistoryListened(historyId: Long, listenedMs: Long) {
+        if (historyId <= 0L) return
+        runCatching { db.listeningHistoryDao().setListened(historyId, listenedMs.coerceAtLeast(0L)) }
+    }
+
+    fun observeListeningHistory(): Flow<List<com.harper.ava.core.util.ListenEvent>> =
+        db.listeningHistoryDao().observeAll().map { rows -> rows.map { it.toEvent() } }
+
+    fun observeListeningHistorySince(sinceMs: Long): Flow<List<com.harper.ava.core.util.ListenEvent>> =
+        db.listeningHistoryDao().observeSince(sinceMs).map { rows -> rows.map { it.toEvent() } }
 }
+
+private fun com.harper.ava.data.local.db.ListeningHistoryEntity.toEvent(): com.harper.ava.core.util.ListenEvent =
+    com.harper.ava.core.util.ListenEvent(
+        songId = songId,
+        title = title,
+        artist = artist,
+        album = album,
+        genre = genre,
+        durationMs = durationMs,
+        playedAtMs = playedAtMs,
+        listenedMs = listenedMs,
+        albumArtUri = albumArtUri,
+    )

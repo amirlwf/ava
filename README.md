@@ -28,6 +28,7 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
+| [v0.7.0](https://github.com/amirlwf/ava/releases/tag/v0.7.0) | [ava-0.7.0-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.7.0/ava-0.7.0-debug.apk) | 57 MB |
 | [v0.6.0](https://github.com/amirlwf/ava/releases/tag/v0.6.0) | [ava-0.6.0-debug.apk](https://github.com/amirlwf/ava/releases/latest/download/ava-0.6.0-debug.apk) | 57 MB |
 | [v0.5.7](https://github.com/amirlwf/ava/releases/tag/v0.5.7) | [ava-0.5.7-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.5.7/ava-0.5.7-debug.apk) | 57 MB |
 
@@ -52,7 +53,7 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 
 ## Project status
 
-**0.6.0 is the design round.** The UI went minimal and cute (redesigned MiniPlayer, Now Playing, song rows, Home and Library screens, softer tokens and colours), and the stock Media3 notification is replaced by Ava's own media notification — Ava's icon, Ava's play/pause/previous/next drawables, and the accent colour. It builds on 0.5.7's playback-service fix (the session is registered, the notification appears, the service foregrounds immediately). **Fonts: Vazirmatn stays the body/UI face, and Lalezar joins as the display face** (big titles, app name, section headers) — both free under the SIL Open Font License. Manshoor was prepared but deliberately NOT bundled: it is a paid commercial font and has not been bought; Dana is out as well. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button. This build has not yet been verified on a real device.
+**0.7.0 is the big design round.** Eight complete, distinct themes (Spring, Summer, Autumn, Winter, Emerald, Violet, Ocean, Sunset) — each with its own palette, gradients, shapes and surfaces — selectable in Settings and applied app-wide, including the notification accent. **Zero system font anywhere:** every text style, dialog, menu and field uses the app's own fonts (Vazirmatn body + Lalezar display). **Listening Insights:** a new screen with your top songs, artists, albums and genres, listening time (today / this week / this month), 7-day trends and habits — all computed on-device from a new listening-history table (Room v3). **Custom app icon:** six ready variants (Default, Emerald, Sunset, Ocean, Spring, Mono) switchable from Settings via activity-alias. **Motion:** shared-element transitions (song card → Now Playing), skeleton loading, haptics, spring animations, and animated theme switching. Manshoor is still NOT bundled (paid, not bought); Dana is out. The app is still a diagnostic build: if you hit a crash, please share `Downloads/Ava/ava-crash-log.txt` or `Downloads/Ava/ava-startup-trace.txt` — or use the safe-mode "Share crash log" button. This build has not yet been verified on a real device.
 
 ## Contributing
 

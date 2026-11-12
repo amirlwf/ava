@@ -59,6 +59,11 @@ object AboutRoute {
     const val ROUTE = "settings/about"
 }
 
+/** Listening insights screen (0.7.0). Not in the bottom bar. */
+object InsightsRoute {
+    const val ROUTE = "insights"
+}
+
 /** Favorites screen (stage 6). Not in the bottom bar. */
 object FavoritesRoute {
     const val ROUTE = "favorites"

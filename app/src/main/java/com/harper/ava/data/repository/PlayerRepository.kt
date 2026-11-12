@@ -12,6 +12,10 @@ import com.harper.ava.core.util.SLEEP_TIMER_FADE_MS
 import com.harper.ava.core.util.SleepTimerState
 import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.needsPlayerRebuild
+import com.harper.ava.core.util.segmentListenedMs
+import com.harper.ava.core.util.shouldRecordPlay
+import com.harper.ava.data.local.db.AppDatabase
+import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.core.util.restoreSleepTimerMinutes
 import com.harper.ava.core.util.insertPlayNext
 import com.harper.ava.core.util.moveItem
@@ -91,6 +95,18 @@ class PlayerRepository(
         addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _state.update { it.copy(isPlaying = isPlaying) }
+                // 0.7.0 Insights: a pause banks the listened time so far
+                // into the open history row; a resume keeps banking into
+                // the SAME row (a resume is not a new play).
+                if (isPlaying) {
+                    if (listenSong == null) {
+                        _state.value.currentSong?.let { beginListen(it) }
+                    } else {
+                        resumeListen()
+                    }
+                } else {
+                    pauseListen()
+                }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -103,6 +119,23 @@ class PlayerRepository(
                         queueIndex = song?.let { s -> it.queue.indexOf(s) } ?: -1,
                         durationMs = safeDuration(),
                     )
+                }
+                // 0.7.0 Insights: a new track while playing is a real
+                // play — including auto-advance, Next/Previous and
+                // notification/headset skips, which no ViewModel ever
+                // sees. A transition while paused only closes the old
+                // row (prepare/restore is not a play). A track that
+                // played to its end (auto-advance) is credited its full
+                // duration — see bankListen.
+                if (song == null) {
+                    closeListen()
+                } else if (player.isPlaying) {
+                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                        closeListen(creditFullDuration = true)
+                    }
+                    beginListen(song)
+                } else if (song.id != listenSong?.id) {
+                    closeListen()
                 }
                 // New track while playing: checkpoint the resume position
                 // (start of track). Skip when paused at 0 — that is
@@ -124,6 +157,103 @@ class PlayerRepository(
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
     private var positionJob: Job? = null
+
+    // ------------------------------------------------------------------
+    // Listening history (0.7.0 Insights) — one row per real play.
+    //
+    // The repository is built lazily from the Room singleton (same
+    // database the MusicRepository uses) so no constructor or container
+    // change is needed. All history writes go through a single-threaded
+    // scope so an insert and the finalize of the previous row can never
+    // reorder. Every write is best-effort (runCatching): analytics must
+    // never break playback.
+    // ------------------------------------------------------------------
+
+    private val historyRepository: MusicRepository by lazy {
+        MusicRepository(AppDatabase.get(appContext))
+    }
+    private val listenScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    /** History row id of the play currently being listened to (0 = not stored yet). */
+    private var listenHistoryId: Long = 0L
+    private var listenSong: Song? = null
+    /** Player position where the current uninterrupted stretch started. */
+    private var listenSegmentStartMs: Long = 0L
+    /** Listened time banked into the open row across pauses. */
+    private var listenAccumulatedMs: Long = 0L
+    /** Last recorded play, for the same-song replay dedupe. */
+    private var lastRecordedSongId: Long? = null
+    private var lastRecordedAtMs: Long = 0L
+
+    /**
+     * Starts recording a play of [song]: closes any open row, then
+     * inserts a new history row. A same-song restart within 30s is
+     * ignored (callback double-fire / player rebuild / resume), while a
+     * genuine replay later still counts.
+     */
+    private fun beginListen(song: Song) {
+        val now = System.currentTimeMillis()
+        if (!shouldRecordPlay(lastRecordedSongId, lastRecordedAtMs, song.id, now)) return
+        closeListen()
+        lastRecordedSongId = song.id
+        lastRecordedAtMs = now
+        listenSong = song
+        listenSegmentStartMs = player.currentPosition.coerceAtLeast(0L)
+        listenAccumulatedMs = 0L
+        listenScope.launch {
+            runCatching { listenHistoryId = historyRepository.recordPlayStart(song, now) }
+        }
+    }
+
+    /**
+     * Banks the stretch listened since the last resume (or bank) into
+     * the open row (absolute total, so pauses accumulate). The row stays
+     * open: a later resume keeps banking into it. If the row id has not
+     * been assigned yet, the accumulated time is kept and flushed on
+     * the next bank.
+     *
+     * [creditFullDuration] is for a track that played to its end
+     * (auto-advance): by the time the transition fires, the player
+     * position already belongs to the NEW track, so the stretch math
+     * would credit ~0 — the full duration is the honest value.
+     */
+    private fun bankListen(creditFullDuration: Boolean = false) {
+        val song = listenSong ?: return
+        if (creditFullDuration) {
+            listenAccumulatedMs = maxOf(listenAccumulatedMs, song.durationMs)
+        } else {
+            listenAccumulatedMs += segmentListenedMs(
+                listenSegmentStartMs,
+                player.currentPosition,
+                song.durationMs,
+            )
+        }
+        listenSegmentStartMs = player.currentPosition.coerceAtLeast(0L)
+        val id = listenHistoryId
+        val total = listenAccumulatedMs
+        if (id <= 0L) return
+        listenScope.launch {
+            runCatching { historyRepository.setHistoryListened(id, total) }
+        }
+    }
+
+    /** A pause banks the listened time so far into the open history row. */
+    private fun pauseListen() = bankListen()
+
+    /** A resume continues the open row from the current position. */
+    private fun resumeListen() {
+        if (listenSong == null) return
+        listenSegmentStartMs = player.currentPosition.coerceAtLeast(0L)
+    }
+
+    /** Banks the final stretch and closes the open row. */
+    private fun closeListen(creditFullDuration: Boolean = false) {
+        bankListen(creditFullDuration)
+        listenHistoryId = 0L
+        listenSong = null
+        listenAccumulatedMs = 0L
+        listenSegmentStartMs = 0L
+    }
 
     // ------------------------------------------------------------------
     // Sleep timer — an absolute deadline owned by this repository, so it
@@ -319,6 +449,7 @@ class PlayerRepository(
 
     init {
         positionJob = scope.launch {
+            var listenBankTicks = 0
             while (true) {
                 delay(500L)
                 val current = player.currentMediaItem
@@ -326,6 +457,12 @@ class PlayerRepository(
                     _state.update {
                         it.copy(positionMs = player.currentPosition, durationMs = safeDuration())
                     }
+                    // 0.7.0 Insights: bank the listened time every ~10s
+                    // while playing, so a skip or an auto-advance never
+                    // loses more than one bank interval (the position at
+                    // a track change already belongs to the new track).
+                    listenBankTicks++
+                    if (listenBankTicks % 20 == 0) bankListen()
                 }
             }
         }
@@ -362,6 +499,7 @@ class PlayerRepository(
             it.copy(queue = songs, queueIndex = index, currentSong = songs[index])
         }
         refreshEqualizer()
+        beginListen(songs[index])
         saveCheckpoint()
     }
 
@@ -446,6 +584,7 @@ class PlayerRepository(
         player.seekTo(index, 0L)
         player.play()
         ensurePlaybackService()
+        beginListen(_state.value.queue[index])
         saveCheckpoint()
     }
 
@@ -648,6 +787,7 @@ class PlayerRepository(
     }
 
     fun stop() {
+        closeListen()
         saveCheckpoint()
         player.stop()
         _state.update { PlaybackState() }

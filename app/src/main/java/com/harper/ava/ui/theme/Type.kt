@@ -16,11 +16,23 @@ import com.harper.ava.R
  *   below, so fa/en render with one consistent voice. Weights shipped:
  *   Regular 400, Medium 500, SemiBold 600, Bold 700.
  * - Lalezar (لاله‌زار, single weight 400, display font) is the display
- *   face: displayLarge / headlineMedium / headlineSmall — big titles,
- *   the app name and section headers, where the character lives.
+ *   face: displayLarge / displayMedium / displaySmall / headlineLarge /
+ *   headlineMedium / headlineSmall — big titles, the app name and section
+ *   headers, where the character lives.
  *   Lalezar covers Latin fully (52/52) so Latin headlines need no
  *   fallback; being single-weight, headline hierarchy comes from size,
- *   not weight — all three display styles use FontWeight.Normal.
+ *   not weight — all display/headline styles use FontWeight.Normal.
+ *
+ * All fifteen Material3 styles are defined here on purpose: any style
+ * left out would silently fall back to the Material3 default, whose
+ * fontFamily is FontFamily.Default — the system font. (That was a real
+ * leak before 0.7.0: displayMedium, titleSmall and labelSmall were
+ * undefined, so the splash app name, the sleep-timer countdown, every
+ * settings section header and the accent-swatch labels rendered in the
+ * system font.) The five newly added styles use the Material3 default
+ * sizes/line-heights/letter-spacings, so adding them changes only the
+ * typeface, never the metrics; the ten pre-existing styles are
+ * untouched.
  *
  * Manshoor was deliberately NOT bundled: it is a paid commercial font
  * and the user has not bought it. Dana is out as well. The Manshoor
@@ -39,7 +51,25 @@ val Lalezar = FontFamily(
 )
 
 val AvaTypography = Typography(
+    displaySmall = TextStyle(
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
+        fontSize = 36.sp,
+        lineHeight = 44.sp,
+    ),
+    displayMedium = TextStyle(
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
+        fontSize = 45.sp,
+        lineHeight = 52.sp,
+    ),
     displayLarge = TextStyle(
+        fontFamily = Lalezar,
+        fontWeight = FontWeight.Normal,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+    ),
+    headlineLarge = TextStyle(
         fontFamily = Lalezar,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
@@ -68,6 +98,13 @@ val AvaTypography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 24.sp,
+    ),
+    titleSmall = TextStyle(
+        fontFamily = Vazirmatn,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = Vazirmatn,
@@ -98,5 +135,12 @@ val AvaTypography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
         lineHeight = 16.sp,
+    ),
+    labelSmall = TextStyle(
+        fontFamily = Vazirmatn,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp,
     ),
 )

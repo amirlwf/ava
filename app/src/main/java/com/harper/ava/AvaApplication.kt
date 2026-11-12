@@ -10,6 +10,9 @@ import com.harper.ava.data.media.SafFolderScanner
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Manual dependency container (no DI framework in stage 1 — keep it explicit). */
 class AppContainer(app: Application) {
@@ -66,6 +69,14 @@ class AvaApplication : Application() {
         if (!safeMode) {
             container = AppContainer(this)
             StartupTracer.mark(this, "app.container.done")
+            // 0.7.0: re-apply the stored launcher icon. A Clear-data reset
+            // restores DataStore to DEFAULT but PackageManager keeps the last
+            // component states, so sync them on every start (idempotent).
+            runCatching {
+                runBlocking {
+                    withTimeoutOrNull(500) { container.userPreferences.settings.first() }
+                }?.let { container.userPreferences.applyAppIconComponent(it.appIcon) }
+            }
         } else {
             StartupTracer.mark(this, "app.safeMode.skipContainer")
         }

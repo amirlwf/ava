@@ -24,17 +24,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.ui.common.SkeletonList
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -54,6 +60,25 @@ fun SearchScreen(
     val playlists by viewModel.playlists.collectAsState()
     val recentSearches by viewModel.recentSearches.collectAsState()
 
+    // 0.7.0: results lag the typed query by the 200ms debounce plus the
+    // Room query, so while the query has moved on but the visible results
+    // still belong to the previous query, shimmer rows stand in.
+    // `resultsQuery` tracks the query the visible results were computed
+    // for: it follows every results emission, and an 800ms cap guarantees
+    // the skeleton can never stick when two queries return the same
+    // (empty) list and no emission arrives to clear it.
+    var resultsQuery by remember { mutableStateOf("") }
+    LaunchedEffect(results) { resultsQuery = query }
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            resultsQuery = ""
+        } else {
+            delay(800)
+            resultsQuery = query
+        }
+    }
+    val isSearching = query.isNotBlank() && query != resultsQuery
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = stringResource(R.string.search_title),
@@ -68,6 +93,7 @@ fun SearchScreen(
         OutlinedTextField(
             value = query,
             onValueChange = viewModel::onQueryChange,
+            textStyle = MaterialTheme.typography.bodyLarge,
             placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             singleLine = true,
@@ -140,15 +166,21 @@ fun SearchScreen(
                 }
             }
             results.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    EmptyState(
-                        title = stringResource(R.string.search_no_results_title),
-                        body = stringResource(R.string.search_no_results_body, query.trim()),
-                        icon = Icons.Filled.Search,
-                    )
+                // 0.7.0: stale results (debounce window) shimmer; a
+                // settled empty result is a real "no matches" state.
+                if (isSearching) {
+                    SkeletonList()
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        EmptyState(
+                            title = stringResource(R.string.search_no_results_title),
+                            body = stringResource(R.string.search_no_results_body, query.trim()),
+                            icon = Icons.Filled.Search,
+                        )
+                    }
                 }
             }
             else -> {

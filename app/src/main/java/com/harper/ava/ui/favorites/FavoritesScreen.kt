@@ -25,17 +25,24 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.common.SkeletonList
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +57,21 @@ fun FavoritesScreen(
     val favorites by viewModel.favorites.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
 
+    // 0.7.0: this ViewModel exposes no loading signal — Room's first
+    // emission lands in milliseconds. So the skeleton only appears if
+    // the list is STILL empty after a 150ms grace window (a genuinely
+    // slow first load), and it yields to the real empty state 400ms
+    // later, so it can never stick on a truly empty library.
+    var showEntrySkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(AvaMotion.skeletonGraceMs)
+        if (favorites.isEmpty()) {
+            showEntrySkeleton = true
+            delay(400)
+            showEntrySkeleton = false
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(stringResource(R.string.favorites_title)) },
@@ -63,15 +85,19 @@ fun FavoritesScreen(
             },
         )
         if (favorites.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                EmptyState(
-                    title = stringResource(R.string.favorites_empty_title),
-                    body = stringResource(R.string.favorites_empty_body),
-                    icon = Icons.Filled.Favorite,
-                )
+            if (showEntrySkeleton) {
+                SkeletonList()
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyState(
+                        title = stringResource(R.string.favorites_empty_title),
+                        body = stringResource(R.string.favorites_empty_body),
+                        icon = Icons.Filled.Favorite,
+                    )
+                }
             }
         } else {
             Row(

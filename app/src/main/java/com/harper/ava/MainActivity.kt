@@ -13,27 +13,37 @@ import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.harper.ava.core.util.CrashReporter
 import com.harper.ava.core.util.LocaleHelper
 import com.harper.ava.core.util.StartupTracer
+import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.preferences.UserPreferences
+import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.components.MiniPlayer
 import com.harper.ava.ui.navigation.AvaNavGraph
 import com.harper.ava.ui.navigation.Destination
@@ -181,72 +191,111 @@ class MainActivity : ComponentActivity() {
 
             AvaTheme(
                 themeMode = settings.themeMode,
+                appTheme = settings.appTheme,
                 accent = settings.accent,
                 customAccentArgb = settings.customAccentArgb,
             ) {
-                val navController = rememberNavController()
-                val backStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = backStackEntry?.destination?.route
-                // Now Playing and Queue are full-screen: no bottom bar, no mini player.
-                val isFullScreenRoute = currentRoute == NowPlayingRoute.ROUTE ||
-                    currentRoute == QueueRoute.ROUTE
+                // 0.7.0 motion: theme changes glide instead of snapping
+                // (AnimatedThemeColors below) and buzz once to confirm.
+                AnimatedThemeColors {
+                    val haptics = rememberAvaHaptics()
+                    var firstThemeSeen by remember { mutableStateOf(true) }
+                    LaunchedEffect(
+                        settings.themeMode,
+                        settings.accent,
+                        settings.customAccentArgb,
+                        settings.appTheme,
+                    ) {
+                        // The first emission is just the stored theme
+                        // arriving — not a change, so no buzz.
+                        if (firstThemeSeen) {
+                            firstThemeSeen = false
+                            return@LaunchedEffect
+                        }
+                        haptics.themeChange()
+                    }
+                    val navController = rememberNavController()
+                    val backStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = backStackEntry?.destination?.route
+                    // Now Playing and Queue are full-screen: no bottom bar, no mini player.
+                    val isFullScreenRoute = currentRoute == NowPlayingRoute.ROUTE ||
+                        currentRoute == QueueRoute.ROUTE
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    bottomBar = {
-                        if (!isFullScreenRoute) {
-                            Column {
-                                if (playback.currentSong != null) {
-                                    MiniPlayer(
-                                        state = playback,
-                                        onTogglePlayPause = { app.container.playerRepository.togglePlayPause() },
-                                        onNext = { app.container.playerRepository.playNext() },
-                                        onOpenNowPlaying = {
-                                            navController.navigate(NowPlayingRoute.ROUTE)
-                                        },
-                                    )
-                                }
-                                NavigationBar {
-                                    Destination.bottomBar.forEach { destination ->
-                                        NavigationBarItem(
-                                            selected = currentRoute == destination.route,
-                                            onClick = {
-                                                navController.navigate(destination.route) {
-                                                    popUpTo(Destination.Home.route) { saveState = true }
-                                                    launchSingleTop = true
-                                                    restoreState = true
-                                                }
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        bottomBar = {
+                            if (!isFullScreenRoute) {
+                                Column {
+                                    if (playback.currentSong != null) {
+                                        MiniPlayer(
+                                            state = playback,
+                                            onTogglePlayPause = { app.container.playerRepository.togglePlayPause() },
+                                            onNext = { app.container.playerRepository.playNext() },
+                                            onOpenNowPlaying = {
+                                                navController.navigate(NowPlayingRoute.ROUTE)
                                             },
-                                            icon = {
-                                                Icon(
-                                                    imageVector = destination.icon,
-                                                    contentDescription = null,
-                                                )
-                                            },
-                                            label = { Text(stringResource(destination.labelRes)) },
                                         )
+                                    }
+                                    NavigationBar {
+                                        Destination.bottomBar.forEach { destination ->
+                                            NavigationBarItem(
+                                                selected = currentRoute == destination.route,
+                                                onClick = {
+                                                    navController.navigate(destination.route) {
+                                                        popUpTo(Destination.Home.route) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                },
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = destination.icon,
+                                                        contentDescription = null,
+                                                    )
+                                                },
+                                                label = { Text(stringResource(destination.labelRes)) },
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    },
-                ) { padding ->
-                    AvaNavGraph(
-                        app = app,
-                        navController = navController,
-                        modifier = Modifier.padding(padding),
-                        // First run opens onboarding; afterwards Home.
-                        startDestination = if (settings.onboardingSeen) {
-                            Destination.Home.route
-                        } else {
-                            OnboardingRoute.ROUTE
                         },
-                    )
+                    ) { padding ->
+                        AvaNavGraph(
+                            app = app,
+                            navController = navController,
+                            modifier = Modifier.padding(padding),
+                            // First run opens onboarding; afterwards Home.
+                            startDestination = if (settings.onboardingSeen) {
+                                Destination.Home.route
+                            } else {
+                                OnboardingRoute.ROUTE
+                            },
+                        )
+                    }
                 }
             }
         }
         StartupTracer.mark(this, "activity.setContent.called")
     }
+
+    /**
+     * Safe-mode typeface: Vazirmatn, loaded straight from res/font. The
+     * safe-mode screen is plain Views on purpose (no Compose, no Room,
+     * no DataStore, no player) and a font-resource load touches none of
+     * those — it is the same file Compose loads for the normal UI. If
+     * the font ever fails to load, fall back to the system default
+     * rather than crashing the screen that exists to report crashes.
+     * (0.7.0 font audit: this was the last in-app system-font surface
+     * outside the notification, which SystemUI owns.)
+     */
+    private fun avaTypeface(bold: Boolean): Typeface =
+        runCatching {
+            ResourcesCompat.getFont(
+                this,
+                if (bold) R.font.vazirmatn_bold else R.font.vazirmatn_regular,
+            )
+        }.getOrNull() ?: if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
 
     /**
      * 0.5.2 safe mode: the previous run crashed during startup, so the
@@ -280,7 +329,7 @@ class MainActivity : ComponentActivity() {
             TextView(this).apply {
                 this.text = text
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
-                if (bold) setTypeface(Typeface.DEFAULT_BOLD)
+                typeface = avaTypeface(bold)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -289,6 +338,7 @@ class MainActivity : ComponentActivity() {
         fun button(text: String, onClick: () -> Unit): Button =
             Button(this).apply {
                 this.text = text
+                typeface = avaTypeface(false)
                 setOnClickListener { onClick() }
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -306,7 +356,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(textView(logLine, 14f))
         layout.addView(
             textView(trace ?: getString(R.string.safe_mode_no_log), 12f).apply {
-                typeface = Typeface.MONOSPACE
+                typeface = avaTypeface(false)
             },
         )
         layout.addView(textView(getString(R.string.safe_mode_crash_log_title), 16f, bold = true))
@@ -315,7 +365,7 @@ class MainActivity : ComponentActivity() {
                 crashLog?.take(8000) ?: getString(R.string.safe_mode_no_crash_log),
                 12f,
             ).apply {
-                typeface = Typeface.MONOSPACE
+                typeface = avaTypeface(false)
             },
         )
         if (crashLog != null) {
@@ -363,3 +413,73 @@ class MainActivity : ComponentActivity() {
         StartupTracer.mark(this, "activity.safeMode.shown")
     }
 }
+
+/**
+ * 0.7.0 motion: animated theme switching. [AvaTheme] swaps the colour
+ * scheme instantly, which reads as a flash when the user picks a new
+ * theme or accent — so this wrapper re-provides the scheme with every
+ * colour gliding to its new value on a 350ms tween
+ * ([AvaMotion.themeColorTween]). It sits inside [AvaTheme]'s content,
+ * so it follows whatever scheme the theme round builds (including a
+ * custom accent colour), and it deliberately only re-provides the
+ * colours: typography and shapes keep coming from [AvaTheme] untouched.
+ *
+ * Corner radii are NOT animated: they come from the theme spec's
+ * [Shapes] ([themeShapes]), and animating them would need the theme
+ * spec to expose animatable values — shapes snap on a theme change
+ * while the colours glide. The navigation state is untouched: the
+ * [androidx.navigation.NavHostController] lives inside this wrapper's
+ * content, so a theme change never resets the back stack.
+ */
+@Composable
+private fun AnimatedThemeColors(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val animated = scheme.copy(
+        primary = animatedThemeColor(scheme.primary),
+        onPrimary = animatedThemeColor(scheme.onPrimary),
+        primaryContainer = animatedThemeColor(scheme.primaryContainer),
+        onPrimaryContainer = animatedThemeColor(scheme.onPrimaryContainer),
+        inversePrimary = animatedThemeColor(scheme.inversePrimary),
+        secondary = animatedThemeColor(scheme.secondary),
+        onSecondary = animatedThemeColor(scheme.onSecondary),
+        secondaryContainer = animatedThemeColor(scheme.secondaryContainer),
+        onSecondaryContainer = animatedThemeColor(scheme.onSecondaryContainer),
+        tertiary = animatedThemeColor(scheme.tertiary),
+        onTertiary = animatedThemeColor(scheme.onTertiary),
+        tertiaryContainer = animatedThemeColor(scheme.tertiaryContainer),
+        onTertiaryContainer = animatedThemeColor(scheme.onTertiaryContainer),
+        background = animatedThemeColor(scheme.background),
+        onBackground = animatedThemeColor(scheme.onBackground),
+        surface = animatedThemeColor(scheme.surface),
+        onSurface = animatedThemeColor(scheme.onSurface),
+        surfaceVariant = animatedThemeColor(scheme.surfaceVariant),
+        onSurfaceVariant = animatedThemeColor(scheme.onSurfaceVariant),
+        surfaceTint = animatedThemeColor(scheme.surfaceTint),
+        inverseSurface = animatedThemeColor(scheme.inverseSurface),
+        inverseOnSurface = animatedThemeColor(scheme.inverseOnSurface),
+        error = animatedThemeColor(scheme.error),
+        onError = animatedThemeColor(scheme.onError),
+        errorContainer = animatedThemeColor(scheme.errorContainer),
+        onErrorContainer = animatedThemeColor(scheme.onErrorContainer),
+        outline = animatedThemeColor(scheme.outline),
+        outlineVariant = animatedThemeColor(scheme.outlineVariant),
+        scrim = animatedThemeColor(scheme.scrim),
+        surfaceBright = animatedThemeColor(scheme.surfaceBright),
+        surfaceDim = animatedThemeColor(scheme.surfaceDim),
+        surfaceContainer = animatedThemeColor(scheme.surfaceContainer),
+        surfaceContainerHigh = animatedThemeColor(scheme.surfaceContainerHigh),
+        surfaceContainerHighest = animatedThemeColor(scheme.surfaceContainerHighest),
+        surfaceContainerLow = animatedThemeColor(scheme.surfaceContainerLow),
+        surfaceContainerLowest = animatedThemeColor(scheme.surfaceContainerLowest),
+    )
+    MaterialTheme(colorScheme = animated, content = content)
+}
+
+/** One theme colour, gliding to its target on the theme-change tween. */
+@Composable
+private fun animatedThemeColor(target: Color): Color =
+    animateColorAsState(
+        targetValue = target,
+        animationSpec = AvaMotion.themeColorTween,
+        label = "theme-color",
+    ).value

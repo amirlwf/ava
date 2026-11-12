@@ -152,6 +152,7 @@ fun SleepTimerScreen(app: AvaApplication, onBack: () -> Unit) {
                             // Digits only; empty means "no custom value yet".
                             customText = input.filter { it.isDigit() }.take(3)
                         },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         label = { Text(stringResource(R.string.sleep_timer_custom_label)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
