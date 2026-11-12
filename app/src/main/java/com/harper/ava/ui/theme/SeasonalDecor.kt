@@ -34,7 +34,10 @@ import kotlin.math.sin
  * - AUTUMN: amber / red leaves falling.
  * - WINTER: snowflakes drifting down.
  * - GALAXY: twinkling stars + faint nebula blobs (the space aesthetic
- *   that sets Galactic Black apart from plain AMOLED black).
+ *   that sets Galactic Black apart from plain AMOLED black), plus —
+ *   since 0.7.3 — 3 shooting stars crossing the sky on staggered phases
+ *   and a small visible solar system (a warm glowing sun in the upper
+ *   area with 3 planets on faint elliptical orbits around it).
  * - Every other theme (Emerald, Violet, Ocean, Sunset): no decor.
  *
  * All vector / Canvas-drawn, no images, no new fonts. One slow
@@ -121,6 +124,103 @@ private fun hash01(index: Int, salt: Int): Float {
     val v = sin(index * 12.9898 + salt * 78.233) * 43758.5453
     val f = v - kotlin.math.floor(v)
     return f.toFloat()
+}
+
+/** Wrap a float into [0, 1). */
+private fun wrap01(v: Float): Float = ((v % 1f) + 1f) % 1f
+
+// ---------------------------------------------------------------------------
+// Galaxy helpers (0.7.3) — pure, deterministic, unit tested in
+// SeasonalDecorTest. All coordinates are normalised to the canvas
+// (0..1 in each axis); the draw code scales them to pixels. Positions are
+// functions of `progress` + a per-object seed only: no extra state, no
+// extra animation loop — the single 36 s loop drives everything.
+// ---------------------------------------------------------------------------
+
+/** Number of shooting stars in the galaxy sky. */
+const val GALAXY_METEOR_COUNT = 3
+
+/** Number of planets orbiting the galaxy sun. */
+const val GALAXY_PLANET_COUNT = 3
+
+/** Max alpha of a meteor head — a whisper, never a flash. */
+const val GALAXY_METEOR_MAX_ALPHA = 0.25f
+
+/**
+ * One shooting star at a given loop [progress], or null while it is
+ * off-screen. Each meteor starts at its own phase (first ~65% of the
+ * loop), streaks diagonally from the upper right toward the lower left
+ * for ~10–15% of the loop (~4–5 s), then waits for the next loop.
+ * The tail points up-right, opposite the direction of travel; [alpha]
+ * fades in at the start and out at the end so the meteor appears and
+ * dissolves instead of popping in/out.
+ */
+data class MeteorState(
+    val headX: Float,
+    val headY: Float,
+    val tailX: Float,
+    val tailY: Float,
+    val alpha: Float,
+)
+
+fun meteorState(index: Int, progress: Float): MeteorState? {
+    val start = hash01(index, 21) * 0.65f
+    val duration = 0.10f + 0.05f * hash01(index, 22)
+    val local = wrap01(progress - start)
+    if (local >= duration) return null
+    val u = local / duration
+    val headX = 0.75f + 0.25f * hash01(index, 23) - u * 0.95f
+    val headY = -0.02f + 0.18f * hash01(index, 24) + u * 0.55f
+    // Fade in over the first 15% of the streak, out over the last 25%.
+    val fadeIn = minOf(u / 0.15f, 1f)
+    val fadeOut = minOf((1f - u) / 0.25f, 1f)
+    val alpha = GALAXY_METEOR_MAX_ALPHA * fadeIn * fadeOut
+    return MeteorState(
+        headX = headX,
+        headY = headY,
+        tailX = headX + 0.16f,
+        tailY = headY - 0.09f,
+        alpha = alpha,
+    )
+}
+
+/**
+ * Elliptical orbit radii of planet [index] around the galaxy sun, as
+ * fractions of the canvas width (horizontal) and height (vertical).
+ * The vertical radius is deliberately ~half the horizontal one, so the
+ * orbit reads as a tilted ellipse seen from slightly above rather than
+ * a flat circle. Radii grow with the index: the planets never share a
+ * track and never cross each other's path.
+ */
+fun planetOrbitRadius(index: Int): Pair<Float, Float> {
+    val rx = 0.14f + 0.06f * index.toFloat()
+    val ry = 0.075f + 0.032f * index.toFloat()
+    return rx to ry
+}
+
+/** Orbital angle (radians, 0..2π) of planet [index] at loop [progress]. */
+fun planetAngle(index: Int, progress: Float): Float {
+    val lapsPerLoop = 0.6f - 0.2f * index.toFloat() // inner planets orbit faster
+    val phase = hash01(index, 25)
+    return wrap01(progress * lapsPerLoop + phase) * 2f * PI.toFloat()
+}
+
+/** Position of planet [index] on its ellipse around ([centerX], [centerY]). */
+data class OrbitPoint(val x: Float, val y: Float)
+
+fun planetPosition(
+    index: Int,
+    progress: Float,
+    centerX: Float,
+    centerY: Float,
+    radiusX: Float,
+    radiusY: Float,
+): OrbitPoint {
+    val angle = planetAngle(index, progress)
+    return OrbitPoint(
+        x = centerX + radiusX * cos(angle),
+        y = centerY + radiusY * sin(angle),
+    )
 }
 
 private fun DrawScope.drawDecor(
@@ -254,6 +354,15 @@ private fun DrawScope.drawSnowflake(center: Offset, radius: Float, color: Color)
  * Galaxy: faint nebula blobs in the corners + twinkling four-point stars.
  * Stars never move — only their alpha breathes, so the night sky feels
  * alive without any motion that could distract from the music.
+ *
+ * 0.7.3 adds two quiet pieces of sky, both driven by the same 36 s
+ * `progress` loop and both kept faint so the content stays readable:
+ * - 3 shooting stars ([meteorState]) streaking diagonally across the
+ *   sky on staggered phases, each visible only ~4–5 s per loop.
+ * - A small solar system in the upper area: a warm glowing sun with
+ *   3 planets on faint elliptical orbits ([planetPosition]). The whole
+ *   system sits in the top ~30% band, behind the content, so it never
+ *   fights the album art or the song list.
  */
 private fun DrawScope.drawGalaxy(
     progress: Float,
@@ -297,6 +406,104 @@ private fun DrawScope.drawGalaxy(
         } else {
             drawCircle(color = color, radius = radius * 0.45f, center = Offset(x, y))
         }
+    }
+    drawSolarSystem(progress, pink, blue, white)
+    drawMeteors(progress)
+}
+
+/**
+ * The solar system: a small warm sun in the upper area, faint
+ * elliptical orbit rings, and 3 planets slowly circling it.
+ * The sun sits right-of-centre near the top so its widest orbit
+ * (0.26 × width) still fits on screen; the whole system stays in the
+ * top band, behind the header content.
+ */
+private fun DrawScope.drawSolarSystem(
+    progress: Float,
+    pink: Color,
+    blue: Color,
+    white: Color,
+) {
+    // Sun at 14% height: the widest orbit (ry 0.139) just fits above it,
+    // so no orbit ring is clipped by the top edge of the screen.
+    val sunCenter = Offset(size.width * 0.70f, size.height * 0.14f)
+    val sunWarm = Color(0xFFFFE08A)
+    val sunCore = Color(0xFFFFF6D8)
+    // Halo breathes very gently with the loop — barely noticeable.
+    val breathe = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat())
+    drawCircle(
+        color = sunWarm.copy(alpha = 0.06f + 0.02f * breathe),
+        radius = 52.dp.toPx(),
+        center = sunCenter,
+    )
+    drawCircle(
+        color = sunWarm.copy(alpha = 0.13f + 0.03f * breathe),
+        radius = 30.dp.toPx(),
+        center = sunCenter,
+    )
+    drawCircle(color = sunCore.copy(alpha = 0.85f), radius = 9.dp.toPx(), center = sunCenter)
+    drawCircle(color = sunWarm.copy(alpha = 0.55f), radius = 6.dp.toPx(), center = sunCenter)
+
+    val planetColors = listOf(pink, blue, white)
+    val planetRadii = listOf(4.5f, 3.5f, 3f)
+    for (i in 0 until GALAXY_PLANET_COUNT) {
+        val (rxNorm, ryNorm) = planetOrbitRadius(i)
+        val rx = rxNorm * size.width
+        val ry = ryNorm * size.height
+        // Orbit ring: a very faint tilted ellipse.
+        drawOval(
+            color = white.copy(alpha = 0.08f),
+            topLeft = Offset(sunCenter.x - rx, sunCenter.y - ry),
+            size = androidx.compose.ui.geometry.Size(rx * 2f, ry * 2f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()),
+        )
+        val pos = planetPosition(
+            index = i,
+            progress = progress,
+            centerX = sunCenter.x / size.width,
+            centerY = sunCenter.y / size.height,
+            radiusX = rxNorm,
+            radiusY = ryNorm,
+        )
+        val center = Offset(pos.x * size.width, pos.y * size.height)
+        val radius = planetRadii[i].dp.toPx()
+        val color = planetColors[i]
+        drawCircle(color = color.copy(alpha = 0.10f), radius = radius * 2f, center = center)
+        drawCircle(color = color.copy(alpha = if (i % 2 == 0) 0.30f else 0.50f), radius = radius, center = center)
+    }
+}
+
+/** Shooting stars: a bright head + a fading tail of three segments. */
+private fun DrawScope.drawMeteors(progress: Float) {
+    for (i in 0 until GALAXY_METEOR_COUNT) {
+        val meteor = meteorState(i, progress) ?: continue
+        val head = Offset(meteor.headX * size.width, meteor.headY * size.height)
+        val tail = Offset(meteor.tailX * size.width, meteor.tailY * size.height)
+        // Tail in three segments, each fainter than the last.
+        val p1 = head + (tail - head) * 0.30f
+        val p2 = head + (tail - head) * 0.65f
+        drawLine(
+            color = Color.White.copy(alpha = meteor.alpha),
+            start = head,
+            end = p1,
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = Color.White.copy(alpha = meteor.alpha * 0.55f),
+            start = p1,
+            end = p2,
+            strokeWidth = 1.5.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = Color.White.copy(alpha = meteor.alpha * 0.25f),
+            start = p2,
+            end = tail,
+            strokeWidth = 1.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawCircle(color = Color.White.copy(alpha = meteor.alpha), radius = 2.dp.toPx(), center = head)
     }
 }
 
