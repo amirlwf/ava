@@ -1,5 +1,6 @@
 package com.harper.ava.ui.playlists
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,11 +38,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,6 +54,7 @@ import com.harper.ava.R
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +65,13 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
     val playlists by viewModel.playlists.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
+    // 0.7.4: add songs straight from a playlist row — the picker needs
+    // the library and the ids already in that playlist.
+    val allSongs by viewModel.allSongs.collectAsState()
+    var addSongsTarget by remember { mutableStateOf<Playlist?>(null) }
+    var addSongsExisting by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -96,6 +107,14 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
                         playlist = playlist,
                         onClick = { onOpenPlaylist(playlist.id) },
                         onPlayAll = { viewModel.playPlaylist(playlist.id) },
+                        // 0.7.4: open the add-songs picker for this
+                        // playlist without entering its detail screen.
+                        onAddSongs = {
+                            scope.launch {
+                                addSongsExisting = viewModel.playlistSongIds(playlist.id)
+                                addSongsTarget = playlist
+                            }
+                        },
                         // Stage 6: deleting a playlist is destructive and
                         // used to happen on one tap with no confirmation.
                         onDelete = { playlistToDelete = playlist },
@@ -143,6 +162,33 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
             },
         )
     }
+
+    val addTarget = addSongsTarget
+    if (addTarget != null) {
+        AddSongsToPlaylistDialog(
+            playlistName = addTarget.name,
+            allSongs = allSongs,
+            alreadyAddedIds = addSongsExisting,
+            onDismiss = { addSongsTarget = null },
+            onConfirm = { songIds ->
+                scope.launch {
+                    val added = viewModel.addSongsToPlaylist(addTarget.id, songIds)
+                    if (added > 0) {
+                        Toast.makeText(
+                            context,
+                            context.resources.getQuantityString(
+                                R.plurals.playlist_add_songs_added,
+                                added,
+                                added,
+                            ),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    addSongsTarget = null
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -150,6 +196,7 @@ private fun PlaylistRow(
     playlist: Playlist,
     onClick: () -> Unit,
     onPlayAll: () -> Unit,
+    onAddSongs: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var artFailed by remember(playlist.coverArtUri) { mutableStateOf(false) }
@@ -197,6 +244,13 @@ private fun PlaylistRow(
                 text = stringResource(R.string.library_songs_count, playlist.songCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onAddSongs) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.playlist_add_songs),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(onClick = onPlayAll) {

@@ -1,18 +1,22 @@
 package com.harper.ava.ui.playlists
 
-import androidx.compose.foundation.layout.Box
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,9 +28,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
@@ -37,6 +43,7 @@ import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +64,13 @@ fun PlaylistDetailScreen(
     val songs by viewModel.songs.collectAsState()
     // 0.7.2 playlist-add fix: rows inside a playlist can now be added to other playlists.
     val playlists by viewModel.playlists.collectAsState()
+    // 0.7.4: library source for the add-songs picker.
+    val allSongs by viewModel.allSongs.collectAsState()
+
+    // 0.7.4: add songs from inside the playlist (picker dialog + Toast feedback).
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showAddSongs by remember { mutableStateOf(false) }
 
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -79,6 +93,14 @@ fun PlaylistDetailScreen(
                 }
             },
             actions = {
+                // 0.7.4: add songs from inside the playlist — always
+                // visible, not only when the playlist already has songs.
+                IconButton(onClick = { showAddSongs = true }) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.playlist_add_songs),
+                    )
+                }
                 if (songs.isNotEmpty()) {
                     IconButton(onClick = { viewModel.shuffleAll(songs) }) {
                         Icon(
@@ -96,15 +118,24 @@ fun PlaylistDetailScreen(
             },
         )
         if (songs.isEmpty()) {
-            Box(
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 EmptyState(
                     title = stringResource(R.string.playlist_detail_empty_title),
                     body = stringResource(R.string.playlist_detail_empty_body),
                     icon = Icons.AutoMirrored.Filled.QueueMusic,
                 )
+                Spacer(modifier = Modifier.height(AvaTokens.space16))
+                // 0.7.4: the empty state is the first-run entry point —
+                // the picker opens straight from here.
+                Button(onClick = { showAddSongs = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(AvaTokens.space8))
+                    Text(stringResource(R.string.playlist_add_songs))
+                }
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -125,5 +156,31 @@ fun PlaylistDetailScreen(
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }
             }
         }
+    }
+
+    if (showAddSongs) {
+        AddSongsToPlaylistDialog(
+            playlistName = playlist?.name ?: "",
+            allSongs = allSongs,
+            alreadyAddedIds = songs.map { it.id }.toSet(),
+            onDismiss = { showAddSongs = false },
+            onConfirm = { songIds ->
+                scope.launch {
+                    val added = viewModel.addSongsToPlaylist(songIds)
+                    if (added > 0) {
+                        Toast.makeText(
+                            context,
+                            context.resources.getQuantityString(
+                                R.plurals.playlist_add_songs_added,
+                                added,
+                                added,
+                            ),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    showAddSongs = false
+                }
+            },
+        )
     }
 }

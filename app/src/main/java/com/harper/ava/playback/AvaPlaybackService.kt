@@ -70,6 +70,13 @@ class AvaPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
 
     /**
+     * The custom notification provider, kept so [onDestroy] can stop
+     * its progress ticker and coroutine scope (see
+     * [AvaMediaNotificationProvider.release]).
+     */
+    private var notificationProvider: AvaMediaNotificationProvider? = null
+
+    /**
      * Accent colour for the notification (placeholder + Media3 media
      * notification), resolved once in [onCreate] from the user's theme.
      */
@@ -82,14 +89,22 @@ class AvaPlaybackService : MediaSessionService() {
         // AvaMediaNotificationProvider). Wired in BEFORE addSession() so
         // the manager uses it from the first notification; lifecycle and
         // playback behaviour are untouched.
-        // 0.7.3: reverted to the 0.6.0 DefaultMediaNotificationProvider
-        // subclass — the 0.7.2 from-scratch custom provider crashed on
-        // play (Bad notification for startForeground). The subclass has
-        // no ticker/scope, so there is no provider field and no
-        // release() call in onDestroy(); the accent still comes from
-        // the user's AppTheme via resolveNotificationAccent().
+        // 0.7.4: the provider is again a from-scratch
+        // MediaNotification.Provider (custom RemoteViews, ongoing while
+        // playing, like button) — rebuilt from 0.7.2 with the 0.7.3 PNG
+        // small icon (see AvaMediaNotificationProvider: the vector icon
+        // is the crash suspect; if it crashes again on device, the
+        // RemoteViews path is the cause and we revert to the 0.7.3
+        // subclass). It reads the current song from the shared
+        // PlayerRepository state and the favorite state from the
+        // MusicRepository — no repository file is modified for it.
         accentColorArgb = resolveNotificationAccent(app)
-        setMediaNotificationProvider(AvaMediaNotificationProvider(this, accentColorArgb))
+        notificationProvider = AvaMediaNotificationProvider(
+            this,
+            accentColorArgb,
+            app.container.musicRepository,
+        ) { app.container.playerRepository.state.value.currentSong }
+        setMediaNotificationProvider(notificationProvider!!)
         val player = app.container.playerRepository.player
         val sessionActivity = PendingIntent.getActivity(
             this,
@@ -205,6 +220,8 @@ class AvaPlaybackService : MediaSessionService() {
         playerRepository.player.pause()
         mediaSession?.release()
         mediaSession = null
+        notificationProvider?.release()
+        notificationProvider = null
         super.onDestroy()
     }
 }

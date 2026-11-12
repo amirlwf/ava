@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
 import com.harper.ava.data.repository.SongDeleteCoordinator
+import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +24,22 @@ class PlaylistsViewModel(
     val playlists: StateFlow<List<Playlist>> = musicRepository
         .observePlaylistsWithCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 0.7.4: library source for the in-playlist add-songs picker. */
+    val allSongs: StateFlow<List<Song>> = musicRepository
+        .observeSongs(SongSort.TITLE)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 0.7.4: add several songs at once from the picker; returns how many were new. */
+    suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Int =
+        musicRepository.addSongsToPlaylist(playlistId, songIds)
+
+    /**
+     * 0.7.4: one-shot read of the songs already in a playlist, so the
+     * picker can mark them as already added before it opens.
+     */
+    suspend fun playlistSongIds(playlistId: Long): Set<Long> =
+        musicRepository.observePlaylistSongs(playlistId).first().map { it.id }.toSet()
 
     fun createPlaylist(name: String) {
         viewModelScope.launch {
@@ -70,6 +87,15 @@ class PlaylistDetailViewModel(
     val playlists: StateFlow<List<Playlist>> = musicRepository
         .observePlaylists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 0.7.4: library source for the in-playlist add-songs picker. */
+    val allSongs: StateFlow<List<Song>> = musicRepository
+        .observeSongs(SongSort.TITLE)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** 0.7.4: add several songs at once from the picker; returns how many were new. */
+    suspend fun addSongsToPlaylist(songIds: List<Long>): Int =
+        musicRepository.addSongsToPlaylist(playlistId, songIds)
 
     fun addToPlaylist(song: Song, playlistId: Long) {
         viewModelScope.launch { musicRepository.addSongToPlaylist(playlistId, song.id) }

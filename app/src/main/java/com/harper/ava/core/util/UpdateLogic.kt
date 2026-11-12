@@ -17,6 +17,9 @@ const val UPDATE_RELEASES_API_URL =
 const val UPDATE_RELEASE_PAGE_URL =
     "https://github.com/amirlwf/ava/releases/latest"
 
+/** Harper's website, linked from About and Settings (0.7.4). */
+const val HARPER_WEBSITE_URL = "https://amirlwf.ir"
+
 /** Minimum gap between automatic (background) update checks. */
 const val UPDATE_CHECK_COOLDOWN_MS: Long = 24L * 60L * 60L * 1000L
 

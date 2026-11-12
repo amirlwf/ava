@@ -1,0 +1,6 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <!-- White circle; tinted with the theme accent at runtime for the
+         play/pause button background (setColorFilter in the provider). -->
+    <solid android:color="#FFFFFF" />
+</shape>

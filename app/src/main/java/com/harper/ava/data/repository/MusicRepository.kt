@@ -305,6 +305,29 @@ class MusicRepository(private val db: AppDatabase) {
         db.playlistDao().addSong(PlaylistSongCrossRef(playlistId, songId, position))
     }
 
+    /**
+     * 0.7.4: adds several songs to a playlist at once (the in-playlist
+     * picker). Songs already in the playlist are skipped — re-inserting
+     * them would REPLACE the row and disturb their position — and
+     * repeated ids inside one batch are added once. Returns how many
+     * songs were actually new. New songs are appended in batch order
+     * after the current max position; the playlist Flow re-emits, so
+     * the detail screen shows them immediately.
+     */
+    suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Int {
+        val distinct = songIds.distinct()
+        if (distinct.isEmpty()) return 0
+        val existing = db.playlistDao().songIds(playlistId).toSet()
+        val fresh = distinct.filter { it !in existing }
+        if (fresh.isEmpty()) return 0
+        var position = db.playlistDao().maxPosition(playlistId)
+        fresh.forEach { songId ->
+            position += 1
+            db.playlistDao().addSong(PlaylistSongCrossRef(playlistId, songId, position))
+        }
+        return fresh.size
+    }
+
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) =
         db.playlistDao().removeSong(playlistId, songId)
 

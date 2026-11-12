@@ -1,0 +1,7 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <!-- Dark translucent circle behind the white transport icons, so
+         they stay readable on both light and dark notification
+         backgrounds (custom RemoteViews get no system tinting). -->
+    <solid android:color="#40000000" />
+</shape>

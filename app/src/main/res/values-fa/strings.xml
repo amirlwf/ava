@@ -93,6 +93,18 @@
     <string name="playlist_detail_empty_title">این پلی‌لیست خالی است</string>
     <string name="playlist_detail_empty_body">هنوز آهنگی به این پلی‌لیست اضافه نشده است.</string>
     <string name="playlist_remove_song">حذف از پلی‌لیست</string>
+    <!-- 0.7.4: افزودن آهنگ از داخل پلی‌لیست (انتخاب‌کننده چندتایی) -->
+    <string name="playlist_add_songs">افزودن آهنگ</string>
+    <string name="playlist_add_songs_title">افزودن آهنگ به «%1$s»</string>
+    <string name="playlist_add_songs_search_hint">جستجو در کتابخانه…</string>
+    <string name="playlist_add_songs_already_added">در پلی‌لیست است</string>
+    <string name="playlist_add_songs_confirm">افزودن (%1$d)</string>
+    <string name="playlist_add_songs_empty_library">هنوز آهنگی در کتابخانه نیست — اول موسیقی‌ات را اسکن کن.</string>
+    <string name="playlist_add_songs_no_results">آهنگی مطابق «%1$s» پیدا نشد.</string>
+    <plurals name="playlist_add_songs_added">
+        <item quantity="one">۱ آهنگ اضافه شد</item>
+        <item quantity="other">%1$d آهنگ اضافه شد</item>
+    </plurals>
 
     <!-- Player -->
     <string name="player_play">پخش</string>
@@ -276,6 +288,12 @@
     <string name="about_privacy_body">هیچ فایل موسیقی و هیچ اطلاعات شخصی از گوشی تو خارج نمی‌شود. تنظیمات روی همین گوشی می‌مانند.</string>
     <string name="about_built_title">ساخته‌شده با</string>
     <string name="about_built_body">Kotlin، Jetpack Compose، Media3، Room، DataStore و Coil. فونت فارسی: Vazirmatn (SIL OFL).</string>
+    <string name="about_dedication_title">به یاد آوا</string>
+    <string name="about_dedication_body">این اپ به یاد آوا رحمانی راد است؛ بازیگر ۲۰ سالهٔ اهل هفت‌حوض تهرانپارس که در ۱۹ دی ۱۴۰۴ درگذشت. «آوا» نام اوست و این اپ به یاد او تقدیم می‌شود؛ یادش گرامی.</string>
+    <string name="about_website_title">ساخته‌شده توسط هارپر</string>
+    <string name="about_website_value">amirlwf.ir</string>
+    <string name="settings_website">وب‌سایت</string>
+    <string name="settings_website_sub">amirlwf.ir</string>
     <string name="about_diagnostics_title">گزارش‌های خرابی</string>
     <string name="about_diagnostics_body">یک گزارش خرابی روی همین گوشی ذخیره شده است. برای کمک به رفع مشکل، آخرین گزارش را به اشتراک بگذار — هیچ چیزی خودکار ارسال نمی‌شود.</string>
     <string name="about_diagnostics_none">هیچ گزارش خرابی ذخیره نشده است. اگر اپ ناگهان بسته شود، جزئیات آن اینجا ذخیره می‌شود.</string>

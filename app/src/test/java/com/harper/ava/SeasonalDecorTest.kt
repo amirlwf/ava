@@ -1,25 +1,48 @@
 package com.harper.ava
 
 import com.harper.ava.data.preferences.AppTheme
+import com.harper.ava.ui.theme.GALAXY_BRIGHT_STAR_COUNT
+import com.harper.ava.ui.theme.GALAXY_CONSTELLATIONS
+import com.harper.ava.ui.theme.GALAXY_FAR_STAR_COUNT
 import com.harper.ava.ui.theme.GALAXY_METEOR_COUNT
 import com.harper.ava.ui.theme.GALAXY_METEOR_MAX_ALPHA
+import com.harper.ava.ui.theme.GALAXY_MID_STAR_COUNT
+import com.harper.ava.ui.theme.GALAXY_MILKY_WAY_DUST_COUNT
+import com.harper.ava.ui.theme.GALAXY_NEBULA_BLOBS
 import com.harper.ava.ui.theme.GALAXY_PLANET_COUNT
 import com.harper.ava.ui.theme.SeasonalDecorKind
 import com.harper.ava.ui.theme.argbLuminance
 import com.harper.ava.ui.theme.contrastRatio
+import com.harper.ava.ui.theme.galaxyParallaxDrift
+import com.harper.ava.ui.theme.galaxyStarAlpha
+import com.harper.ava.ui.theme.galaxyStarPosition
+import com.harper.ava.ui.theme.galaxyStarRadiusDp
+import com.harper.ava.ui.theme.meteorMaxAlpha
 import com.harper.ava.ui.theme.meteorState
+import com.harper.ava.ui.theme.meteorTailLength
+import com.harper.ava.ui.theme.milkyWayBandCenterY
+import com.harper.ava.ui.theme.milkyWayDensity
+import com.harper.ava.ui.theme.milkyWayDustAlpha
+import com.harper.ava.ui.theme.milkyWayDustPosition
+import com.harper.ava.ui.theme.moonAngle
+import com.harper.ava.ui.theme.moonOrbitRadius
+import com.harper.ava.ui.theme.moonPosition
 import com.harper.ava.ui.theme.planetAngle
+import com.harper.ava.ui.theme.planetHasMoon
+import com.harper.ava.ui.theme.planetHasRing
 import com.harper.ava.ui.theme.planetOrbitRadius
 import com.harper.ava.ui.theme.planetPosition
 import com.harper.ava.ui.theme.seasonalDecorKind
 import com.harper.ava.ui.theme.spec
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
  * 0.7.2 seasonal decor + Galactic Black theme. Pure JUnit — no Android
@@ -120,8 +143,8 @@ class SeasonalDecorTest {
     // --- 0.7.3 galaxy: shooting stars + solar system (pure helpers) ---
 
     @Test
-    fun `three meteors each appear for only part of the loop`() {
-        assertEquals(3, GALAXY_METEOR_COUNT)
+    fun `four meteors each appear for only part of the loop`() {
+        assertEquals(4, GALAXY_METEOR_COUNT)
         for (i in 0 until GALAXY_METEOR_COUNT) {
             var visible = 0
             var total = 0
@@ -207,7 +230,7 @@ class SeasonalDecorTest {
 
     @Test
     fun `planet orbits grow outward and stay elliptical`() {
-        assertEquals(3, GALAXY_PLANET_COUNT)
+        assertEquals(5, GALAXY_PLANET_COUNT)
         var prevRx = 0f
         for (i in 0 until GALAXY_PLANET_COUNT) {
             val (rx, ry) = planetOrbitRadius(i)
@@ -277,5 +300,286 @@ class SeasonalDecorTest {
             planetPosition(1, 0.37f, 0.70f, 0.14f, rx, ry),
             planetPosition(1, 0.62f, 0.70f, 0.14f, rx, ry),
         )
+    }
+
+    // --- 0.7.4 galaxy deep redesign: starfield layers, Milky Way, nebula,
+    // constellations, richer meteors, moons + ring ---
+
+    @Test
+    fun `starfield has three depth layers with distinct sizes`() {
+        assertEquals(36, GALAXY_FAR_STAR_COUNT)
+        assertEquals(26, GALAXY_MID_STAR_COUNT)
+        assertEquals(10, GALAXY_BRIGHT_STAR_COUNT)
+        for (i in 0 until GALAXY_FAR_STAR_COUNT) {
+            val r = galaxyStarRadiusDp(i, 0)
+            assertTrue("far radius $r", r in 0.8f..1.7f)
+            assertEquals(r, galaxyStarRadiusDp(i, 0))
+        }
+        for (i in 0 until GALAXY_MID_STAR_COUNT) {
+            assertTrue(galaxyStarRadiusDp(i, 1) in 1.5f..4.5f)
+        }
+        for (i in 0 until GALAXY_BRIGHT_STAR_COUNT) {
+            assertTrue(galaxyStarRadiusDp(i, 2) in 3.0f..5.5f)
+        }
+        // Far stars are always smaller than bright stars: depth reads.
+        assertTrue(0.8f + 0.9f < 3.0f)
+    }
+
+    @Test
+    fun `star alpha twinkles inside its layer band and changes over the loop`() {
+        val bands = listOf(0 to (0.06f to 0.22f), 1 to (0.10f to 0.40f), 2 to (0.15f to 0.45f))
+        for ((layer, band) in bands) {
+            var min = 1f
+            var max = 0f
+            var p = 0f
+            while (p < 1f) {
+                val a = galaxyStarAlpha(3, layer, p)
+                assertTrue("layer $layer alpha $a", a in band.first..band.second)
+                assertEquals(a, galaxyStarAlpha(3, layer, p))
+                if (a < min) min = a
+                if (a > max) max = a
+                p += 0.02f
+            }
+            assertTrue("layer $layer never twinkles: $min..$max", max - min > 0.05f)
+        }
+    }
+
+    @Test
+    fun `parallax drift is a smooth sway deeper for nearer layers`() {
+        // Zero at both ends of the loop: no jump on restart.
+        for (layer in 0..2) {
+            assertEquals(0.0, galaxyParallaxDrift(layer, 0f).toDouble(), 1e-6)
+            assertTrue(abs(galaxyParallaxDrift(layer, 1f)) < 1e-5f)
+        }
+        // At a quarter loop the sine is 1: drift equals the amplitude.
+        assertEquals(0.006, galaxyParallaxDrift(0, 0.25f).toDouble(), 1e-5)
+        assertEquals(0.013, galaxyParallaxDrift(1, 0.25f).toDouble(), 1e-5)
+        assertEquals(0.020, galaxyParallaxDrift(2, 0.25f).toDouble(), 1e-5)
+        // Bounded everywhere, and nearer layers always drift further.
+        var p = 0f
+        while (p < 1f) {
+            val d0 = abs(galaxyParallaxDrift(0, p))
+            val d1 = abs(galaxyParallaxDrift(1, p))
+            val d2 = abs(galaxyParallaxDrift(2, p))
+            assertTrue(d2 <= 0.020001f)
+            assertTrue(d0 <= d1)
+            assertTrue(d1 <= d2)
+            p += 0.01f
+        }
+    }
+
+    @Test
+    fun `star positions stay on screen and move with parallax`() {
+        for (layer in 0..2) {
+            for (i in 0 until 10) {
+                for (p in listOf(0f, 0.25f, 0.5f)) {
+                    val (x, y) = galaxyStarPosition(i, layer, p)
+                    assertTrue("layer $layer star $i x $x", x in 0f..1f)
+                    assertTrue("layer $layer star $i y $y", y in 0f..1f)
+                }
+            }
+        }
+        // The near layer visibly sways between loop start and quarter loop.
+        val (x0, _) = galaxyStarPosition(0, 2, 0f)
+        val (x1, _) = galaxyStarPosition(0, 2, 0.25f)
+        assertTrue(abs(x1 - x0) > 0.01f)
+    }
+
+    @Test
+    fun `milky way band runs from bottom-left to top-right`() {
+        assertEquals(0.78, milkyWayBandCenterY(0f).toDouble(), 1e-6)
+        assertEquals(0.18, milkyWayBandCenterY(1f).toDouble(), 1e-6)
+        assertEquals(0.48, milkyWayBandCenterY(0.5f).toDouble(), 1e-6)
+        assertTrue(milkyWayBandCenterY(0.2f) > milkyWayBandCenterY(0.8f))
+    }
+
+    @Test
+    fun `milky way density peaks on the band and fades away`() {
+        assertEquals(1.0, milkyWayDensity(0.5f, 0.48f).toDouble(), 1e-6)
+        assertEquals(0.0, milkyWayDensity(0.5f, 0.48f + 0.17f).toDouble(), 1e-6)
+        assertEquals(0.0, milkyWayDensity(0.5f, 0.48f + 0.5f).toDouble(), 1e-6)
+        assertEquals(0.25, milkyWayDensity(0.5f, 0.48f + 0.085f).toDouble(), 0.01)
+        var x = 0f
+        while (x <= 1f) {
+            var y = 0f
+            while (y <= 1f) {
+                val d = milkyWayDensity(x, y)
+                assertTrue("density $d at $x,$y", d in 0f..1f)
+                y += 0.1f
+            }
+            x += 0.1f
+        }
+    }
+
+    @Test
+    fun `milky way dust sits inside the band`() {
+        assertEquals(34, GALAXY_MILKY_WAY_DUST_COUNT)
+        for (i in 0 until GALAXY_MILKY_WAY_DUST_COUNT) {
+            val (x, y) = milkyWayDustPosition(i)
+            assertTrue("dust $i x $x", x in 0f..1f)
+            assertTrue("dust $i y $y", y in 0f..1f)
+            assertEquals(milkyWayDustPosition(i), milkyWayDustPosition(i))
+            assertTrue("dust $i density ${milkyWayDensity(x, y)}", milkyWayDensity(x, y) > 0.2f)
+        }
+    }
+
+    @Test
+    fun `dust alpha is faint deterministic and varies`() {
+        var min = 1f
+        var max = 0f
+        var p = 0f
+        while (p < 1f) {
+            val a = milkyWayDustAlpha(0, p)
+            assertTrue("dust alpha $a", a in 0.02f..0.17f)
+            assertEquals(a, milkyWayDustAlpha(0, p))
+            if (a < min) min = a
+            if (a > max) max = a
+            p += 0.02f
+        }
+        assertTrue("dust never twinkles: $min..$max", max - min > 0.02f)
+    }
+
+    @Test
+    fun `nebula has six faint multi-colour clouds`() {
+        assertEquals(6, GALAXY_NEBULA_BLOBS.size)
+        val colors = mutableSetOf<Int>()
+        for (blob in GALAXY_NEBULA_BLOBS) {
+            assertTrue("alpha ${blob.alpha}", blob.alpha in 0.03f..0.09f)
+            assertTrue("cx ${blob.centerX}", blob.centerX in 0f..1f)
+            assertTrue("cy ${blob.centerY}", blob.centerY in 0f..1f)
+            assertTrue("radius ${blob.radius}", blob.radius in 0.15f..0.45f)
+            assertTrue("color ${blob.colorIndex}", blob.colorIndex in 0..3)
+            colors += blob.colorIndex
+        }
+        assertTrue("only ${colors.size} nebula colours", colors.size >= 3)
+    }
+
+    @Test
+    fun `constellations are valid and on screen`() {
+        assertEquals(2, GALAXY_CONSTELLATIONS.size)
+        for (constellation in GALAXY_CONSTELLATIONS) {
+            assertTrue(constellation.points.size >= 4)
+            assertTrue(constellation.edges.isNotEmpty())
+            for ((x, y) in constellation.points) {
+                assertTrue("point x $x", x in 0f..1f)
+                assertTrue("point y $y", y in 0f..1f)
+            }
+            for ((a, b) in constellation.edges) {
+                assertTrue("edge $a", a in constellation.points.indices)
+                assertTrue("edge $b", b in constellation.points.indices)
+                assertNotEquals(a, b)
+            }
+        }
+    }
+
+    @Test
+    fun `brightest meteor peaks brighter than the rest`() {
+        assertEquals(GALAXY_METEOR_MAX_ALPHA, meteorMaxAlpha(0))
+        for (i in 1 until GALAXY_METEOR_COUNT) {
+            assertEquals(0.25f, meteorMaxAlpha(i))
+        }
+        fun peak(index: Int): Float {
+            var peak = 0f
+            var p = 0f
+            while (p < 1f) {
+                val s = meteorState(index, p)
+                if (s != null && s.alpha > peak) peak = s.alpha
+                p += 0.002f
+            }
+            return peak
+        }
+        assertTrue("bright meteor peak ${peak(0)}", peak(0) > 0.30f)
+        assertTrue("plain meteor peak ${peak(1)}", peak(1) in 0.20f..0.26f)
+    }
+
+    @Test
+    fun `meteor tails are longer and vary per meteor`() {
+        val lengths = mutableSetOf<Float>()
+        for (i in 0 until GALAXY_METEOR_COUNT) {
+            assertTrue(meteorTailLength(i) in 0.13f..0.22f)
+            assertEquals(meteorTailLength(i), meteorTailLength(i))
+            // Find a visible moment and measure the head-to-tail distance.
+            var p = 0f
+            var found: Float? = null
+            while (p < 1f && found == null) {
+                val s = meteorState(i, p)
+                if (s != null) {
+                    val dx = s.tailX - s.headX
+                    val dy = s.tailY - s.headY
+                    found = sqrt(dx * dx + dy * dy)
+                }
+                p += 0.002f
+            }
+            assertNotNull("meteor $i never visible", found)
+            // Tail is diagonal: length = tailLen * sqrt(1 + 0.56^2).
+            assertEquals(
+                meteorTailLength(i).toDouble() * 1.1461,
+                found!!.toDouble(),
+                0.002,
+            )
+            assertTrue("tail length $found", found in 0.14f..0.26f)
+            lengths += found
+        }
+        assertTrue("all tails the same length", lengths.size > 1)
+    }
+
+    @Test
+    fun `five planets with moons on two and a ring on the outermost`() {
+        assertTrue(planetHasMoon(1))
+        assertTrue(planetHasMoon(3))
+        assertFalse(planetHasMoon(0))
+        assertFalse(planetHasMoon(2))
+        assertFalse(planetHasMoon(4))
+        assertTrue(planetHasRing(4))
+        for (i in 0 until GALAXY_PLANET_COUNT - 1) {
+            assertFalse("planet $i has a ring", planetHasRing(i))
+        }
+    }
+
+    @Test
+    fun `moon stays on its tilted ellipse around its planet`() {
+        val cx = 0.70f
+        val cy = 0.14f
+        for (planet in listOf(1, 3)) {
+            val rx = moonOrbitRadius(planet)
+            assertTrue("moon rx $rx", rx in 0.015f..0.04f)
+            val ry = rx * 0.55f
+            val (prx, pry) = planetOrbitRadius(planet)
+            var p = 0f
+            while (p < 1f) {
+                val planetPos = planetPosition(planet, p, cx, cy, prx, pry)
+                val moon = moonPosition(planet, p, planetPos.x, planetPos.y)
+                val onEllipse = ((moon.x - planetPos.x) / rx).let { it * it } +
+                    ((moon.y - planetPos.y) / ry).let { it * it }
+                assertEquals("moon of planet $planet at $p", 1.0, onEllipse.toDouble(), 1e-4)
+                assertTrue(moon.x in 0f..1f)
+                assertTrue(moon.y in 0f..1f)
+                p += 0.05f
+            }
+        }
+    }
+
+    @Test
+    fun `moon angle is deterministic and wraps in zero to two pi`() {
+        for (planet in listOf(1, 3)) {
+            var p = 0f
+            while (p < 1f) {
+                val angle = moonAngle(planet, p)
+                assertTrue("moon angle $angle", angle in 0f..(2f * PI.toFloat()))
+                assertEquals(angle, moonAngle(planet, p))
+                p += 0.05f
+            }
+        }
+    }
+
+    @Test
+    fun `moons orbit faster than their planet`() {
+        fun gained(angleAt: (Float) -> Float): Float {
+            val delta = angleAt(0.1f) - angleAt(0f)
+            return ((delta % (2f * PI.toFloat())) + 2f * PI.toFloat()) % (2f * PI.toFloat())
+        }
+        val moonGain = gained { p -> moonAngle(1, p) }
+        val planetGain = gained { p -> planetAngle(1, p) }
+        assertTrue("moon $moonGain <= planet $planetGain", moonGain > planetGain)
     }
 }

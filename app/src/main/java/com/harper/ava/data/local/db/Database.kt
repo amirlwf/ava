@@ -351,6 +351,13 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addSong(ref: PlaylistSongCrossRef)
 
+    /**
+     * 0.7.4: ids already in a playlist, so the batch add can skip them
+     * (a re-insert would REPLACE the row and disturb its position).
+     */
+    @Query("SELECT songId FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun songIds(playlistId: Long): List<Long>
+
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeSong(playlistId: Long, songId: Long)
 

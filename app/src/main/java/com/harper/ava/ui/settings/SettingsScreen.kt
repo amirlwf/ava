@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -132,6 +134,7 @@ fun SettingsScreen(
             updateManager = app.container.updateManager,
         ),
     )
+    val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val stats by viewModel.storageStats.collectAsState()
     val manualUpdateCheck by viewModel.manualUpdateCheckState.collectAsState()
@@ -204,6 +207,13 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_about),
                 subtitle = stringResource(R.string.settings_about_sub),
                 onClick = onOpenAbout,
+            )
+            // Harper's website (0.7.4): opens https://amirlwf.ir in the browser.
+            SettingsLinkRow(
+                icon = Icons.Filled.Public,
+                title = stringResource(R.string.settings_website),
+                subtitle = stringResource(R.string.settings_website_sub),
+                onClick = { openHarperWebsite(context) },
             )
             // Updates (0.7.2): automatic check toggle + manual "check now".
             // The automatic check itself runs from the update banner; this

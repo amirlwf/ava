@@ -1,5 +1,8 @@
 package com.harper.ava.ui.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -20,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import com.harper.ava.core.util.HARPER_WEBSITE_URL
 import com.harper.ava.ui.theme.AvaTokens
 
 /** Section header used by every settings screen. */
@@ -81,6 +86,63 @@ fun SettingsNavRow(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/** A row that opens an external link: same layout as [SettingsNavRow] but
+ * with an "open in new" glyph instead of a chevron, so it reads as a
+ * browser link rather than a sub-screen. */
+@Composable
+fun SettingsLinkRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = AvaTokens.space20, vertical = AvaTokens.space12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.width(AvaTokens.space16))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Opens Harper's website (https://amirlwf.ir) in the browser. The
+ * runCatching covers devices with no browser installed: nothing happens
+ * instead of a crash. */
+fun openHarperWebsite(context: Context) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(HARPER_WEBSITE_URL)).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(intent) }
 }
 
 /** A single-choice row with a radio button (theme mode, language, speed). */

@@ -36,6 +36,11 @@ import org.junit.Test
  * The fake [PlaylistDao.addSong] mirrors Room's REPLACE conflict
  * strategy: a second insert of the same (playlistId, songId) replaces
  * the row instead of adding another one.
+ *
+ * 0.7.4 extends this with the batch add ([MusicRepository
+ * .addSongsToPlaylist]) used by the in-playlist multi-select picker:
+ * several songs at once, duplicates skipped, count of newly added
+ * songs returned.
  */
 class AddToPlaylistTest {
 
@@ -88,6 +93,10 @@ class AddToPlaylistTest {
         override suspend fun removeSong(playlistId: Long, songId: Long) {
             refs.remove(playlistId to songId)
         }
+
+        /** 0.7.4: ids already in the playlist (batch add skips these). */
+        override suspend fun songIds(playlistId: Long): List<Long> =
+            refs.keys.filter { it.first == playlistId }.map { it.second }
 
         override suspend fun maxPosition(playlistId: Long): Int =
             refs.entries
@@ -187,5 +196,65 @@ class AddToPlaylistTest {
         repo.addSongToPlaylist(first, 1001L)
         assertTrue(repo.observePlaylistSongs(second).first().isEmpty())
         assertEquals(1, repo.observePlaylistSongs(first).first().size)
+    }
+
+    // ------------------------------------------------------------------
+    // 0.7.4: batch add from inside a playlist (the multi-select picker).
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `addSongsToPlaylist adds several songs at once in batch order`() = runBlocking {
+        val (repo, _) = repoWithSongs(1001L, 1002L, 1003L)
+        val playlistId = repo.createPlaylist("Road")
+        val added = repo.addSongsToPlaylist(playlistId, listOf(1001L, 1002L, 1003L))
+        assertEquals(3, added)
+        val songs = repo.observePlaylistSongs(playlistId).first()
+        assertEquals(listOf(1001L, 1002L, 1003L), songs.map { it.id })
+    }
+
+    @Test
+    fun `addSongsToPlaylist counts only the newly added songs`() = runBlocking {
+        val (repo, _) = repoWithSongs(1001L, 1002L, 1003L)
+        val playlistId = repo.createPlaylist("Road")
+        repo.addSongToPlaylist(playlistId, 1001L)
+        val added = repo.addSongsToPlaylist(playlistId, listOf(1001L, 1002L, 1003L))
+        assertEquals(2, added)
+        assertEquals(
+            listOf(1001L, 1002L, 1003L),
+            repo.observePlaylistSongs(playlistId).first().map { it.id },
+        )
+    }
+
+    @Test
+    fun `addSongsToPlaylist with only duplicates adds nothing and keeps order`() = runBlocking {
+        val (repo, _) = repoWithSongs(1001L, 1002L)
+        val playlistId = repo.createPlaylist("Road")
+        repo.addSongsToPlaylist(playlistId, listOf(1001L, 1002L))
+        val added = repo.addSongsToPlaylist(playlistId, listOf(1001L, 1002L))
+        assertEquals(0, added)
+        assertEquals(
+            listOf(1001L, 1002L),
+            repo.observePlaylistSongs(playlistId).first().map { it.id },
+        )
+    }
+
+    @Test
+    fun `addSongsToPlaylist deduplicates repeated ids inside one batch`() = runBlocking {
+        val (repo, _) = repoWithSongs(1001L, 1002L)
+        val playlistId = repo.createPlaylist("Road")
+        val added = repo.addSongsToPlaylist(playlistId, listOf(1001L, 1001L, 1002L, 1001L))
+        assertEquals(2, added)
+        assertEquals(
+            listOf(1001L, 1002L),
+            repo.observePlaylistSongs(playlistId).first().map { it.id },
+        )
+    }
+
+    @Test
+    fun `addSongsToPlaylist with an empty list is a no-op`() = runBlocking {
+        val (repo, _) = repoWithSongs(1001L)
+        val playlistId = repo.createPlaylist("Road")
+        assertEquals(0, repo.addSongsToPlaylist(playlistId, emptyList()))
+        assertTrue(repo.observePlaylistSongs(playlistId).first().isEmpty())
     }
 }

@@ -93,6 +93,18 @@
     <string name="playlist_detail_empty_title">This playlist is empty</string>
     <string name="playlist_detail_empty_body">No songs have been added to this playlist yet.</string>
     <string name="playlist_remove_song">Remove from playlist</string>
+    <!-- 0.7.4: add songs from inside a playlist (multi-select picker) -->
+    <string name="playlist_add_songs">Add songs</string>
+    <string name="playlist_add_songs_title">Add songs to “%1$s”</string>
+    <string name="playlist_add_songs_search_hint">Search your library…</string>
+    <string name="playlist_add_songs_already_added">Already in playlist</string>
+    <string name="playlist_add_songs_confirm">Add (%1$d)</string>
+    <string name="playlist_add_songs_empty_library">No songs in your library yet — scan your music first.</string>
+    <string name="playlist_add_songs_no_results">No songs match “%1$s”.</string>
+    <plurals name="playlist_add_songs_added">
+        <item quantity="one">%1$d song added</item>
+        <item quantity="other">%1$d songs added</item>
+    </plurals>
 
     <!-- Player -->
     <string name="player_play">Play</string>
@@ -276,6 +288,12 @@
     <string name="about_privacy_body">No music file and no personal information ever leaves your phone. Settings stay on this device.</string>
     <string name="about_built_title">Built with</string>
     <string name="about_built_body">Kotlin, Jetpack Compose, Media3, Room, DataStore and Coil. Persian typeface: Vazirmatn (SIL OFL).</string>
+    <string name="about_dedication_title">In memory of Ava</string>
+    <string name="about_dedication_body">This app is dedicated to the memory of Ava Rahmani Rad — a 20-year-old actress from Haft Hoz, Tehranpars, who passed away on 9 January 2026. “Ava” is her name, and this app is offered in her memory.</string>
+    <string name="about_website_title">Made by Harper</string>
+    <string name="about_website_value">amirlwf.ir</string>
+    <string name="settings_website">Website</string>
+    <string name="settings_website_sub">amirlwf.ir</string>
     <string name="about_diagnostics_title">Crash reports</string>
     <string name="about_diagnostics_body">A crash report was saved on this device. Share the latest one to help fix the problem — nothing is sent automatically.</string>
     <string name="about_diagnostics_none">No crash reports saved. If the app ever closes unexpectedly, the details are saved here.</string>
