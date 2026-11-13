@@ -3,11 +3,14 @@ package com.harper.ava
 import com.harper.ava.core.util.argbToHex
 import com.harper.ava.core.util.argbToHsv
 import com.harper.ava.core.util.clampPlaybackSpeed
+import com.harper.ava.core.util.darkenArgb
 import com.harper.ava.core.util.deriveAccentColors
 import com.harper.ava.core.util.formatFileSize
 import com.harper.ava.core.util.hsvToArgb
 import com.harper.ava.core.util.isLightColor
+import com.harper.ava.core.util.lightenArgb
 import com.harper.ava.core.util.localeTagFor
+import com.harper.ava.core.util.luminanceArgb
 import com.harper.ava.data.preferences.AppLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -85,6 +88,78 @@ class SettingsLogicTest {
         assertFalse(isLightColor(0xFF000000.toInt()))
         assertFalse(isLightColor(0xFF7C5CFF.toInt()))
         assertTrue(isLightColor(0xFFFDE68A.toInt()))
+    }
+
+    // -- lighten / darken / luminance ---------------------------------------
+    // Improve loop, run 12 — until now these three were exercised only
+    // indirectly through deriveAccentColors, and only primary +
+    // onPrimary were asserted there. The other four palette tones
+    // (secondary / tertiary / container / on-container) had zero
+    // assertions, so a regression in the mix math would have shipped
+    // silently into the custom-accent picker. These tests pin the
+    // mix math directly and the four derived tones with it.
+
+    @Test
+    fun `lightenArgb amount 0 keeps the color and 1 gives white`() {
+        val color = 0xFF7C5CFF.toInt()
+        assertEquals(color, lightenArgb(color, 0f))
+        assertEquals(0xFFFFFFFF.toInt(), lightenArgb(color, 1f))
+    }
+
+    @Test
+    fun `lightenArgb halfway from black gives mid grey`() {
+        assertEquals(0xFF808080.toInt(), lightenArgb(0xFF000000.toInt(), 0.5f))
+    }
+
+    @Test
+    fun `lightenArgb preserves alpha and clamps the amount`() {
+        val semi = 0x80123456.toInt()
+        assertEquals(0x80FFFFFF.toInt(), lightenArgb(semi, 1f))
+        assertEquals(semi, lightenArgb(semi, -1f))
+        assertEquals(0x80FFFFFF.toInt(), lightenArgb(semi, 2f))
+    }
+
+    @Test
+    fun `darkenArgb amount 0 keeps the color and 1 gives black`() {
+        val color = 0xFF7C5CFF.toInt()
+        assertEquals(color, darkenArgb(color, 0f))
+        assertEquals(0xFF000000.toInt(), darkenArgb(color, 1f))
+    }
+
+    @Test
+    fun `darkenArgb halfway from white gives mid grey`() {
+        assertEquals(0xFF808080.toInt(), darkenArgb(0xFFFFFFFF.toInt(), 0.5f))
+    }
+
+    @Test
+    fun `darkenArgb preserves alpha and clamps the amount`() {
+        val semi = 0x80123456.toInt()
+        assertEquals(0x80000000.toInt(), darkenArgb(semi, 1f))
+        assertEquals(semi, darkenArgb(semi, -1f))
+        assertEquals(0x80000000.toInt(), darkenArgb(semi, 2f))
+    }
+
+    @Test
+    fun `luminanceArgb is 0 for black and 1 for white`() {
+        assertEquals(0f, luminanceArgb(0xFF000000.toInt()), 0.0001f)
+        assertEquals(1f, luminanceArgb(0xFFFFFFFF.toInt()), 0.0001f)
+    }
+
+    @Test
+    fun `luminanceArgb weights pure channels per WCAG`() {
+        assertEquals(0.2126f, luminanceArgb(0xFFFF0000.toInt()), 0.0001f)
+        assertEquals(0.7152f, luminanceArgb(0xFF00FF00.toInt()), 0.0001f)
+        assertEquals(0.0722f, luminanceArgb(0xFF0000FF.toInt()), 0.0001f)
+        assertEquals(0.2159f, luminanceArgb(0xFF808080.toInt()), 0.001f)
+    }
+
+    @Test
+    fun `derived palette tones come from the picked color`() {
+        val palette = deriveAccentColors(0xFF7C5CFF.toInt())
+        assertEquals(0xFFAA95FF.toInt(), palette.secondary)
+        assertEquals(0xFFCBBEFF.toInt(), palette.tertiary)
+        assertEquals(0xFF231A47.toInt(), palette.primaryContainer)
+        assertEquals(0xFFDED6FF.toInt(), palette.onPrimaryContainer)
     }
 
     // -- HSV picker math -----------------------------------------------------

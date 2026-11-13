@@ -2,6 +2,7 @@ package com.harper.ava.ui.settings
 
 import android.app.Activity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -51,6 +52,12 @@ fun LanguageScreen(app: AvaApplication, onBack: () -> Unit) {
     val activity = context as? Activity
 
     Scaffold(
+        // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
+        // system insets — the outer Scaffold already pads for the bottom
+        // bar, and the TopAppBar owns the status bar. The default
+        // contentWindowInsets (system bars) added a second navigation-bar
+        // height of dead space at the bottom of this screen's content.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(

@@ -193,6 +193,24 @@ private fun lightScheme(spec: ThemeSpec): androidx.compose.material3.ColorScheme
 }
 
 /**
+ * Edge-to-edge (Harper 2026-11-13): whether the app is dark, from the
+ * stored [ThemeMode] and the phone's system mode. Pure, so it is pinned
+ * by a unit test — and it is the SAME decision the status-bar and
+ * navigation-bar icon styles must follow (MainActivity re-applies
+ * `enableEdgeToEdge` with it): the bars follow the APP's theme, not
+ * the system's. `enableEdgeToEdge()` with no args picks
+ * `SystemBarStyle.auto`, which reads the system night mode — so an
+ * in-app Dark/AMOLED theme on a light system (or Light on a dark
+ * system) left the bar icons invisible against the app's own header.
+ */
+fun isDarkTheme(themeMode: ThemeMode, systemDark: Boolean): Boolean =
+    when (themeMode) {
+        ThemeMode.DARK, ThemeMode.AMOLED -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> systemDark
+    }
+
+/**
  * The app theme (0.7.0: [AppTheme] + [ThemeMode]).
  *
  * Precedence: a user-picked custom colour ([customAccentArgb], the HSV
@@ -216,11 +234,7 @@ fun AvaTheme(
     appTheme: AppTheme = AppTheme.VIOLET,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (themeMode) {
-        ThemeMode.DARK, ThemeMode.AMOLED -> true
-        ThemeMode.LIGHT -> false
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-    }
+    val dark = isDarkTheme(themeMode, isSystemInDarkTheme())
     val spec = appTheme.spec
     val colorScheme = when {
         !dark -> lightScheme(spec)

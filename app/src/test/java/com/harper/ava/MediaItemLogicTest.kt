@@ -5,6 +5,7 @@ import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.artworkUriFor
 import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.core.util.isBrokenAlbumArtUri
+import com.harper.ava.core.util.notificationTitle
 import com.harper.ava.core.util.songMediaMetadata
 import com.harper.ava.domain.model.Song
 import org.junit.Assert.assertEquals
@@ -85,6 +86,23 @@ class MediaItemLogicTest {
     fun `blank title without a file name falls back to the track id`() {
         val metadata = songMediaMetadata(song(title = "", fileName = null))
         assertEquals("track-1000201063", metadata.title)
+    }
+
+    // -- notificationTitle, direct -------------------------------------------
+    // Improve loop, run 12 — the fallback chain above is pinned
+    // through songMediaMetadata, but two edges only live in
+    // notificationTitle itself: a padded (not blank) title is trimmed
+    // rather than replaced, and a whitespace-only file name is not a
+    // file name at all.
+
+    @Test
+    fun `notificationTitle trims a padded title instead of falling back`() {
+        assertEquals("Midnight Rain", notificationTitle(song(title = "  Midnight Rain  ")))
+    }
+
+    @Test
+    fun `notificationTitle falls back to the track id for a whitespace-only file name`() {
+        assertEquals("track-1000201063", notificationTitle(song(title = "", fileName = "   ")))
     }
 
     // --- 0.1-fix1 (Track A): the notification always has artwork ---

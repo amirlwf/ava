@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -54,7 +55,11 @@ fun UpdateBanner(app: AvaApplication) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = Modifier.fillMaxWidth(),
+        // Edge-to-edge (Harper 2026-11-13): the banner sits at the very
+        // top of the NavHost, so it owns its own status-bar inset —
+        // otherwise it would slide under the status bar now that the
+        // outer Scaffold no longer adds the top inset.
+        modifier = Modifier.fillMaxWidth().statusBarsPadding(),
     ) {
         Row(
             modifier = Modifier

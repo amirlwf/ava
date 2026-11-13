@@ -3,6 +3,7 @@ package com.harper.ava.ui.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -108,6 +109,12 @@ fun SettingsScreen(
     val manualUpdateCheck by viewModel.manualUpdateCheckState.collectAsState()
 
     Scaffold(
+        // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
+        // system insets — the outer Scaffold already pads for the bottom
+        // bar, and the TopAppBar owns the status bar. The default
+        // contentWindowInsets (system bars) added a second navigation-bar
+        // height of dead space at the bottom of this screen's content.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(

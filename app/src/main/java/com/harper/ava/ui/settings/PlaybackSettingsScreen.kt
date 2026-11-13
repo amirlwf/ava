@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +53,12 @@ fun PlaybackSettingsScreen(app: AvaApplication, onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsState()
 
     Scaffold(
+        // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
+        // system insets — the outer Scaffold already pads for the bottom
+        // bar, and the TopAppBar owns the status bar. The default
+        // contentWindowInsets (system bars) added a second navigation-bar
+        // height of dead space at the bottom of this screen's content.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(

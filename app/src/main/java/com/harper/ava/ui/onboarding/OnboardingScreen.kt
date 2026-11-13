@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -81,6 +82,9 @@ fun OnboardingScreen(app: AvaApplication, onFinished: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Edge-to-edge (Harper 2026-11-13): no TopAppBar here, so
+            // the screen owns its own status-bar inset (see HomeScreen).
+            .statusBarsPadding()
             .padding(horizontal = AvaTokens.space24),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

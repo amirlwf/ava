@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,13 +21,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
@@ -74,6 +81,7 @@ import com.harper.ava.ui.splash.SplashScreen
 import com.harper.ava.ui.theme.AppBackdrop
 import com.harper.ava.ui.theme.AvaTheme
 import com.harper.ava.ui.theme.LocalAppThemeSpec
+import com.harper.ava.ui.theme.isDarkTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -262,6 +270,29 @@ class MainActivity : ComponentActivity() {
                 // 0.7.0 motion: theme changes glide instead of snapping
                 // (AnimatedThemeColors below) and buzz once to confirm.
                 AnimatedThemeColors {
+                    // Edge-to-edge (Harper 2026-11-13): the status-bar
+                    // and navigation-bar icon styles follow the APP's
+                    // theme, not the phone's. `enableEdgeToEdge()` in
+                    // onCreate uses SystemBarStyle.auto, which reads the
+                    // SYSTEM night mode — an in-app Dark/AMOLED theme on
+                    // a light system (or Light on a dark system) left the
+                    // bar icons invisible against the app's own header.
+                    // Re-applied whenever the app's darkness changes
+                    // (theme switch); the scrims stay transparent because
+                    // the bars draw on the app's own surfaces.
+                    val appDark = isDarkTheme(settings.themeMode, isSystemInDarkTheme())
+                    LaunchedEffect(appDark) {
+                        val transparent = Color.Transparent.toArgb()
+                        val style = if (appDark) {
+                            SystemBarStyle.dark(transparent)
+                        } else {
+                            SystemBarStyle.light(transparent, transparent)
+                        }
+                        enableEdgeToEdge(
+                            statusBarStyle = style,
+                            navigationBarStyle = style,
+                        )
+                    }
                     val haptics = rememberAvaHaptics()
                     var firstThemeSeen by remember { mutableStateOf(true) }
                     LaunchedEffect(
@@ -305,6 +336,23 @@ class MainActivity : ComponentActivity() {
                             )
                             Scaffold(
                                 modifier = Modifier.fillMaxSize(),
+                                // Edge-to-edge (Harper 2026-11-13): the
+                                // outer Scaffold must NOT add the status
+                                // bar top inset — every screen's own
+                                // header owns it (each TopAppBar extends
+                                // under the status bar on its default
+                                // statusBars insets; Home/Search/Onboarding
+                                // take statusBarsPadding instead). Before
+                                // this, the outer padding AND the TopAppBar
+                                // both added one status-bar height, so
+                                // every header sat a full status bar too
+                                // low with a strip of bare backdrop above
+                                // it — the "bad shape with the top header".
+                                // Horizontal + Bottom stay: the bottom bar
+                                // still owns the navigation-bar inset.
+                                contentWindowInsets = WindowInsets.systemBars.only(
+                                    WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
+                                ),
                                 // Transparent: the backdrop above paints the
                                 // theme background; an opaque Scaffold would
                                 // hide the sky (and the glass aurora) behind

@@ -4,6 +4,7 @@ import com.harper.ava.core.util.ListenEvent
 import com.harper.ava.core.util.computeInsights
 import com.harper.ava.core.util.computeStreak
 import com.harper.ava.core.util.formatListeningTime
+import com.harper.ava.core.util.hourOfDay
 import com.harper.ava.core.util.segmentListenedMs
 import com.harper.ava.core.util.seekSegment
 import com.harper.ava.core.util.shouldRecordPlay
@@ -134,6 +135,21 @@ class InsightsLogicTest {
         assertEquals("45m", formatListeningTime(45L * 60_000L))
         assertEquals("2h 05m", formatListeningTime((2L * 60L + 5L) * 60_000L))
         assertEquals("1h 00m", formatListeningTime(60L * 60_000L))
+    }
+
+    // -- hourOfDay ----------------------------------------------------------
+    // Improve loop, run 12 — until now hourOfDay was exercised only
+    // indirectly through computeInsights' peakHour. These tests pin
+    // the 24-hour reading directly: the fixed "now" is 15:30, so a
+    // 12-hour (Calendar.HOUR) read would return 3 here, not 15.
+
+    @Test
+    fun `hourOfDay reads the 24 hour clock`() {
+        assertEquals(15, hourOfDay(fixedNowMs()))
+        val dayStart = startOfDayMs(fixedNowMs())
+        assertEquals(0, hourOfDay(dayStart))
+        assertEquals(23, hourOfDay(dayStart + 23L * 60L * 60L * 1000L + 59L * 60L * 1000L))
+        assertEquals(10, hourOfDay(dayStart + 10L * 60L * 60L * 1000L))
     }
 
     // -- computeInsights: empty ------------------------------------------------

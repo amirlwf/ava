@@ -3,6 +3,28 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.2] — 2026-11-13
+
+A small patch on 0.4.1, from Harper's request after testing 0.4.1: the
+app was not full-screen — the top header sat detached below a bare
+strip. Now the app is edge-to-edge and the header adapts to the theme.
+Version 0.4.2 (versionCode 26) — a patch release: edge-to-edge layout,
+no new features.
+
+### Fixed
+
+- **Full-screen edge-to-edge** — the app now draws behind the status
+  bar and the navigation bar. The top header adapts to the theme and
+  sits under the status bar instead of one status-bar height below a
+  bare strip.
+- **Status-bar icon contrast follows the app theme** — the icons in
+  the status bar are dark on light themes and light on dark/AMOLED
+  themes, matching the theme chosen in the app rather than the system
+  theme.
+- **Bottom dead space removed on nested screens** — screens with their
+  own top bar no longer reserve a second navigation-bar inset at the
+  bottom.
+
 ## [0.4.1] — 2026-11-13
 
 A small patch on 0.4, from Harper's request after testing 0.4.

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -107,7 +108,10 @@ fun HomeScreen(
     )
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        // Edge-to-edge (Harper 2026-11-13): Home has no TopAppBar, so
+        // it owns its own status-bar inset — the outer Scaffold no
+        // longer adds it (TopAppBar screens get it from the bar).
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
         verticalArrangement = Arrangement.Top,
     ) {
     item {
