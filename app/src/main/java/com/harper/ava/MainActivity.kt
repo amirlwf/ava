@@ -19,19 +19,23 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
@@ -52,11 +57,13 @@ import androidx.navigation.compose.rememberNavController
 import com.harper.ava.core.util.CrashReporter
 import com.harper.ava.core.util.LocaleHelper
 import com.harper.ava.core.util.StartupTracer
+import com.harper.ava.core.util.bottomBarNavOptions
 import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.SongDeleteCoordinator
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.common.rememberPressScale
 import com.harper.ava.ui.components.MiniPlayer
 import com.harper.ava.ui.navigation.AvaNavGraph
 import com.harper.ava.ui.navigation.Destination
@@ -321,7 +328,8 @@ class MainActivity : ComponentActivity() {
                                         // glass theme a 1dp hairline
                                         // above the bar, like iOS's tab
                                         // bar edge — the bar itself is
-                                        // translucent (0.55) so the
+                                        // translucent (0.45, 0.3-feedback
+                                        // Track 6, was 0.55) so the
                                         // aurora shows through.
                                         if (LocalAppThemeSpec.current.isGlass) {
                                             Box(
@@ -335,28 +343,25 @@ class MainActivity : ComponentActivity() {
                                         }
                                         NavigationBar(
                                             containerColor = if (LocalAppThemeSpec.current.isGlass) {
-                                                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)
+                                                // 0.3-feedback (Track 6): 0.45,
+                                                // matching glassPanel.
+                                                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f)
                                             } else {
                                                 MaterialTheme.colorScheme.surfaceContainer
                                             },
                                         ) {
                                             Destination.bottomBar.forEach { destination ->
-                                                NavigationBarItem(
+                                                AvaBottomBarItem(
+                                                    destination = destination,
                                                     selected = currentRoute == destination.route,
                                                     onClick = {
-                                                        navController.navigate(destination.route) {
-                                                            popUpTo(Destination.Home.route) { saveState = true }
-                                                            launchSingleTop = true
-                                                            restoreState = true
-                                                        }
-                                                    },
-                                                    icon = {
-                                                        Icon(
-                                                            imageVector = destination.icon,
-                                                            contentDescription = null,
+                                                        // 0.3-feedback (Track 5): a section tap
+                                                        // resets that section to its root.
+                                                        navController.navigate(
+                                                            destination.route,
+                                                            bottomBarNavOptions(),
                                                         )
                                                     },
-                                                    label = { Text(stringResource(destination.labelRes)) },
                                                 )
                                             }
                                         }
@@ -576,7 +581,14 @@ private fun AnimatedThemeColors(content: @Composable () -> Unit) {
         surfaceContainerLow = animatedThemeColor(scheme.surfaceContainerLow),
         surfaceContainerLowest = animatedThemeColor(scheme.surfaceContainerLowest),
     )
-    MaterialTheme(colorScheme = animated, content = content)
+    // 0.3-feedback fix (Track 2): re-provide the ANIMATED onSurface
+    // as the content colour, so bare icons glide with the rest of the
+    // scheme on a theme change (AvaTheme provides the un-animated
+    // value; without this the icons would snap to the new colour
+    // while everything else glides for 350ms).
+    CompositionLocalProvider(LocalContentColor provides animated.onSurface) {
+        MaterialTheme(colorScheme = animated, content = content)
+    }
 }
 
 /** One theme colour, gliding to its target on the theme-change tween. */
@@ -587,3 +599,40 @@ private fun animatedThemeColor(target: Color): Color =
         animationSpec = AvaMotion.themeColorTween,
         label = "theme-color",
     ).value
+
+/**
+ * One bottom-bar section (0.3-feedback, Track 5a): the icon makes a
+ * SMALL visual change on tap — a gentle 0.92x press squash on the
+ * shared [AvaMotion.pressSpring], so it reads as a soft confirmation
+ * and never as a bounce or a cartoon. The label does not move; the
+ * motion belongs to the icon only. The press state comes from the
+ * item's own [MutableInteractionSource], which the NavigationBarItem
+ * also uses for its ripple, so the squash and the ripple answer the
+ * same touch. It is a [RowScope] extension because NavigationBarItem
+ * itself is one — it only exists inside the NavigationBar's row.
+ */
+@Composable
+private fun RowScope.AvaBottomBarItem(
+    destination: Destination,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val iconScale = rememberPressScale(interactionSource, pressedScale = 0.92f)
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        interactionSource = interactionSource,
+        icon = {
+            Icon(
+                imageVector = destination.icon,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = iconScale
+                    scaleY = iconScale
+                },
+            )
+        },
+        label = { Text(stringResource(destination.labelRes)) },
+    )
+}

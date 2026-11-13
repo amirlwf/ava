@@ -3,10 +3,14 @@ package com.harper.ava
 import com.harper.ava.core.util.DEFAULT_ARTWORK_URI
 import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.artworkUriFor
+import com.harper.ava.core.util.effectiveAlbumArtUri
+import com.harper.ava.core.util.isBrokenAlbumArtUri
 import com.harper.ava.core.util.songMediaMetadata
 import com.harper.ava.domain.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -136,5 +140,43 @@ class MediaItemLogicTest {
     fun `album art uri is null without an album id`() {
         assertNull(albumArtUriForAlbum(0L))
         assertNull(albumArtUriForAlbum(-1L))
+    }
+
+    @Test
+    fun `a stored broken albums row uri falls back to the ava default cover`() {
+        // 0.3-feedback fix — rows stored before 0.3 hold the broken
+        // albums/ ROW uri, and Harper may never have rescanned. A
+        // non-blank broken uri must not shadow the default cover:
+        // the untagged song in his 0.3 screenshots posted with no
+        // cover at all. The normalized uri (and with it the
+        // notification, via `songToMediaItem` →
+        // `setArtworkUri(artworkUriFor(song).toUri())` → the
+        // provider's `getBitmap(artworkUri)`) must carry the default
+        // Galaxy cover with no rescan.
+        val broken = "content://media/external/audio/albums/7"
+        assertEquals(DEFAULT_ARTWORK_URI, artworkUriFor(song(albumArtUri = broken)))
+        val brokenBig = "content://media/external/audio/albums/1000201063"
+        assertEquals(DEFAULT_ARTWORK_URI, artworkUriFor(song(albumArtUri = brokenBig)))
+    }
+
+    @Test
+    fun `effective album art uri drops broken and blank uris and keeps the albumart form`() {
+        assertNull(effectiveAlbumArtUri(null))
+        assertNull(effectiveAlbumArtUri(""))
+        assertNull(effectiveAlbumArtUri("   "))
+        assertNull(effectiveAlbumArtUri("content://media/external/audio/albums/7"))
+        assertNull(effectiveAlbumArtUri("content://media/external/audio/albums/1000201063"))
+        val good = "content://media/external/audio/albumart/7"
+        assertEquals(good, effectiveAlbumArtUri(good))
+    }
+
+    @Test
+    fun `broken album art detection only matches the albums row form`() {
+        assertTrue(isBrokenAlbumArtUri("content://media/external/audio/albums/7"))
+        assertFalse(isBrokenAlbumArtUri(null))
+        assertFalse(isBrokenAlbumArtUri(""))
+        // The working albumart form must NOT be treated as broken.
+        assertFalse(isBrokenAlbumArtUri("content://media/external/audio/albumart/7"))
+        assertFalse(isBrokenAlbumArtUri("android.resource://com.harper.ava/drawable/ava_default_artwork"))
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -44,13 +45,14 @@ fun themeShapes(spec: ThemeSpec): Shapes = Shapes(
  * 0.1: frosted-glass panel for the glass theme (IPHONE only).
  *
  * When the active theme is glass, the surface becomes translucent
- * (55% of the theme's surface container — 0.1-fix1, was 72%: the
- * aurora behind it has to show through or the glass reads as a flat
- * panel) with a 1dp hairline border in the theme outline (0.5 alpha,
- * was 0.35) — the frosted-glass look: content behind the panel shows
- * through faintly, and the hairline keeps the edge crisp against any
- * background. On every other theme this is exactly
- * `background(baseColor, shape)`, so non-glass themes are untouched.
+ * (45% of the theme's surface container — 0.3-feedback Track 6, was
+ * 55%: the stronger aurora behind it has to show through or the
+ * glass reads as a flat panel) with a 1dp hairline border in the
+ * theme outline (0.5 alpha, was 0.35) — the frosted-glass look:
+ * content behind the panel shows through faintly, and the hairline
+ * keeps the edge crisp against any background. On every other theme
+ * this is exactly `background(baseColor, shape)`, so non-glass
+ * themes are untouched.
  *
  * Glass is applied only where it earns its place (the floating
  * MiniPlayer pill, the bottom navigation bar, the Now Playing
@@ -62,12 +64,43 @@ fun Modifier.glassPanel(shape: Shape, baseColor: Color): Modifier {
     val spec = LocalAppThemeSpec.current
     return if (spec.isGlass) {
         this
-            .background(baseColor.copy(alpha = 0.55f), shape)
+            .background(baseColor.copy(alpha = 0.45f), shape)
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), shape)
     } else {
         this.background(baseColor, shape)
     }
 }
+
+/**
+ * 0.3-feedback (Track 6) — let the aurora show through sub-screens.
+ *
+ * The nested Scaffolds on the sub-screens (Settings, Appearance,
+ * Language, Playback, Storage, About, Sleep, Equalizer, Lyrics,
+ * Playlists) used the default opaque `surface` container colour, so
+ * on the glass theme they hid the aurora completely — the theme only
+ * read on Home/Library/Search. On glass their container is
+ * transparent, so the sky shows through between the cards; on every
+ * other theme it is exactly the default surface. The TopAppBar keeps
+ * a frosted (72% surface) bar instead of full transparency, like
+ * iOS's translucent nav bar: scrolling content stays readable under
+ * it while the sky still shows through faintly.
+ */
+@Composable
+fun glassAwareScaffoldContainerColor(): Color =
+    if (LocalAppThemeSpec.current.isGlass) {
+        Color.Transparent
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+/** Frosted TopAppBar container on glass; exactly the default surface elsewhere. */
+@Composable
+fun glassAwareTopBarContainerColor(): Color =
+    if (LocalAppThemeSpec.current.isGlass) {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
 
 /** Moves a colour toward white ([factor] 0..1); 0 returns the colour unchanged. */
 private fun Color.lightened(factor: Float): Color {
@@ -208,7 +241,34 @@ fun AvaTheme(
             onPrimaryContainer = palette.onPrimaryContainer,
         )
     } ?: colorScheme
-    CompositionLocalProvider(LocalAppThemeSpec provides spec) {
+    // 0.3-feedback fix (Track 2) — ROOT CAUSE of Harper's "black
+    // icons in AMOLED" report, proven in the shipped Material3 1.4.0
+    // bytecode: `MaterialTheme` provides LocalColorScheme, Shapes,
+    // Typography, Indication and TextSelectionColors — but NOT
+    // `LocalContentColor`, whose default is `Color.Black`. A bare
+    // `Icon()` (no `tint =`) therefore renders BLACK wherever no
+    // parent provides a content colour (TopAppBar, NavigationBar,
+    // Button and Surface do; a plain Row/Column/Scaffold does not).
+    // In light themes black-on-white merely looks normal, so nobody
+    // noticed; in ANY dark theme (plain dark AND AMOLED, every
+    // theme's dark palette) the icons vanish into the background —
+    // the Home scan/settings icons Harper reported, and the same
+    // fault on every other bare icon in the app. Text was never hit
+    // because every Text passes an explicit scheme colour.
+    //
+    // The fix is one provider, here, at the theme root: the content
+    // colour is the computed scheme's `onSurface`, so it flips light
+    // in every dark theme and stays near-black in light themes
+    // (visually identical there). Components that provide their own
+    // content colour (TopAppBar, NavigationBarItem, Button, Surface)
+    // still override locally, as before. [AnimatedThemeColors] in
+    // MainActivity re-provides the ANIMATED onSurface so icons glide
+    // with the rest of the scheme on a theme change instead of
+    // snapping ahead of it.
+    CompositionLocalProvider(
+        LocalAppThemeSpec provides spec,
+        LocalContentColor provides schemeWithCustom.onSurface,
+    ) {
         MaterialTheme(
             colorScheme = schemeWithCustom,
             typography = AvaTypography,

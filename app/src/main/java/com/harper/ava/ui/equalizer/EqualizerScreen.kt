@@ -27,6 +27,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,8 @@ import com.harper.ava.ui.settings.SettingsSpacer
 import com.harper.ava.ui.settings.SettingsSwitchRow
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 /**
  * Equalizer: device presets + manual band sliders, driven by Android's
@@ -61,8 +64,10 @@ fun EqualizerScreen(app: AvaApplication, onBack: () -> Unit) {
     val eq by viewModel.equalizer.collectAsState()
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
                 title = { Text(stringResource(R.string.eq_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

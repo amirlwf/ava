@@ -132,6 +132,30 @@ class AppThemeTest {
         }
     }
 
+    // --- 0.3-feedback fix (Track 2): icon roles must read on pure black ---
+    // ROOT CAUSE, proven in the shipped Material3 1.4.0 bytecode:
+    // `MaterialTheme` does NOT provide `LocalContentColor` (default
+    // `Color.Black`), so every bare `Icon()` rendered black wherever
+    // no parent provides a content colour — invisible on ANY dark
+    // background (plain dark AND AMOLED, every theme's dark palette)
+    // while looking normal in light themes. `AvaTheme` now provides
+    // the content colour as the scheme's `onSurface`, so these roles
+    // are what bare icons resolve to: each must clear 4.5:1 against
+    // pure black in every theme, and the light `onSurface` must clear
+    // 4.5:1 against white (icons stay visible in light themes too).
+    @Test
+    fun `dark icon roles read on pure black in every theme`() {
+        val black = 0xFF000000L
+        val white = 0xFFFFFFFFL
+        for (theme in AppTheme.entries) {
+            val s = theme.spec
+            assertTrue("${theme.name} onSurface", contrastRatio(s.darkOnSurface, black) >= 4.5)
+            assertTrue("${theme.name} onBackground", contrastRatio(s.darkOnBackground, black) >= 4.5)
+            assertTrue("${theme.name} onSurfaceVariant", contrastRatio(s.darkOnSurfaceVariant, black) >= 4.5)
+            assertTrue("${theme.name} light onSurface", contrastRatio(s.lightOnSurface, white) >= 4.5)
+        }
+    }
+
     @Test
     fun `inactive track alpha is a visible track on pure black`() {
         // 0.22 of near-white onSurface on black is 1.79:1 — a track
@@ -249,18 +273,19 @@ class AppThemeTest {
 
     @Test
     fun `glass aurora strength is faint and mode-aware`() {
-        // 0.1-fix1 (Track C): the aurora behind the glass panels must
-        // be visible (dark 0.14, light 0.10) but never loud — every
-        // blob stays in 0.05..0.16, and AMOLED is the quietest (0.065).
-        assertEquals(0.14f, glassAuroraAlpha(0.0, false))
-        assertEquals(0.10f, glassAuroraAlpha(0.9, false))
-        assertEquals(0.065f, glassAuroraAlpha(0.0, true))
+        // 0.1-fix1 (Track C), strengthened 0.3-feedback (Track 6):
+        // the aurora behind the glass panels must be FELT (dark 0.20,
+        // light 0.16) but never loud — every blob stays in 0.05..0.20,
+        // and AMOLED is the quietest (0.10).
+        assertEquals(0.20f, glassAuroraAlpha(0.0, false))
+        assertEquals(0.16f, glassAuroraAlpha(0.9, false))
+        assertEquals(0.10f, glassAuroraAlpha(0.0, true))
         for (amoled in listOf(false, true)) {
             for (luminance in listOf(0.0, 0.5, 1.0)) {
                 val base = glassAuroraAlpha(luminance, amoled)
                 for (blob in 0 until 3) {
                     val alpha = glassAuroraBlobAlpha(base, blob)
-                    assertTrue("alpha $alpha", alpha in 0.05f..0.16f)
+                    assertTrue("alpha $alpha", alpha in 0.05f..0.20f)
                 }
             }
         }

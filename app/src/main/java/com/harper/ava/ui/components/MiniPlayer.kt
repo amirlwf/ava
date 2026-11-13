@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.harper.ava.R
+import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.repository.PlaybackState
 import com.harper.ava.ui.common.AvaMotion
@@ -94,7 +95,11 @@ fun MiniPlayer(
     onOpenNowPlaying: () -> Unit = {},
 ) {
     val song = state.currentSong ?: return
-    var artFailed by remember(song.albumArtUri) { mutableStateOf(false) }
+    // 0.3-feedback: a stored broken albums/ uri reads as "no art"
+    // ([effectiveAlbumArtUri]) — the pill goes straight to the MusicNote
+    // fallback instead of attempting a load that cannot succeed.
+    val artUri = effectiveAlbumArtUri(song.albumArtUri)
+    var artFailed by remember(artUri) { mutableStateOf(false) }
     val haptics = rememberAvaHaptics()
     // Spring entrance: the pill rises into place whenever it (re)appears
     // — e.g. the first play after launch — instead of popping in.
@@ -158,9 +163,9 @@ fun MiniPlayer(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (current.albumArtUri != null && !artFailed) {
+                    if (artUri != null && !artFailed) {
                         AsyncImage(
-                            model = current.albumArtUri,
+                            model = artUri,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             onError = { artFailed = true },

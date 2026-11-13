@@ -42,40 +42,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Launcher-icon variants (activity-aliases) — 0.7.1: Harper's own
-             artwork, three variants only. Red is the default (MainActivity
-             itself); purple and green are aliases. Only one launcher entry
-             is enabled at a time; every alias targets MainActivity, so
-             switching icons never changes what the app launches, only the
-             icon the launcher shows. All aliases start disabled; the choice
-             is applied from Settings via PackageManager. -->
-        <activity-alias
-            android:name=".LauncherPurple"
-            android:targetActivity=".MainActivity"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_purple"
-            android:roundIcon="@mipmap/ic_launcher_purple_round"
-            android:label="@string/app_name">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-        <activity-alias
-            android:name=".LauncherGreen"
-            android:targetActivity=".MainActivity"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_green"
-            android:roundIcon="@mipmap/ic_launcher_green_round"
-            android:label="@string/app_name">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
         <service
             android:name=".playback.AvaPlaybackService"
             android:exported="false"

@@ -52,6 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.SkeletonList
@@ -457,7 +458,11 @@ private fun GroupRow(
     fallbackIcon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
 ) {
-    var artFailed by remember(artUri) { mutableStateOf(false) }
+    // 0.3-feedback: a stored broken albums/ uri reads as "no art"
+    // ([effectiveAlbumArtUri]) — the group goes straight to its
+    // fallback icon instead of attempting a load that cannot succeed.
+    val effectiveArtUri = effectiveAlbumArtUri(artUri)
+    var artFailed by remember(effectiveArtUri) { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -474,9 +479,9 @@ private fun GroupRow(
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            if (artUri != null && !artFailed) {
+            if (effectiveArtUri != null && !artFailed) {
                 AsyncImage(
-                    model = artUri,
+                    model = effectiveArtUri,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     onError = { artFailed = true },

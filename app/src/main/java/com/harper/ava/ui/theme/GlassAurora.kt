@@ -35,9 +35,13 @@ import kotlin.math.sin
  *
  * The loop is 48 s (slower than the 36 s decor loop, so the two never
  * read as one rhythm), linear, and restarts seamlessly. Strength comes
- * from the pure [glassAuroraAlpha] rules — faint by design (≤ 0.16),
- * quieter in AMOLED — and each blob is a radial gradient fading to
- * transparent, so there are no hard edges anywhere.
+ * from the pure [glassAuroraAlpha] rules — strong enough to be felt
+ * through the glass panels (≤ 0.20), quieter in AMOLED — and each blob
+ * is a radial gradient fading to transparent, so there are no hard
+ * edges anywhere. 0.3-feedback (Track 6): the fields are larger than
+ * in 0.1 (radii 0.68 / 0.58 / 0.72 of the longest side, was 0.55 /
+ * 0.48 / 0.60) as well as stronger — the sky has to cover the screen,
+ * not sit in three small spots.
  *
  * This file is NOT in verify.sh's test-compile list (it uses the
  * Compose plugin's inline-free composables only in the full build);
@@ -105,7 +109,7 @@ private data class AuroraBlob(
  * tablets alike without hard edges.
  */
 private val AURORA_BLOBS: List<AuroraBlob> = listOf(
-    AuroraBlob(0.18f, 0.16f, 0.55f, Color(0xFF0071E3)),
-    AuroraBlob(0.85f, 0.28f, 0.48f, Color(0xFF64D2FF)),
-    AuroraBlob(0.50f, 0.88f, 0.60f, Color(0xFFBF5AF2)),
+    AuroraBlob(0.18f, 0.16f, 0.68f, Color(0xFF0071E3)),
+    AuroraBlob(0.85f, 0.28f, 0.58f, Color(0xFF64D2FF)),
+    AuroraBlob(0.50f, 0.88f, 0.72f, Color(0xFFBF5AF2)),
 )

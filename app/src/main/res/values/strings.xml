@@ -243,11 +243,6 @@
     <string name="accent_monochrome">Monochrome</string>
 
     <!-- App icon (launcher icon variants) -->
-    <string name="app_icon_title">App icon</string>
-    <string name="app_icon_hint">Changing the icon updates the launcher icon. It may take a few seconds to appear.</string>
-    <string name="app_icon_default">Default · red</string>
-    <string name="app_icon_purple">Purple</string>
-    <string name="app_icon_green">Green</string>
 
     <!-- Language -->
     <string name="language_title">Language</string>

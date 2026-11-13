@@ -3,8 +3,8 @@
      (بته‌جقه) + music-note mark he generated from the delivered
      prompt: a purple gradient note with a gold accent line on black.
      The main launcher icon is the artwork itself, centred on its
-     black field; the purple / green circular variants stay as
-     switchable aliases.
+     black field. 0.3-feedback (Track 3): this is the ONLY launcher
+     icon — the purple/green switchable aliases are deleted.
      Safe zone: the note's tip reached 454px from the centre of the
      1254px artwork — outside the adaptive-icon safe circle (383px
      radius) — so the foreground is the artwork scaled 0.835x and

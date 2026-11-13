@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,6 +44,8 @@ import com.harper.ava.core.util.ParsedLyrics
 import com.harper.ava.core.util.lyricIndexAt
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -67,8 +70,10 @@ fun LyricsScreen(app: AvaApplication, onBack: () -> Unit) {
     val lyricsState by viewModel.lyrics.collectAsState()
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
                 title = { Text(stringResource(R.string.lyrics_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

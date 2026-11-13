@@ -64,8 +64,44 @@ class MotionTest {
 
     @Test
     fun `cover scale spring is soft`() {
-        assertEquals(0.85f, AvaMotion.coverScaleSpring.dampingRatio)
-        assertEquals(300f, AvaMotion.coverScaleSpring.stiffness)
+        // 0.3-feedback (Track 4): was 0.85/300 — the cover entrance
+        // and the swipe-dismiss spring-back still landed with a snap.
+        assertEquals(0.9f, AvaMotion.coverScaleSpring.dampingRatio)
+        assertEquals(250f, AvaMotion.coverScaleSpring.stiffness)
+    }
+
+    @Test
+    fun `now playing transition is fade dominant and mirrors its exit`() {
+        // 0.3-feedback (Track 4): Harper called the Now Playing
+        // enter/exit "sharp" — the 260/220 ms fade was over before
+        // the eye registered it. The dedicated family is slower and
+        // fade-led: 420 ms in, 320 ms out, exit mirroring entry but
+        // slightly quicker; the slide shares the fade's duration so
+        // the opacity does the work and the rise is only a whisper.
+        assertEquals(420, AvaMotion.nowPlayingEnterFade.durationMillis)
+        assertEquals(320, AvaMotion.nowPlayingExitFade.durationMillis)
+        assertEquals(420, AvaMotion.nowPlayingEnterSlide.durationMillis)
+        assertEquals(320, AvaMotion.nowPlayingExitSlide.durationMillis)
+        assertTrue(
+            AvaMotion.nowPlayingEnterFade.durationMillis >
+                AvaMotion.nowPlayingExitFade.durationMillis,
+        )
+        assertTrue(
+            AvaMotion.nowPlayingEnterFade.durationMillis >
+                AvaMotion.navEnterFade.durationMillis,
+        )
+        for (spec in listOf(
+            AvaMotion.nowPlayingEnterFade,
+            AvaMotion.nowPlayingExitFade,
+            AvaMotion.nowPlayingEnterSlide,
+            AvaMotion.nowPlayingExitSlide,
+            AvaMotion.swipeDismissSlideOff,
+        )) {
+            assertEquals(FastOutSlowInEasing, spec.easing)
+        }
+        // The swipe slide-off matches the exit's family, not the old
+        // inline 300 ms.
+        assertEquals(340, AvaMotion.swipeDismissSlideOff.durationMillis)
     }
 
     @Test

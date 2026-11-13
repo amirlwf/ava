@@ -601,24 +601,28 @@ fun amoledLiftedContainer(baseArgb: Long, step: AmoledSurfaceStep): Long {
         lift(baseArgb and 0xFF)
 }
 
-// -- Glass aurora (0.1-fix1, Track C) ---------------------------------------
+// -- Glass aurora (0.1-fix1, Track C; strengthened 0.3-feedback, Track 6) --
 // Pure strength rules for the IPHONE theme's aurora backdrop. The aurora
 // is the one bold element that makes the glass theme unmistakable: three
 // soft colour fields (iOS blue / cyan / violet) drifting behind the
 // frosted surfaces. Strength is chosen from the backdrop luminance, so
-// the fields read the same in dark, light and AMOLED — faint enough to
-// stay a backdrop (never above 0.16), strong enough to be seen through
-// the 0.55-alpha glass panels.
+// the fields read the same in dark, light and AMOLED. 0.3-feedback:
+// 0.1's faint values (dark 0.14, light 0.10, AMOLED 0.065) still did
+// not read — Harper: "the iPhone theme still needs a lot of work, it
+// is still not good". The fields are stronger now (dark 0.20, light
+// 0.16, AMOLED 0.10) and larger (see GlassAurora), so the sky is felt
+// through the 0.45-alpha glass panels — still a backdrop, never loud
+// (no blob above 0.20).
 
 /**
  * Base aurora alpha for a backdrop of [backgroundLuminance] (0 = black,
- * 1 = white, [argbLuminance] scale): AMOLED 0.065 (the fields must stay
- * whisper-quiet on a pure-black screen), dark 0.14, light 0.10.
+ * 1 = white, [argbLuminance] scale): AMOLED 0.10 (the fields must stay
+ * quieter on a pure-black screen), dark 0.20, light 0.16.
  */
 fun glassAuroraAlpha(backgroundLuminance: Double, amoled: Boolean): Float = when {
-    amoled -> 0.065f
-    backgroundLuminance < 0.2 -> 0.14f
-    else -> 0.10f
+    amoled -> 0.10f
+    backgroundLuminance < 0.2 -> 0.20f
+    else -> 0.16f
 }
 
 /**

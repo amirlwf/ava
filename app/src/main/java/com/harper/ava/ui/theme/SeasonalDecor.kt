@@ -13,10 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
@@ -34,12 +36,18 @@ import kotlin.math.sin
  * - SUMMER: a soft sun glow in the top corner + a few green leaves.
  * - AUTUMN: amber / red leaves falling.
  * - WINTER: snowflakes drifting down.
- * - GALAXY: a calm, realistic night sky — one soft Milky Way band,
- *   sparse twinkling stars, a few faint nebula clouds and, rarely, a
- *   single shooting star. Deliberately NOT crowded: no solar system,
- *   no constellations, no meteor shower (0.1-fix1 — Harper: "not too
- *   crowded, just beautiful and real"). The one memorable element is
- *   the Milky Way band itself; everything else is quiet.
+ * - GALAXY: a rich, realistic night sky — a soft Milky Way band,
+ *   a dense field of small bright randomly-placed twinkling stars
+ *   in three depth layers, a few faint nebula clouds, three shooting
+ *   stars (one of them BIG), and a detailed little solar system in
+ *   the upper-right corner. Denser and more detailed than the calm
+ *   0.1 sky (0.3-feedback — Harper: "many small bright RANDOM
+ *   stars, bigger stars, meteors, BIG meteors, a solar system with
+ *   the most beautiful detail"), but still realistic and elegant,
+ *   not clutter: every layer stays faint behind the content, the
+ *   system lives in one corner, and the meteors stay rare events.
+ *   The one memorable element is still the Milky Way band; the
+ *   solar system is the second focal point.
  * - Every other theme (Emerald, Violet, Ocean, Sunset): no decor.
  *
  * All vector / Canvas-drawn, no images, no new fonts. One slow
@@ -48,10 +56,10 @@ import kotlin.math.sin
  * frame on at most two screens; particle positions are deterministic
  * functions of `progress` + a per-particle seed, so there is no state
  * churn and nothing to remember across recompositions. Galaxy
- * particle counts stay small per layer (24 far + 18 mid + 6 bright
- * stars, 18 Milky Way dust grains, 4 nebula clouds, 1 rare meteor)
- * and alphas low (0.03–0.12 for dust, nebula ≤ 0.06, brightest
- * sparkles ≤ 0.30, the single meteor head briefly reaches 0.30) —
+ * particle counts per layer (64 far + 42 mid + 14 bright stars,
+ * 36 Milky Way dust grains, 4 nebula clouds, 3 meteors, a 5-planet
+ * solar system) and alphas (dust 0.04–0.16, nebula ≤ 0.08, brightest
+ * sparkles ≤ 0.55, the big meteor head briefly reaches 0.55) —
  * decoration, not noise.
  *
  * Battery (improve run 3, 2026-11-12; frozen-frame fix in 0.1-fix1):
@@ -209,21 +217,31 @@ private fun wrap01(v: Float): Float = ((v % 1f) + 1f) % 1f
 // extra animation loop — the single 36 s loop drives everything.
 // ---------------------------------------------------------------------------
 
-/** Number of shooting stars in the galaxy sky (0.1-fix1: was 5) — one,
- * rare, so a meteor is a small event, not a shower. */
-const val GALAXY_METEOR_COUNT = 1
+/** Number of shooting stars in the galaxy sky (0.3-feedback: was 1).
+ * Three, staggered across the loop, so a meteor is still an event —
+ * not a shower — but the sky is no longer empty for minutes at a
+ * time. Index 0 is the BIG one (see [GALAXY_BIG_METEOR_MAX_ALPHA]). */
+const val GALAXY_METEOR_COUNT = 3
 
-/** Max alpha of the single meteor head (0.1-fix1: was 0.35). */
+/** Max alpha of the BIG meteor's head (index 0) — the one Harper
+ * asked for ("BIG meteors"): 0.55, nearly twice the ordinary 0.30,
+ * with a tail 1.8× as long and thick (see [meteorTailLength],
+ * [meteorTailWidthFactor]). */
+const val GALAXY_BIG_METEOR_MAX_ALPHA = 0.55f
+
+/** Max alpha of an ordinary meteor head. */
 const val GALAXY_METEOR_MAX_ALPHA = 0.30f
 
 /** Starfield layers: 0 = far (tiny, dim, slow), 1 = mid, 2 = near/bright.
- * 0.1-fix1: fewer, sparser — 24 / 18 / 6 (was 36 / 26 / 10). */
-const val GALAXY_FAR_STAR_COUNT = 24
-const val GALAXY_MID_STAR_COUNT = 18
-const val GALAXY_BRIGHT_STAR_COUNT = 6
+ * 0.3-feedback: denser and brighter — 64 / 42 / 14 (was 24 / 18 / 6).
+ * Many small bright RANDOM stars, as Harper asked: positions are
+ * hash-seeded, never a grid. */
+const val GALAXY_FAR_STAR_COUNT = 64
+const val GALAXY_MID_STAR_COUNT = 42
+const val GALAXY_BRIGHT_STAR_COUNT = 14
 
-/** Dust grains packed along the Milky Way band (0.1-fix1: was 44). */
-const val GALAXY_MILKY_WAY_DUST_COUNT = 18
+/** Dust grains packed along the Milky Way band (0.3-feedback: was 18). */
+const val GALAXY_MILKY_WAY_DUST_COUNT = 36
 
 // ---------------------------------------------------------------------------
 // Per-frame allocations removed (improve run 3, 2026-11-12). The Canvas
@@ -292,11 +310,19 @@ private fun leafPath(radius: Float): Path = leafPathCache.getOrPut(radius) {
     }
 }
 
-/** Peak alpha of the single meteor (0.1-fix1: only one meteor exists now). */
-fun meteorMaxAlpha(index: Int): Float = GALAXY_METEOR_MAX_ALPHA
+/** Peak alpha of meteor [index]: the BIG meteor (index 0) burns at
+ * 0.55, the ordinary ones at 0.30. */
+fun meteorMaxAlpha(index: Int): Float =
+    if (index == 0) GALAXY_BIG_METEOR_MAX_ALPHA else GALAXY_METEOR_MAX_ALPHA
 
-/** Length of meteor [index]'s tail, as a fraction of the canvas width. */
-fun meteorTailLength(index: Int): Float = 0.13f + 0.09f * hash01(index, 26)
+/** Length of meteor [index]'s tail, as a fraction of the canvas width.
+ * The BIG meteor's tail is 1.8× as long. */
+fun meteorTailLength(index: Int): Float =
+    (0.13f + 0.09f * hash01(index, 26)) * meteorTailWidthFactor(index)
+
+/** Width factor of meteor [index]'s tail (and halo): the BIG meteor
+ * is 1.8× as thick; ordinary meteors are 1.0×. */
+fun meteorTailWidthFactor(index: Int): Float = if (index == 0) 1.8f else 1.0f
 
 /**
  * One shooting star at a given loop [progress], or null while it is
@@ -339,21 +365,91 @@ fun meteorState(index: Int, progress: Float): MeteorState? {
 
 // ---------------------------------------------------------------------------
 // 0.7.4 galaxy helpers — starfield depth, Milky Way, nebula. All pure +
-// deterministic, same single-loop discipline as above. (0.1-fix1: the
-// constellations, planets and moons are gone — the sky is calmer now.)
+// deterministic, same single-loop discipline as above.
+// 0.3-feedback (Track 7): the solar system is BACK — Harper asked for
+// it with "the most beautiful detail" — as a second focal point in
+// the upper-right corner, on slow tilted elliptical orbits.
 // ---------------------------------------------------------------------------
 
-/** Radius (dp) of star [index] on layer [layer] (0 far, 1 mid, 2 bright). */
+/** Normalised centre of the sun: upper-right, clear of the greeting
+ * text at the top-left and of the Milky Way band's densest stretch. */
+const val SOLAR_SUN_X = 0.74f
+const val SOLAR_SUN_Y = 0.15f
+
+/** One planet: its orbit (fraction of the canvas's smaller side), size,
+ * colour, orbital speed, starting angle, ring, moons. */
+data class SolarPlanet(
+    val orbitRadius: Float,
+    val sizeDp: Float,
+    val colorArgb: Long,
+    /** Full orbits per 36 s loop — slow and stately, never dizzy. */
+    val orbitsPerLoop: Float,
+    /** Starting angle, radians. */
+    val phase: Float,
+    val hasRing: Boolean,
+    val moonCount: Int,
+)
+
+/**
+ * The five planets, Mercury out to Saturn — the classic inner system,
+ * each with its own orbit, size and colour. Speeds fall with distance
+ * (Mercury fastest, Saturn slowest), as in the real system.
+ */
+val SOLAR_PLANETS: List<SolarPlanet> = listOf(
+    SolarPlanet(0.055f, 2.2f, 0xFFB8B8C0, 0.24f, 0.6f, hasRing = false, moonCount = 0),
+    SolarPlanet(0.085f, 3.4f, 0xFFF2C98A, 0.18f, 2.4f, hasRing = false, moonCount = 0),
+    SolarPlanet(0.120f, 3.8f, 0xFF6EA8FF, 0.14f, 4.2f, hasRing = false, moonCount = 1),
+    SolarPlanet(0.155f, 3.0f, 0xFFE07850, 0.10f, 1.2f, hasRing = false, moonCount = 0),
+    SolarPlanet(0.200f, 5.2f, 0xFFE8C98A, 0.06f, 5.4f, hasRing = true, moonCount = 1),
+)
+
+/** Angle (radians) of planet [index] at loop [progress]. */
+fun solarPlanetAngle(index: Int, progress: Float): Float {
+    val planet = SOLAR_PLANETS[index]
+    return planet.phase + progress * 2f * PI.toFloat() * planet.orbitsPerLoop
+}
+
+/**
+ * Unit offset of planet [index] from the sun at [progress]: (cos θ,
+ * 0.55·sin θ). The 0.55 squash is the viewing tilt — the orbits read
+ * as ellipses seen at an angle, like the real solar system, not flat
+ * circles. The draw code scales the offset by the orbit radius in
+ * pixels; the orbit lines use the same squash, so planet and line
+ * always agree. Pure, so the offline suite pins the ellipse
+ * (dx² + (dy / 0.55)² = 1).
+ */
+fun solarPlanetOffset(index: Int, progress: Float): Pair<Float, Float> {
+    val angle = solarPlanetAngle(index, progress)
+    return cos(angle) to 0.55f * sin(angle)
+}
+
+/** Angle (radians) of moon [moonIndex] of planet [planetIndex] at [progress]. */
+fun solarMoonAngle(planetIndex: Int, moonIndex: Int, progress: Float): Float {
+    val phase = planetIndex * 1.7f + moonIndex * 2.3f
+    val speed = 0.9f - 0.2f * moonIndex
+    return phase + progress * 2f * PI.toFloat() * speed
+}
+
+/** Unit offset of a moon from its planet — the same tilted-ellipse
+ * discipline as [solarPlanetOffset]. */
+fun solarMoonOffset(planetIndex: Int, moonIndex: Int, progress: Float): Pair<Float, Float> {
+    val angle = solarMoonAngle(planetIndex, moonIndex, progress)
+    return cos(angle) to 0.55f * sin(angle)
+}
+
+/** Radius (dp) of star [index] on layer [layer] (0 far, 1 mid, 2 bright).
+ * 0.3-feedback: bigger stars — far 0.8–1.9, mid 1.8–5.0, bright
+ * 3.5–7.0 (was 0.8–1.7 / 1.5–4.5 / 3.0–5.5). */
 fun galaxyStarRadiusDp(index: Int, layer: Int): Float = when (layer) {
-    0 -> 0.8f + 0.9f * hash01(index, 51)
-    2 -> 3.0f + 2.5f * hash01(index, 53)
-    else -> 1.5f + 3.0f * hash01(index, 52)
+    0 -> 0.8f + 1.1f * hash01(index, 51)
+    2 -> 3.5f + 3.5f * hash01(index, 53)
+    else -> 1.8f + 3.2f * hash01(index, 52)
 }
 
 /**
  * Twinkling alpha of star [index] on [layer] at [progress]: far stars
- * breathe 0.06–0.20, mid stars 0.08–0.32, bright stars 0.10–0.30
- * (0.1-fix1: lower, calmer — was 0.06–0.22 / 0.10–0.40 / 0.15–0.45).
+ * breathe 0.08–0.28, mid stars 0.10–0.40, bright stars 0.15–0.55
+ * (0.3-feedback: brighter — was 0.06–0.20 / 0.08–0.32 / 0.10–0.30).
  * Each star has its own speed + phase, so the sky never twinkles in
  * unison.
  */
@@ -362,9 +458,9 @@ fun galaxyStarAlpha(index: Int, layer: Int, progress: Float): Float {
     val phase = index * 1.3f + layer * 2.1f
     val twinkle = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat() * speed + phase)
     return when (layer) {
-        0 -> 0.06f + 0.14f * twinkle
-        2 -> 0.10f + 0.20f * twinkle
-        else -> 0.08f + 0.24f * twinkle
+        0 -> 0.08f + 0.20f * twinkle
+        2 -> 0.15f + 0.40f * twinkle
+        else -> 0.10f + 0.30f * twinkle
     }
 }
 
@@ -411,13 +507,13 @@ fun milkyWayDustPosition(index: Int): Pair<Float, Float> {
     return along to (milkyWayBandCenterY(along) + across)
 }
 
-/** Twinkling alpha of dust grain [index] at [progress] (0.03–0.12;
- * 0.1-fix1: was 0.04–0.18). */
+/** Twinkling alpha of dust grain [index] at [progress] (0.04–0.16;
+ * 0.3-feedback: was 0.03–0.12 — the band reads richer now). */
 fun milkyWayDustAlpha(index: Int, progress: Float): Float {
     val (x, y) = milkyWayDustPosition(index)
     val speed = 0.4f + hash01(index, 43)
     val twinkle = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat() * speed + index * 1.1f)
-    return 0.03f + 0.09f * milkyWayDensity(x, y) * twinkle
+    return 0.04f + 0.12f * milkyWayDensity(x, y) * twinkle
 }
 
 /** One soft nebula cloud: [colorIndex] 0 violet, 1 pink, 2 blue, 3 indigo. */
@@ -429,14 +525,14 @@ data class NebulaBlob(
     val alpha: Float,
 )
 
-/** The four nebula clouds, back to front. Alphas stay ≤ 0.06
- * (0.1-fix1: was eight clouds at ≤ 0.10 — fewer, fainter, so the band
- * and the stars carry the sky instead of coloured fog). */
+/** The four nebula clouds, back to front. Alphas stay ≤ 0.08
+ * (0.3-feedback: was ≤ 0.06 — a touch richer, still faint, so the
+ * band and the stars carry the sky instead of coloured fog). */
 val GALAXY_NEBULA_BLOBS: List<NebulaBlob> = listOf(
-    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.06f),
-    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.05f),
-    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.05f),
-    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.06f),
+    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.08f),
+    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.06f),
+    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.07f),
+    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.08f),
 )
 
 private fun DrawScope.drawDecor(
@@ -563,21 +659,27 @@ private fun DrawScope.drawSnowflake(center: Offset, radius: Float, color: Color)
 }
 
 /**
- * Galaxy (0.1-fix1 calm redesign): the sky is built back-to-front so the
+ * Galaxy (0.3-feedback, Track 7): the sky is built back-to-front so the
  * depth reads even at a glance, all on the same 36 s `progress` loop.
- * One memorable element — the Milky Way band — and everything else
- * quiet: no solar system, no constellations, one rare meteor.
+ * Two memorable elements — the Milky Way band and the solar system —
+ * and everything else detailed but quiet: no constellations, three
+ * meteors (one BIG) instead of a shower.
  *
  * 1. [drawNebula] — four soft nebula clouds with brighter cores.
- * 2. [drawMilkyWay] — a diagonal band of glow + 18 dust grains.
- * 3. Far starfield (24 tiny dots, parallax layer 0) — the deep sky.
- * 4. Mid starfield (18 stars, parallax layer 1).
- * 5. [drawBrightStars] — 6 near sparkles with cross flares (layer 2).
- * 6. [drawMeteors] — one rare shooting star with a five-segment tail.
+ * 2. [drawMilkyWay] — a diagonal band of glow + 36 dust grains.
+ * 3. Far starfield (64 tiny dots, parallax layer 0) — the deep sky.
+ * 4. Mid starfield (42 stars, parallax layer 1).
+ * 5. [drawBrightStars] — 14 near sparkles with cross flares (layer 2).
+ * 6. [drawSolarSystem] — sun + 5 planets on orbit lines, Saturn's
+ *    ring, two moons (upper-right corner).
+ * 7. [drawMeteors] — three shooting stars with five-segment tails,
+ *    the first one BIG.
  *
- * Every layer is faint (nebula ≤ 0.06, dust ≤ 0.12, brightest
- * sparkles ≤ 0.30) and sits behind the content, so the song list and
- * album art stay readable.
+ * Every layer is faint (nebula ≤ 0.08, dust ≤ 0.16, brightest
+ * sparkles ≤ 0.55, the big meteor head briefly reaches 0.55) and
+ * sits behind the content, so the song list and album art stay
+ * readable. Only the sun's core is allowed to burn (0.95) — it is
+ * a light source, and it lives in a corner.
  */
 private fun DrawScope.drawGalaxy(
     progress: Float,
@@ -592,7 +694,79 @@ private fun DrawScope.drawGalaxy(
     drawStarLayer(progress, layer = 0, violet, pink, blue, white)
     drawStarLayer(progress, layer = 1, violet, pink, blue, white)
     drawBrightStars(progress, white, pink)
+    drawSolarSystem(progress)
     drawMeteors(progress)
+}
+
+/**
+ * The solar system (0.3-feedback, Track 7): a warm sun with a glow,
+ * corona rays and a bright core, five planets on thin tilted
+ * elliptical orbit lines, Saturn's tilted ring, and two moons. One
+ * corner only, slow and stately — the orbits take many loops to
+ * close, so the system feels like a place, not a spinner.
+ */
+private fun DrawScope.drawSolarSystem(progress: Float) {
+    val minDim = minOf(size.width, size.height)
+    val sun = Offset(SOLAR_SUN_X * size.width, SOLAR_SUN_Y * size.height)
+    // Sun: outer glow, inner glow, corona rays, burning core with a
+    // small white-hot highlight off-centre.
+    drawCircle(color = Color(0xFFFFB84D).copy(alpha = 0.10f), radius = 34.dp.toPx(), center = sun)
+    drawCircle(color = Color(0xFFFFC46B).copy(alpha = 0.22f), radius = 22.dp.toPx(), center = sun)
+    for (i in 0 until 8) {
+        val angle = i * PI.toFloat() / 4f + progress * 0.1f
+        val from = sun + Offset(cos(angle) * 15.dp.toPx(), sin(angle) * 15.dp.toPx())
+        val to = sun + Offset(cos(angle) * 24.dp.toPx(), sin(angle) * 24.dp.toPx())
+        drawLine(
+            color = Color(0xFFFFD27A).copy(alpha = 0.30f),
+            start = from,
+            end = to,
+            strokeWidth = 1.5.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
+    drawCircle(color = Color(0xFFFFD27A).copy(alpha = 0.95f), radius = 13.dp.toPx(), center = sun)
+    drawCircle(
+        color = Color.White.copy(alpha = 0.5f),
+        radius = 5.dp.toPx(),
+        center = sun + Offset(-3.dp.toPx(), -3.dp.toPx()),
+    )
+    for ((index, planet) in SOLAR_PLANETS.withIndex()) {
+        val orbitPx = planet.orbitRadius * minDim
+        // Orbit line: a thin tilted ellipse around the sun.
+        drawOval(
+            color = Color.White.copy(alpha = 0.10f),
+            topLeft = sun - Offset(orbitPx, orbitPx * 0.55f),
+            size = Size(orbitPx * 2f, orbitPx * 2f * 0.55f),
+            style = Stroke(width = 1.dp.toPx()),
+        )
+        val (ox, oy) = solarPlanetOffset(index, progress)
+        val center = sun + Offset(ox * orbitPx, oy * orbitPx)
+        val radius = planet.sizeDp.dp.toPx()
+        // Body + a small lit highlight, so the planet reads as a
+        // sphere and not a flat dot.
+        drawCircle(color = Color(planet.colorArgb).copy(alpha = 0.9f), radius = radius, center = center)
+        drawCircle(
+            color = Color.White.copy(alpha = 0.35f),
+            radius = radius * 0.45f,
+            center = center + Offset(-radius * 0.3f, -radius * 0.3f),
+        )
+        if (planet.hasRing) {
+            rotate(degrees = -20f, pivot = center) {
+                drawOval(
+                    color = Color(0xFFE8C98A).copy(alpha = 0.55f),
+                    topLeft = center - Offset(radius * 1.9f, radius * 0.55f),
+                    size = Size(radius * 3.8f, radius * 1.1f),
+                    style = Stroke(width = 1.2.dp.toPx()),
+                )
+            }
+        }
+        for (m in 0 until planet.moonCount) {
+            val (mx, my) = solarMoonOffset(index, m, progress)
+            val moonOrbitPx = radius * 2.4f
+            val moonCenter = center + Offset(mx * moonOrbitPx, my * moonOrbitPx)
+            drawCircle(color = Color.White.copy(alpha = 0.75f), radius = 1.4.dp.toPx(), center = moonCenter)
+        }
+    }
 }
 
 /** Four soft nebula clouds, each with a brighter core; they sway with the far layer. */
@@ -668,7 +842,7 @@ private fun DrawScope.drawStarLayer(
     }
 }
 
-/** Near layer: the 10 brightest stars — big four-point sparkles with a cross flare. */
+/** Near layer: the brightest stars — big four-point sparkles with a cross flare. */
 private fun DrawScope.drawBrightStars(progress: Float, white: Color, pink: Color) {
     for (i in 0 until GALAXY_BRIGHT_STAR_COUNT) {
         val (nx, ny) = galaxyStarPosition(i, 2, progress)
@@ -697,14 +871,21 @@ private fun DrawScope.drawBrightStars(progress: Float, white: Color, pink: Color
     }
 }
 
-/** Shooting stars: a glowing head + a five-segment tail that fades along its length. */
+/** Shooting stars: a glowing head + a five-segment tail that fades along its length.
+ * The BIG meteor (index 0) gets a wider halo, thicker tail and bigger
+ * head — it reads as a fireball next to the ordinary streaks. */
 private fun DrawScope.drawMeteors(progress: Float) {
     for (i in 0 until GALAXY_METEOR_COUNT) {
         val meteor = meteorState(i, progress) ?: continue
+        val widthFactor = meteorTailWidthFactor(i)
         val head = Offset(meteor.headX * size.width, meteor.headY * size.height)
         val tail = Offset(meteor.tailX * size.width, meteor.tailY * size.height)
         // Halo around the head, so the brightest meteor reads as burning, not just white.
-        drawCircle(color = Color.White.copy(alpha = meteor.alpha * 0.30f), radius = 5.dp.toPx(), center = head)
+        drawCircle(
+            color = Color.White.copy(alpha = meteor.alpha * 0.30f),
+            radius = (5.dp * widthFactor).toPx(),
+            center = head,
+        )
         // Tail in five segments, each fainter and thinner than the last
         // (segment tables hoisted to file level — no per-frame lists).
         for (s in METEOR_TAIL_ALPHAS.indices) {
@@ -714,12 +895,12 @@ private fun DrawScope.drawMeteors(progress: Float) {
                 color = Color.White.copy(alpha = meteor.alpha * METEOR_TAIL_ALPHAS[s]),
                 start = from,
                 end = to,
-                strokeWidth = METEOR_TAIL_WIDTHS_DP[s].dp.toPx(),
+                strokeWidth = (METEOR_TAIL_WIDTHS_DP[s] * widthFactor).dp.toPx(),
                 cap = StrokeCap.Round,
             )
         }
-        drawStar(head, 3.dp.toPx(), Color.White.copy(alpha = meteor.alpha * 0.8f))
-        drawCircle(color = Color.White.copy(alpha = meteor.alpha), radius = 2.dp.toPx(), center = head)
+        drawStar(head, (3.dp * widthFactor).toPx(), Color.White.copy(alpha = meteor.alpha * 0.8f))
+        drawCircle(color = Color.White.copy(alpha = meteor.alpha), radius = (2.dp * widthFactor).toPx(), center = head)
     }
 }
 

@@ -79,6 +79,12 @@ fun notificationTitle(song: Song): String =
  * it (see `MediaStoreScanner`): an album with no thumbnail stores
  * null, so the default cover applies and a cover is genuinely
  * guaranteed.
+ * 0.3-feedback fix — rows stored BEFORE 0.3 still hold the broken
+ * albums/ ROW uri (Harper may never have rescanned). A non-blank
+ * broken uri used to shadow this default, so an untagged song posted
+ * with no cover at all (his 0.3 screenshots). [effectiveAlbumArtUri]
+ * now treats that form as "no art" at read time, so the default
+ * applies with no rescan and no database migration.
  */
 const val DEFAULT_ARTWORK_URI =
     "android.resource://com.harper.ava/drawable/ava_default_artwork"
@@ -97,8 +103,37 @@ const val DEFAULT_ARTWORK_URI =
 fun albumArtUriForAlbum(albumId: Long): String? =
     if (albumId > 0L) "content://media/external/audio/albumart/$albumId" else null
 
+/**
+ * Prefix of the BROKEN album ROW uri the scanner stored before 0.3
+ * (`content://media/external/audio/albums/<id>`): metadata only, it
+ * carries no image data, so opening it as a stream fails. Rows stored
+ * before the 0.3 fix still hold this form, and a non-blank broken uri
+ * used to shadow the default cover — the untagged song in Harper's
+ * 0.3 screenshots posted with no cover at all. Read-time normalisation
+ * (this round): a stored broken uri is treated as "no art", so the
+ * default cover applies WITHOUT a rescan.
+ */
+const val BROKEN_ALBUM_ROW_URI_PREFIX =
+    "content://media/external/audio/albums/"
+
+/** True when [uri] is the broken albums/ ROW uri (see above). Pure. */
+fun isBrokenAlbumArtUri(uri: String?): Boolean =
+    uri != null && uri.startsWith(BROKEN_ALBUM_ROW_URI_PREFIX)
+
+/**
+ * The usable album-art uri for a stored [uri], or null when there is
+ * none: blank uris and the broken albums/ ROW form both read as "no
+ * art". Pure, so the offline JUnit suite pins it. Used by the
+ * notification path ([artworkUriFor]) and by every in-app cover
+ * (SongRow, MiniPlayer, Now Playing, Library groups), so a stored
+ * broken uri never even reaches a loader — it falls straight through
+ * to the fallback instead of failing a load first.
+ */
+fun effectiveAlbumArtUri(uri: String?): String? =
+    uri?.takeIf { it.isNotBlank() && !isBrokenAlbumArtUri(it) }
+
 fun artworkUriFor(song: Song): String =
-    song.albumArtUri?.takeIf { it.isNotBlank() } ?: DEFAULT_ARTWORK_URI
+    effectiveAlbumArtUri(song.albumArtUri) ?: DEFAULT_ARTWORK_URI
 
 /**
  * The full [MediaItem] for a [Song]: same uri + media id as before,

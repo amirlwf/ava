@@ -231,12 +231,39 @@ fun AvaNavGraph(
             }
             composable(
                 route = NowPlayingRoute.ROUTE,
-                // Fade only: the shared-element cover does the moving
-                // here — a whole-screen scale on top would fight it.
-                enterTransition = { fadeIn(AvaMotion.navEnterFade) },
-                exitTransition = { fadeOut(AvaMotion.navExitFade) },
-                popEnterTransition = { fadeIn(AvaMotion.navEnterFade) },
-                popExitTransition = { fadeOut(AvaMotion.navExitFade) },
+                // 0.3-feedback (Track 4): fade-dominant + a gentle
+                // rise/fall — the shared-element cover does the
+                // moving, and the screen itself dissolves in around
+                // it (420 ms in / 320 ms out) instead of snapping.
+                // Vertical only, so it reads identically in RTL/LTR.
+                enterTransition = {
+                    fadeIn(AvaMotion.nowPlayingEnterFade) +
+                        slideInVertically(
+                            initialOffsetY = { it / 60 },
+                            animationSpec = AvaMotion.nowPlayingEnterSlide,
+                        )
+                },
+                exitTransition = {
+                    fadeOut(AvaMotion.nowPlayingExitFade) +
+                        slideOutVertically(
+                            targetOffsetY = { it / 80 },
+                            animationSpec = AvaMotion.nowPlayingExitSlide,
+                        )
+                },
+                popEnterTransition = {
+                    fadeIn(AvaMotion.nowPlayingEnterFade) +
+                        slideInVertically(
+                            initialOffsetY = { it / 60 },
+                            animationSpec = AvaMotion.nowPlayingEnterSlide,
+                        )
+                },
+                popExitTransition = {
+                    fadeOut(AvaMotion.nowPlayingExitFade) +
+                        slideOutVertically(
+                            targetOffsetY = { it / 80 },
+                            animationSpec = AvaMotion.nowPlayingExitSlide,
+                        )
+                },
             ) {
                 CompositionLocalProvider(
                     LocalAvaSharedTransitionScope provides sharedScope,

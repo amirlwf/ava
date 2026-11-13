@@ -3,6 +3,57 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4] — 2026-11-13
+
+The fix round after 0.3, built from Harper's test of 0.3 on his phone.
+Version 0.4 (versionCode 24) — a minor release, because this round
+adds features (a reworked iPhone theme, richer Galaxy, softer motion,
+nav reset), not just fixes. Harper's screenshots confirmed 0.3's
+notification on device: the cover shows for tagged songs, repeat
+(incl. repeat-one) and shuffle show and reflect state. One 0.3 claim
+is corrected here: even with artwork, the HyperOS media card stays
+white — that is the phone's own system media-player style, not an
+app bug, and it is out of the app's control.
+
+### Fixed
+
+- **Untagged songs get their cover without a Rescan** — stored
+  library rows still holding the broken `albums/` URI used to
+  shadow the default cover, so untagged songs showed no art at all.
+  Broken stored URIs are now treated as no-art at read time, so the
+  Galaxy default cover shows; no Rescan is needed after installing
+  0.4.
+- **Dark parts recolor in dark themes** — root cause: MaterialTheme
+  does not provide `LocalContentColor` (its default is black), so a
+  bare `Icon()` rendered black in dark themes. The theme now
+  provides the content colour from the scheme, so every dark part —
+  icons, and any other dark element — flips light in dark themes,
+  plain dark and AMOLED alike, while the background stays true
+  black.
+
+### Changed
+
+- **One app icon only** — the purple and green switchable icons are
+  gone completely (launcher aliases, resources, and the picker in
+  Settings). The boteh-note mark is the only icon. If you had the
+  purple or green icon enabled, launch Ava from the installer's
+  **Open** button the first time after updating, so Android switches
+  the launcher icon back to the main one.
+- **Now Playing motion is soft** — entering and leaving Now Playing
+  is fade-dominant with a gentle rise and fall (420 ms in, 320 ms
+  out), the cover flight and springs are softened, and the
+  swipe-down exit shares the same 340 ms spec. No sharp cuts.
+- **Nav icons: tap motion + section reset** — tapping a bottom-nav
+  icon gives a gentle 0.92x press squash, and tapping a section's
+  icon resets that section to its root (e.g. from Settings, tap Home
+  and you are back at the main Home screen).
+- **iPhone theme, reworked** — stronger and larger aurora, glass
+  panels at 0.45 alpha, and glass-aware scaffold and top-bar colours
+  on every sub-screen, so the theme is felt everywhere.
+- **Galaxy, richer** — more stars (64 small, 42 medium, 14 large),
+  more Milky Way dust (36), three meteors with the first one big,
+  and a detailed solar system in the upper-right corner.
+
 ## [0.3] — 2026-11-13
 
 The fix round after 0.2, built from Harper's test of 0.2 on his phone.

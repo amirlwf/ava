@@ -3,8 +3,6 @@ package com.harper.ava.ui.nowplaying
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -85,6 +83,7 @@ import kotlin.math.roundToInt
 import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.core.util.shouldDismissOnRelease
@@ -152,7 +151,12 @@ fun NowPlayingScreen(
         return
     }
 
-    var coverFailed by remember(song.albumArtUri) { mutableStateOf(false) }
+    var coverFailed by remember(effectiveAlbumArtUri(song.albumArtUri)) { mutableStateOf(false) }
+    // 0.3-feedback: a stored broken albums/ uri reads as "no art"
+    // ([effectiveAlbumArtUri]) — the backdrop and the big cover fall
+    // through to the gradient / MusicNote instead of loading a uri
+    // that can never resolve.
+    val coverArtUri = effectiveAlbumArtUri(song.albumArtUri)
     val haptics = rememberAvaHaptics()
 
     // 0.7.0 motion: the big cover is the other end of the shared element
@@ -207,9 +211,9 @@ fun NowPlayingScreen(
         )
         // Adaptive background: the cover, heavily blurred, under a scrim.
         // Falls back to a plain accent-tinted gradient when there is no art.
-        if (song.albumArtUri != null && !coverFailed) {
+        if (coverArtUri != null && !coverFailed) {
             AsyncImage(
-                model = song.albumArtUri,
+                model = coverArtUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onError = { coverFailed = true },
@@ -309,7 +313,12 @@ fun NowPlayingScreen(
                             ) {
                                 dismissOffset.animateTo(
                                     sheetHeightPx,
-                                    tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                    // 0.3-feedback (Track 4): the
+                                    // slide-off shares the Now Playing
+                                    // motion family (340 ms, same
+                                    // easing as the route exit) instead
+                                    // of an inline 300 ms tween.
+                                    AvaMotion.swipeDismissSlideOff,
                                 )
                                 onBack()
                             } else {
@@ -414,9 +423,9 @@ fun NowPlayingScreen(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (current.albumArtUri != null && !coverFailed) {
+                    if (effectiveAlbumArtUri(current.albumArtUri) != null && !coverFailed) {
                         AsyncImage(
-                            model = current.albumArtUri,
+                            model = effectiveAlbumArtUri(current.albumArtUri),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             onError = { coverFailed = true },

@@ -32,6 +32,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,6 +60,8 @@ import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.theme.accentPalette
 import com.harper.ava.ui.theme.spec
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -99,8 +102,10 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
     val fa = Locale.getDefault().language == "fa"
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
                 title = { Text(stringResource(R.string.settings_appearance)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

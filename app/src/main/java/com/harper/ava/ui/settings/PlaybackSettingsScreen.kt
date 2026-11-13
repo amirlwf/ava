@@ -17,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,6 +28,8 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.SPEED_OPTIONS
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 /**
  * Playback settings: default speed (applied when playback starts and
@@ -49,8 +52,10 @@ fun PlaybackSettingsScreen(app: AvaApplication, onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsState()
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
                 title = { Text(stringResource(R.string.playback_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

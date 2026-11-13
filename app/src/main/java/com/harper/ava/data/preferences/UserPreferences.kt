@@ -44,30 +44,14 @@ enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SU
 enum class AppLanguage { SYSTEM, FA, EN }
 
 /**
- * Launcher-icon variant, applied with an activity-alias + PackageManager
- * switch (see [UserPreferences.setAppIcon]). DEFAULT is Harper's own
- * artwork in red, on the real MainActivity launcher entry; PURPLE and
- * GREEN are the same artwork in the other two colours, as activity-aliases
- * whose `targetActivity` is MainActivity. Only these three preset variants
- * exist: Android has no supported way to install a user-uploaded image as
- * a launcher icon, so no custom-upload variant is offered.
- *
- * 0.7.1: replaced the six 0.7.0 note-icon variants (DEFAULT/EMERALD/
- * SUNSET/OCEAN/SPRING/MONO). A stored old value no longer parses
- * ([SettingsState] falls back to DEFAULT), so upgrading users land on
- * the red artwork and the startup sync re-enables MainActivity.
+ * Single launcher icon (0.3-feedback, Track 3): the boteh-note artwork
+ * on MainActivity itself is the ONLY launcher entry. The purple/green
+ * activity-alias variants (0.7.1) are deleted — Harper keeps only the
+ * default. [UserPreferences.ensureMainActivityLauncherEnabled] re-enables
+ * MainActivity on every start, so a user who had picked an alias
+ * (which had disabled MainActivity) gets the launcher icon back on
+ * the first launch after the update.
  */
-enum class AppIcon {
-    DEFAULT, PURPLE, GREEN;
-
-    /** Manifest `android:name` of the activity-alias, or null for DEFAULT. */
-    val aliasName: String?
-        get() = when (this) {
-            DEFAULT -> null
-            PURPLE -> ".LauncherPurple"
-            GREEN -> ".LauncherGreen"
-        }
-}
 
 data class SettingsState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -79,8 +63,6 @@ data class SettingsState(
     /** User-picked accent color (ARGB int) or null to use the [accent] palette. */
     val customAccentArgb: Int? = null,
     val language: AppLanguage = AppLanguage.SYSTEM,
-    /** Launcher icon variant (activity-alias). DEFAULT = MainActivity itself. */
-    val appIcon: AppIcon = AppIcon.DEFAULT,
     /** Default playback speed applied when playback starts (0.5x–2.0x). */
     val defaultSpeed: Float = 1.0f,
     /** Restore the last song + position (paused) when the app restarts. */
@@ -142,7 +124,6 @@ class UserPreferences(private val context: Context) {
         val SEASONAL_EFFECTS_ENABLED = booleanPreferencesKey("seasonal_effects_enabled")
         val CUSTOM_ACCENT_ARGB = longPreferencesKey("custom_accent_argb")
         val LANGUAGE = stringPreferencesKey("language")
-        val APP_ICON = stringPreferencesKey("app_icon")
         val DEFAULT_SPEED = floatPreferencesKey("default_speed")
         val RESUME_PLAYBACK = booleanPreferencesKey("resume_playback")
         val FADE_ENABLED = booleanPreferencesKey("fade_enabled")
@@ -182,8 +163,6 @@ class UserPreferences(private val context: Context) {
             customAccentArgb = prefs[Keys.CUSTOM_ACCENT_ARGB]?.toInt(),
             language = prefs[Keys.LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
                 ?: AppLanguage.SYSTEM,
-            appIcon = prefs[Keys.APP_ICON]?.let { runCatching { AppIcon.valueOf(it) }.getOrNull() }
-                ?: AppIcon.DEFAULT,
             defaultSpeed = prefs[Keys.DEFAULT_SPEED]?.let { clampPlaybackSpeed(it) } ?: 1.0f,
             resumePlayback = prefs[Keys.RESUME_PLAYBACK] ?: true,
             fadeEnabled = prefs[Keys.FADE_ENABLED] ?: false,
@@ -248,44 +227,26 @@ class UserPreferences(private val context: Context) {
     }
 
     /**
-     * Persists the launcher-icon choice and switches the launcher entry
-     * to match. Standard activity-alias pattern: exactly one component
-     * carries the MAIN/LAUNCHER filter at a time — the chosen alias, or
-     * MainActivity itself for DEFAULT. The alias's targetActivity is
-     * MainActivity, so disabling MainActivity as a launcher entry does
-     * not stop the alias from launching it. DONT_KILL_APP keeps the app
-     * alive while the user is still in Settings; the launcher usually
-     * picks the new icon up within seconds.
+     * 0.3-feedback (Track 3) — single launcher icon: re-enables
+     * MainActivity as the one launcher entry, unconditionally.
+     * Called on every app start from [AvaApplication.onCreate].
+     * Migration: a user who had picked the purple/green alias has
+     * MainActivity DISABLED in PackageManager (the alias switch
+     * disabled it), so without this the launcher icon would not come
+     * back after the aliases are gone. The old alias components no
+     * longer exist in the manifest, so there is nothing to disable —
+     * only MainActivity needs enabling. Idempotent and cheap; a
+     * Clear-data reset keeps MainActivity enabled, so this is a
+     * no-op for fresh installs. Honest limit: this runs inside the
+     * app, so the very first launch after the update has to come from
+     * the installer's Open button (or the app already running) — a
+     * launcher that already dropped the icon cannot be fixed from
+     * inside the app before that first launch.
      */
-    suspend fun setAppIcon(icon: AppIcon) {
-        context.dataStore.edit { it[Keys.APP_ICON] = icon.name }
-        applyAppIconComponent(icon)
-    }
-
-    /** PackageManager half of [setAppIcon]: enables one launcher entry, disables the rest. */
-    fun applyAppIconComponent(icon: AppIcon) {
-        val pm = context.packageManager
-        val packageName = context.packageName
-        for (entry in AppIcon.entries) {
-            val alias = entry.aliasName ?: continue
-            val state = if (entry == icon) {
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-            } else {
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-            }
-            pm.setComponentEnabledSetting(
-                ComponentName(packageName, packageName + alias),
-                state,
-                PackageManager.DONT_KILL_APP,
-            )
-        }
-        pm.setComponentEnabledSetting(
-            ComponentName(packageName, "$packageName.MainActivity"),
-            if (icon == AppIcon.DEFAULT) {
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-            } else {
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-            },
+    fun ensureMainActivityLauncherEnabled() {
+        context.packageManager.setComponentEnabledSetting(
+            ComponentName(context.packageName, "${context.packageName}.MainActivity"),
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
             PackageManager.DONT_KILL_APP,
         )
     }

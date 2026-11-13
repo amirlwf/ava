@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +50,8 @@ import com.harper.ava.ui.settings.SettingsNote
 import com.harper.ava.ui.settings.SettingsSectionHeader
 import com.harper.ava.ui.settings.SettingsSpacer
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 /**
  * Sleep Timer: ready-made durations, a custom duration (1–480 min), and
@@ -67,8 +70,10 @@ fun SleepTimerScreen(app: AvaApplication, onBack: () -> Unit) {
     var customText by remember { mutableStateOf("") }
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
                 title = { Text(stringResource(R.string.sleep_timer_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

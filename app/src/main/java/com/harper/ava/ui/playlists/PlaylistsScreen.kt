@@ -34,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,6 +56,8 @@ import com.harper.ava.R
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import kotlinx.coroutines.launch
 import com.harper.ava.ui.common.AvaMotion
 
@@ -76,8 +79,12 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
     val scope = rememberCoroutineScope()
 
     Scaffold(
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.playlists_title)) })
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = glassAwareTopBarContainerColor()),
+                title = { Text(stringResource(R.string.playlists_title)) },
+            )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {

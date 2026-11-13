@@ -70,6 +70,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/ui/nowplaying/AmbientGlow.kt \
   app/src/main/java/com/harper/ava/ui/common/Motion.kt \
   app/src/main/java/com/harper/ava/core/util/SwipeDismissLogic.kt \
+  app/src/main/java/com/harper/ava/core/util/NavResetLogic.kt \
   app/src/main/java/com/harper/ava/core/util/RingtoneLogic.kt \
   app/src/main/java/com/harper/ava/core/util/MediaItemLogic.kt \
   app/src/main/java/com/harper/ava/ui/theme/SeasonalDecor.kt \
@@ -108,6 +109,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/PlaylistLogicTest.kt \
   app/src/test/java/com/harper/ava/MotionTest.kt \
   app/src/test/java/com/harper/ava/SwipeDismissLogicTest.kt \
+  app/src/test/java/com/harper/ava/NavResetLogicTest.kt \
   app/src/test/java/com/harper/ava/RingtoneLogicTest.kt \
   app/src/test/java/com/harper/ava/SplashDedicationStyleTest.kt \
   app/src/test/java/com/harper/ava/NotificationRepeatShuffleTest.kt \
@@ -141,6 +143,7 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.PlaylistLogicTest \
   com.harper.ava.MotionTest \
   com.harper.ava.SwipeDismissLogicTest \
+  com.harper.ava.NavResetLogicTest \
   com.harper.ava.RingtoneLogicTest \
   com.harper.ava.SplashDedicationStyleTest \
   com.harper.ava.NotificationRepeatShuffleTest 2>&1 | tail -5

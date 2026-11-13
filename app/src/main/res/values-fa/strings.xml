@@ -243,11 +243,6 @@
     <string name="accent_monochrome">تک‌رنگ</string>
 
     <!-- App icon (launcher icon variants) -->
-    <string name="app_icon_title">آیکون برنامه</string>
-    <string name="app_icon_hint">با تغییر آیکون، آیکون لانچر عوض می‌شود؛ ممکن است چند ثانیه طول بکشد تا دیده شود.</string>
-    <string name="app_icon_default">پیش‌فرض · قرمز</string>
-    <string name="app_icon_purple">بنفش</string>
-    <string name="app_icon_green">سبز</string>
 
     <!-- Language -->
     <string name="language_title">زبان</string>

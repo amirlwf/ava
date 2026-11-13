@@ -43,6 +43,18 @@ import androidx.compose.ui.unit.IntOffset
  *   tap), the softer combination wins: the press scale is gentle
  *   (0.92x, soft spring) and the nav fade is slow, so neither
  *   shouts over the other.
+ *
+ * 0.3-feedback (Track 4) — Now Playing was still "sharp" (Harper:
+ * "تیز") despite the 0.1 softening: the 260/220 ms fade is over
+ * before the eye registers it, and the cover flight on a 0.85/300
+ * spring lands with a snap. The Now Playing transition gets its
+ * own slower, fade-dominant family: 420 ms in / 320 ms out (the
+ * fade does the work, a ~16dp rise / ~12dp fall is only a whisper
+ * underneath), and the cover springs soften to 0.90/250 so the
+ * flight and the swipe-dismiss spring-back land instead of
+ * snapping. Exit mirrors entry, slightly quicker, as exits should
+ * read. Global nav transitions are untouched — the complaint was
+ * Now Playing-specific.
  */
 object AvaMotion {
     /** Press feedback: a soft squash that settles without a wobble
@@ -57,9 +69,11 @@ object AvaMotion {
     val miniPlayerEnterFade: TweenSpec<Float> = tween(durationMillis = 260)
 
     /** Shared-element cover flight (list row -> Now Playing): the bounds
-     *  glide on a soft, non-bouncy spring instead of snapping. */
+     *  glide on a soft, non-bouncy spring instead of snapping.
+     *  0.3-feedback (Track 4): was 0.85/300 — still landed with a
+     *  snap; 0.90/250 settles instead. */
     val coverBoundsTransform: BoundsTransform = BoundsTransform { _, _ ->
-        spring(dampingRatio = 0.85f, stiffness = 300f)
+        spring(dampingRatio = 0.9f, stiffness = 250f)
     }
 
     /** Navigation fades: slow enough to read as soft, fast enough to
@@ -81,6 +95,34 @@ object AvaMotion {
         tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     val navExitSlide: TweenSpec<IntOffset> =
         tween(durationMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    /**
+     * 0.3-feedback (Track 4) — the Now Playing transition family.
+     * Fade-dominant: the opacity does the work (420 ms in, 320 ms
+     * out — slow enough to read as soft, fast enough to never feel
+     * sluggish), with only a gentle vertical rise/fall underneath
+     * (~16dp in, ~12dp out; vertical only, so it reads identically
+     * in RTL and LTR). Exit mirrors entry, slightly quicker. The
+     * same FastOutSlowIn easing as the rest of the family, and the
+     * same durations the Now Playing route and the swipe slide-off
+     * below use — one family, one feeling.
+     */
+    val nowPlayingEnterFade: TweenSpec<Float> = tween(durationMillis = 420)
+    val nowPlayingExitFade: TweenSpec<Float> = tween(durationMillis = 320)
+    val nowPlayingEnterSlide: TweenSpec<IntOffset> =
+        tween(durationMillis = 420, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    val nowPlayingExitSlide: TweenSpec<IntOffset> =
+        tween(durationMillis = 320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    /**
+     * 0.3-feedback (Track 4) — the swipe-down slide-off: after the
+     * finger releases past the threshold, the sheet glides off in
+     * 340 ms on the family easing. Was an inline 300 ms tween in
+     * NowPlayingScreen; a shared spec so the dismiss feels like the
+     * same motion as the route exit, only driven by the hand.
+     */
+    val swipeDismissSlideOff: TweenSpec<Float> =
+        tween(durationMillis = 340, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 
     /** Animated theme switching: every surface colour glides to its new value. */
     val themeColorTween: TweenSpec<Color> = tween(durationMillis = 350)
@@ -107,10 +149,14 @@ object AvaMotion {
     /**
      * 0.1-fix1: the soft scale spring for the Now Playing cover's
      * entrance (0.96x → 1x): the bare `scaleIn()` default spring
-     * overshoots visibly at this size; this one settles.
+     * overshoots visibly at this size; this one settles. It also
+     * springs the sheet back when a swipe-down is released below the
+     * dismiss threshold.
+     * 0.3-feedback (Track 4): was 0.85/300 — the cover entrance and
+     * the spring-back still landed with a snap; 0.90/250 settles.
      */
     val coverScaleSpring: SpringSpec<Float> =
-        spring(dampingRatio = 0.85f, stiffness = 300f)
+        spring(dampingRatio = 0.9f, stiffness = 250f)
 
     /** Skeleton shimmer sweep duration (one pass across a row). */
     const val shimmerDurationMs: Int = 1400
