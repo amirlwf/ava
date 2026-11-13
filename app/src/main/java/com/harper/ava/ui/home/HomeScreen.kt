@@ -47,9 +47,6 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.homeSectionSongKey
 import com.harper.ava.data.media.AudioPermission
-import com.harper.ava.data.preferences.SettingsState
-import com.harper.ava.ui.theme.SeasonalDecor
-import com.harper.ava.ui.theme.rememberIsResumed
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.common.SkeletonList
@@ -61,6 +58,7 @@ import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.openAppSettings
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.common.AvaMotion
 
 @Composable
 fun HomeScreen(
@@ -69,6 +67,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     onOpenSongDetails: (Long) -> Unit = {},
     onOpenFavorites: () -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.factory(app.container.musicRepository, app.container.playerRepository),
@@ -79,8 +78,6 @@ fun HomeScreen(
     val playlists by viewModel.playlists.collectAsState()
     val songCount by viewModel.songCount.collectAsState()
     val scanState by viewModel.scanState.collectAsState()
-    // 0.7.2: theme + seasonal-effects toggle drive the background decor.
-    val settings by app.container.userPreferences.settings.collectAsState(initial = SettingsState())
 
     val context = LocalContext.current
     val hasPermission = AudioPermission.isGranted(context)
@@ -108,250 +105,241 @@ fun HomeScreen(
         onConfirm = { song -> viewModel.deleteSong(song); songToDelete = null },
     )
 
-    // 0.7.2: seasonal decor sits behind the whole list (Box, first child).
-    Box(modifier = Modifier.fillMaxSize()) {
-        SeasonalDecor(
-            theme = settings.appTheme,
-            effectsEnabled = settings.seasonalEffectsEnabled,
-            modifier = Modifier.fillMaxSize(),
-            active = rememberIsResumed(),
-        )
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Top,
-        ) {
-        item {
-            Column(modifier = Modifier.padding(horizontal = AvaTokens.space20)) {
-                Spacer(modifier = Modifier.height(AvaTokens.space16))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(greetingRes),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                        Spacer(modifier = Modifier.height(AvaTokens.space4))
-                        Text(
-                            text = stringResource(R.string.home_subtitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = requestScan) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.scan_rescan),
-                        )
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.settings_title),
-                        )
-                    }
-                }
-                // 0.6.0: a little more air under the greeting so the
-                // header breathes instead of crowding the first section.
-                Spacer(modifier = Modifier.height(AvaTokens.space16))
-                when (scanState) {
-                    ScanUiState.Scanning -> {
-                        Text(
-                            text = stringResource(R.string.scan_scanning),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(AvaTokens.space8))
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    }
-                    is ScanUiState.Done -> {
-                        val done = scanState as ScanUiState.Done
-                        Text(
-                            text = if (done.removedStale > 0) {
-                                stringResource(
-                                    R.string.scan_found_removed,
-                                    done.found,
-                                    done.removedStale,
-                                )
-                            } else {
-                                stringResource(R.string.scan_found, done.found)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    }
-                    ScanUiState.Error -> {
-                        Text(
-                            text = stringResource(R.string.scan_error),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    }
-                    else -> {
-                        Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    }
-                }
-            }
-        }
-
-        if (!hasPermission) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AvaTokens.space20, vertical = AvaTokens.space8),
-                ) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Top,
+    ) {
+    item {
+        Column(modifier = Modifier.padding(horizontal = AvaTokens.space20)) {
+            Spacer(modifier = Modifier.height(AvaTokens.space16))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.scan_permission_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = stringResource(greetingRes),
+                        style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Spacer(modifier = Modifier.height(AvaTokens.space4))
                     Text(
-                        text = stringResource(R.string.scan_permission_body),
+                        text = stringResource(R.string.home_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                IconButton(onClick = requestScan) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = stringResource(R.string.scan_rescan),
+                    )
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings_title),
+                    )
+                }
+            }
+            // 0.6.0: a little more air under the greeting so the
+            // header breathes instead of crowding the first section.
+            Spacer(modifier = Modifier.height(AvaTokens.space16))
+            when (scanState) {
+                ScanUiState.Scanning -> {
+                    Text(
+                        text = stringResource(R.string.scan_scanning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(AvaTokens.space8))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    Row(horizontalArrangement = Arrangement.spacedBy(AvaTokens.space8)) {
-                        Button(onClick = requestScan) {
-                            Text(stringResource(R.string.scan_permission_grant))
-                        }
-                        if (scanState is ScanUiState.PermissionDenied) {
-                            OutlinedButton(onClick = { openAppSettings(context) }) {
-                                Text(stringResource(R.string.scan_permission_settings))
-                            }
-                        }
-                    }
-                    if (scanState is ScanUiState.PermissionDenied) {
-                        Spacer(modifier = Modifier.height(AvaTokens.space8))
-                        Text(
-                            text = stringResource(R.string.scan_permission_denied),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                }
+                is ScanUiState.Done -> {
+                    val done = scanState as ScanUiState.Done
+                    Text(
+                        text = if (done.removedStale > 0) {
+                            stringResource(
+                                R.string.scan_found_removed,
+                                done.found,
+                                done.removedStale,
+                            )
+                        } else {
+                            stringResource(R.string.scan_found, done.found)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(AvaTokens.space12))
+                }
+                ScanUiState.Error -> {
+                    Text(
+                        text = stringResource(R.string.scan_error),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(modifier = Modifier.height(AvaTokens.space12))
+                }
+                else -> {
+                    Spacer(modifier = Modifier.height(AvaTokens.space12))
                 }
             }
         }
+    }
 
-        if (isEmpty) {
-            item {
-                // 0.7.0: while the first MediaStore scan is still running
-                // the library is genuinely loading — shimmer rows, not a
-                // "no songs" state that would flash away a second later.
-                if (scanState is ScanUiState.Scanning) {
-                    SkeletonList()
-                } else {
-                    // Run 6 (UX): the note used to say "tap Rescan" with
-                    // no button in sight — the action is now right here,
-                    // next to the words that ask for it.
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        EmptyState(
-                            title = stringResource(R.string.home_empty_title),
-                            body = stringResource(R.string.home_empty_body),
-                            note = stringResource(R.string.home_empty_note),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = AvaTokens.space48),
-                        )
-                        Spacer(modifier = Modifier.height(AvaTokens.space16))
-                        Button(onClick = requestScan) {
-                            Icon(Icons.Filled.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(AvaTokens.space8))
-                            Text(stringResource(R.string.scan_rescan))
+    if (!hasPermission) {
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AvaTokens.space20, vertical = AvaTokens.space8),
+            ) {
+                Text(
+                    text = stringResource(R.string.scan_permission_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                Spacer(modifier = Modifier.height(AvaTokens.space4))
+                Text(
+                    text = stringResource(R.string.scan_permission_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(AvaTokens.space12))
+                Row(horizontalArrangement = Arrangement.spacedBy(AvaTokens.space8)) {
+                    Button(onClick = requestScan) {
+                        Text(stringResource(R.string.scan_permission_grant))
+                    }
+                    if (scanState is ScanUiState.PermissionDenied) {
+                        OutlinedButton(onClick = { openAppSettings(context) }) {
+                            Text(stringResource(R.string.scan_permission_settings))
                         }
                     }
                 }
-            }
-        } else {
-            if (recentlyPlayed.isNotEmpty()) {
-                item {
-                    SectionTitle(stringResource(R.string.home_recently_played))
-                }
-                // 0.5.6: keys are section-prefixed — the same song is in
-                // recentlyPlayed AND recentlyAdded as soon as it is played
-                // once, and a bare id key crashed 0.5.5 (duplicate key).
-                items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
-                    HomeSongRow(
-                        viewModel, playlists, song, recentlyPlayed, onOpenSongDetails,
-                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
-                    ) { songToDelete = it }
-                }
-            }
-            if (recentlyAdded.isNotEmpty()) {
-                item {
-                    SectionTitle(stringResource(R.string.home_recently_added))
-                }
-                items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
-                    HomeSongRow(
-                        viewModel, playlists, song, recentlyAdded, onOpenSongDetails,
-                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
-                    ) { songToDelete = it }
-                }
-            }
-            if (favorites.isNotEmpty()) {
-                item {
-                    // Stage 6: the section header opens the full Favorites
-                    // screen (Play All / Shuffle All) instead of being dead text.
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onOpenFavorites)
-                            .padding(
-                                start = AvaTokens.space20,
-                                end = AvaTokens.space20,
-                                top = AvaTokens.space20,
-                                bottom = AvaTokens.space12,
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.home_favorites),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = stringResource(R.string.home_show_all),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
-                    HomeSongRow(
-                        viewModel, playlists, song, favorites, onOpenSongDetails,
-                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
-                    ) { songToDelete = it }
-                }
-            }
-            if (playlists.isNotEmpty()) {
-                item {
-                    SectionTitle(stringResource(R.string.home_your_playlists))
-                }
-                // Playlists share this LazyColumn's key namespace with the
-                // song sections above; their ids come from another table.
-                items(playlists, key = { "playlist:${it.id}" }) { playlist ->
-                    HomePlaylistRow(
-                        playlist, onOpenPlaylist,
-                        modifier = Modifier.animateItem(),
+                if (scanState is ScanUiState.PermissionDenied) {
+                    Spacer(modifier = Modifier.height(AvaTokens.space8))
+                    Text(
+                        text = stringResource(R.string.scan_permission_denied),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
+    }
 
-        item { Spacer(modifier = Modifier.height(AvaTokens.space24)) }
+    if (isEmpty) {
+        item {
+            // 0.7.0: while the first MediaStore scan is still running
+            // the library is genuinely loading — shimmer rows, not a
+            // "no songs" state that would flash away a second later.
+            if (scanState is ScanUiState.Scanning) {
+                SkeletonList()
+            } else {
+                // Run 6 (UX): the note used to say "tap Rescan" with
+                // no button in sight — the action is now right here,
+                // next to the words that ask for it.
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EmptyState(
+                        title = stringResource(R.string.home_empty_title),
+                        body = stringResource(R.string.home_empty_body),
+                        note = stringResource(R.string.home_empty_note),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = AvaTokens.space48),
+                    )
+                    Spacer(modifier = Modifier.height(AvaTokens.space16))
+                    Button(onClick = requestScan) {
+                        Icon(Icons.Filled.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(AvaTokens.space8))
+                        Text(stringResource(R.string.scan_rescan))
+                    }
+                }
+            }
         }
+    } else {
+        if (recentlyPlayed.isNotEmpty()) {
+            item {
+                SectionTitle(stringResource(R.string.home_recently_played))
+            }
+            // 0.5.6: keys are section-prefixed — the same song is in
+            // recentlyPlayed AND recentlyAdded as soon as it is played
+            // once, and a bare id key crashed 0.5.5 (duplicate key).
+            items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
+                HomeSongRow(
+                    viewModel, playlists, song, recentlyPlayed, onOpenSongDetails, onOpenRingtoneEditor,
+                    modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
+                ) { songToDelete = it }
+            }
+        }
+        if (recentlyAdded.isNotEmpty()) {
+            item {
+                SectionTitle(stringResource(R.string.home_recently_added))
+            }
+            items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
+                HomeSongRow(
+                    viewModel, playlists, song, recentlyAdded, onOpenSongDetails, onOpenRingtoneEditor,
+                    modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
+                ) { songToDelete = it }
+            }
+        }
+        if (favorites.isNotEmpty()) {
+            item {
+                // Stage 6: the section header opens the full Favorites
+                // screen (Play All / Shuffle All) instead of being dead text.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenFavorites)
+                        .padding(
+                            start = AvaTokens.space20,
+                            end = AvaTokens.space20,
+                            top = AvaTokens.space20,
+                            bottom = AvaTokens.space12,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_favorites),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(R.string.home_show_all),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
+                HomeSongRow(
+                    viewModel, playlists, song, favorites, onOpenSongDetails, onOpenRingtoneEditor,
+                    modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
+                ) { songToDelete = it }
+            }
+        }
+        if (playlists.isNotEmpty()) {
+            item {
+                SectionTitle(stringResource(R.string.home_your_playlists))
+            }
+            // Playlists share this LazyColumn's key namespace with the
+            // song sections above; their ids come from another table.
+            items(playlists, key = { "playlist:${it.id}" }) { playlist ->
+                HomePlaylistRow(
+                    playlist, onOpenPlaylist,
+                    modifier = Modifier.animateItem(placementSpec = AvaMotion.listItemPlacement),
+                )
+            }
+        }
+    }
+
+    item { Spacer(modifier = Modifier.height(AvaTokens.space24)) }
     }
 }
 
@@ -362,6 +350,7 @@ private fun HomeSongRow(
     song: Song,
     section: List<Song>,
     onOpenSongDetails: (Long) -> Unit,
+    onOpenRingtoneEditor: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onDeleteSong: (Song) -> Unit,
 ) {
@@ -376,6 +365,7 @@ private fun HomeSongRow(
         onPlayNext = { viewModel.addToQueue(song, playNext = true) },
         onOpenDetails = { onOpenSongDetails(song.id) },
         onDeleteSong = onDeleteSong,
+        onSetAsRingtone = { onOpenRingtoneEditor(song.id) },
         modifier = modifier,
     )
 }

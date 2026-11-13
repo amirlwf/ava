@@ -50,6 +50,25 @@ val Lalezar = FontFamily(
     Font(R.font.lalezar_regular, FontWeight.Normal),
 )
 
+/**
+ * Almas (Digi Almas Bold, DigiFont) — the handwritten face for the
+ * splash-screen dedication line («تقدیم به آوا رحمانی راد») ONLY.
+ * It is NOT part of the UI type system: no Material3 style uses it,
+ * and no other screen references it.
+ *
+ * Licence (honest): DigiFont free download from designsara.ir
+ * ("completely free download", "usable in all software") — NOT SIL
+ * OFL and NOT a FontIran paid font; no formal licence text was found
+ * on the distributor's page. Chosen over Digi Tiam Brush (rendered
+ * both firsthand — Almas is bold, flowing and legible at small size;
+ * Tiam is thin and gets lost). If DigiFont ever publishes stricter
+ * terms, revisit. Never Dana / Manshoor / Yadgar (unlicensed
+ * commercial fonts — see `fonts/almas/README.md`).
+ */
+val Almas = FontFamily(
+    Font(R.font.almas_bold, FontWeight.Normal),
+)
+
 val AvaTypography = Typography(
     displaySmall = TextStyle(
         fontFamily = Lalezar,

@@ -46,12 +46,14 @@ import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.delay
+import com.harper.ava.ui.common.AvaMotion
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     app: AvaApplication,
     onOpenSongDetails: (Long) -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: SearchViewModel = viewModel(
         factory = SearchViewModel.factory(
@@ -224,7 +226,8 @@ fun SearchScreen(
                             onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                             onOpenDetails = { onOpenSongDetails(song.id) },
                             onDeleteSong = { songToDelete = it },
-                            modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                            onSetAsRingtone = { onOpenRingtoneEditor(song.id) },
+                            modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                         )
                     }
                     item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

@@ -18,8 +18,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,10 +37,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -56,6 +62,7 @@ import com.harper.ava.ui.navigation.NowPlayingRoute
 import com.harper.ava.ui.navigation.OnboardingRoute
 import com.harper.ava.ui.navigation.QueueRoute
 import com.harper.ava.ui.splash.SplashScreen
+import com.harper.ava.ui.theme.AppBackdrop
 import com.harper.ava.ui.theme.AvaTheme
 import com.harper.ava.ui.theme.LocalAppThemeSpec
 import kotlinx.coroutines.delay
@@ -139,13 +146,24 @@ class MainActivity : ComponentActivity() {
             // Stage 6: wait for the persisted settings before composing the
             // graph — otherwise the first frame would use default settings
             // (wrong theme, wrong start destination) and flash. While
-            // loading, the branded launch screen is shown (no fake delay).
+            // loading, the branded launch screen is shown.
+            // 0.2: after the settings arrive, the 1-second intro plays
+            // once per cold start (Harper 2026-11-13) before the graph —
+            // the intro screen itself owns the ~1 s timer and calls back.
+            // rememberSaveable (not remember): a rotation during the
+            // intro must not replay it.
+            var introDone by rememberSaveable { mutableStateOf(false) }
             val settingsOrNull by app.container.userPreferences.settings
                 .collectAsState(initial = null)
             // Plain local val (not a delegate) so the null check smart-casts.
             val settings = settingsOrNull
-            if (settings == null) {
-                AvaTheme { SplashScreen() }
+            if (settings == null || !introDone) {
+                AvaTheme {
+                    SplashScreen(
+                        ready = settings != null,
+                        onIntroFinished = { introDone = true },
+                    )
+                }
                 return@setContent
             }
             val playback by app.container.playerRepository.state
@@ -245,68 +263,105 @@ class MainActivity : ComponentActivity() {
                     val isFullScreenRoute = currentRoute == NowPlayingRoute.ROUTE ||
                         currentRoute == QueueRoute.ROUTE
 
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        bottomBar = {
-                            if (!isFullScreenRoute) {
-                                Column {
-                                    if (playback.currentSong != null) {
-                                        MiniPlayer(
-                                            state = playback,
-                                            onTogglePlayPause = { app.container.playerRepository.togglePlayPause() },
-                                            onNext = { app.container.playerRepository.playNext() },
-                                            onOpenNowPlaying = {
-                                                navController.navigate(NowPlayingRoute.ROUTE)
-                                            },
-                                        )
-                                    }
-                                    NavigationBar(
-                                        // 0.1: on the glass theme the
-                                        // bottom bar is translucent, like
-                                        // iOS's tab bar; on every other
-                                        // theme it keeps its default colour.
-                                        containerColor = if (LocalAppThemeSpec.current.isGlass) {
-                                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceContainer
-                                        },
-                                    ) {
-                                        Destination.bottomBar.forEach { destination ->
-                                            NavigationBarItem(
-                                                selected = currentRoute == destination.route,
-                                                onClick = {
-                                                    navController.navigate(destination.route) {
-                                                        popUpTo(Destination.Home.route) { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
+                    // 0.1-fix1: ONE persistent backdrop behind everything.
+                    // The Galaxy / seasonal sky used to live inside Home
+                    // and Now Playing, tied to each destination's resume
+                    // state — tapping an icon (e.g. Settings) dropped the
+                    // destination below RESUMED and the Canvas left
+                    // composition instantly, so the background vanished
+                    // mid-transition while the outgoing screen was still
+                    // fading out. The sky now lives here, behind the
+                    // NavHost and outside every nav transition, and only
+                    // the app going to the background pauses it (frozen
+                    // frame, never blank — see SeasonalDecor).
+                    Box(modifier = Modifier.fillMaxSize()) {
+                            AppBackdrop(
+                                theme = settings.appTheme,
+                                effectsEnabled = settings.seasonalEffectsEnabled,
+                                modifier = Modifier.fillMaxSize(),
+                                amoled = settings.themeMode == ThemeMode.AMOLED,
+                            )
+                            Scaffold(
+                                modifier = Modifier.fillMaxSize(),
+                                // Transparent: the backdrop above paints the
+                                // theme background; an opaque Scaffold would
+                                // hide the sky (and the glass aurora) behind
+                                // the bottom bar.
+                                containerColor = Color.Transparent,
+                                bottomBar = {
+                                if (!isFullScreenRoute) {
+                                    Column {
+                                        if (playback.currentSong != null) {
+                                            MiniPlayer(
+                                                state = playback,
+                                                positionMs = app.container.playerRepository.positionMs,
+                                                onTogglePlayPause = { app.container.playerRepository.togglePlayPause() },
+                                                onNext = { app.container.playerRepository.playNext() },
+                                                onOpenNowPlaying = {
+                                                    navController.navigate(NowPlayingRoute.ROUTE)
                                                 },
-                                                icon = {
-                                                    Icon(
-                                                        imageVector = destination.icon,
-                                                        contentDescription = null,
-                                                    )
-                                                },
-                                                label = { Text(stringResource(destination.labelRes)) },
                                             )
+                                        }
+                                        // 0.1-fix1 (Track C): on the
+                                        // glass theme a 1dp hairline
+                                        // above the bar, like iOS's tab
+                                        // bar edge — the bar itself is
+                                        // translucent (0.55) so the
+                                        // aurora shows through.
+                                        if (LocalAppThemeSpec.current.isGlass) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(1.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                    ),
+                                            )
+                                        }
+                                        NavigationBar(
+                                            containerColor = if (LocalAppThemeSpec.current.isGlass) {
+                                                MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceContainer
+                                            },
+                                        ) {
+                                            Destination.bottomBar.forEach { destination ->
+                                                NavigationBarItem(
+                                                    selected = currentRoute == destination.route,
+                                                    onClick = {
+                                                        navController.navigate(destination.route) {
+                                                            popUpTo(Destination.Home.route) { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
+                                                    },
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = destination.icon,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                    label = { Text(stringResource(destination.labelRes)) },
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        },
-                    ) { padding ->
-                        AvaNavGraph(
-                            app = app,
-                            navController = navController,
-                            modifier = Modifier.padding(padding),
-                            // First run opens onboarding; afterwards Home.
-                            startDestination = if (settings.onboardingSeen) {
-                                Destination.Home.route
-                            } else {
-                                OnboardingRoute.ROUTE
                             },
-                        )
-                    }
+                        ) { padding ->
+                            AvaNavGraph(
+                                app = app,
+                                navController = navController,
+                                modifier = Modifier.padding(padding),
+                                // First run opens onboarding; afterwards Home.
+                                startDestination = if (settings.onboardingSeen) {
+                                    Destination.Home.route
+                                } else {
+                                    OnboardingRoute.ROUTE
+                                },
+                            )
+                        }
+                    } // Box: the persistent backdrop wraps the Scaffold.
                 }
             }
         }

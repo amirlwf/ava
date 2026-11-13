@@ -44,6 +44,7 @@ import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.launch
+import com.harper.ava.ui.common.AvaMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +53,7 @@ fun PlaylistDetailScreen(
     playlistId: Long,
     onBack: () -> Unit,
     onOpenSongDetails: (Long) -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: PlaylistDetailViewModel = viewModel(
         factory = PlaylistDetailViewModel.factory(
@@ -150,7 +152,8 @@ fun PlaylistDetailScreen(
                         onCreatePlaylistAndAdd = { name -> viewModel.createPlaylistAndAdd(song, name) },
                         onOpenDetails = { onOpenSongDetails(song.id) },
                         onDeleteSong = { songToDelete = it },
-                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                        onSetAsRingtone = { onOpenRingtoneEditor(song.id) },
+                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                     )
                 }
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

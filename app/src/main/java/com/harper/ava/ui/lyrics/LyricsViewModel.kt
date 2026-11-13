@@ -40,9 +40,7 @@ class LyricsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Live playback position (ms), for highlighting the current line. */
-    val positionMs: StateFlow<Long> = playerRepository.state
-        .map { it.positionMs }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+    val positionMs: StateFlow<Long> = playerRepository.positionMs
 
     private val _lyrics = MutableStateFlow<LyricsUiState>(LyricsUiState.NoSong)
     val lyrics: StateFlow<LyricsUiState> = _lyrics.asStateFlow()

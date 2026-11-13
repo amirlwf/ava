@@ -44,10 +44,12 @@ fun themeShapes(spec: ThemeSpec): Shapes = Shapes(
  * 0.1: frosted-glass panel for the glass theme (IPHONE only).
  *
  * When the active theme is glass, the surface becomes translucent
- * (72% of the theme's surface container) with a 1dp hairline border
- * in the theme outline — the frosted-glass look: content behind the
- * panel shows through faintly, and the hairline keeps the edge crisp
- * against any background. On every other theme this is exactly
+ * (55% of the theme's surface container — 0.1-fix1, was 72%: the
+ * aurora behind it has to show through or the glass reads as a flat
+ * panel) with a 1dp hairline border in the theme outline (0.5 alpha,
+ * was 0.35) — the frosted-glass look: content behind the panel shows
+ * through faintly, and the hairline keeps the edge crisp against any
+ * background. On every other theme this is exactly
  * `background(baseColor, shape)`, so non-glass themes are untouched.
  *
  * Glass is applied only where it earns its place (the floating
@@ -60,8 +62,8 @@ fun Modifier.glassPanel(shape: Shape, baseColor: Color): Modifier {
     val spec = LocalAppThemeSpec.current
     return if (spec.isGlass) {
         this
-            .background(baseColor.copy(alpha = 0.72f), shape)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), shape)
+            .background(baseColor.copy(alpha = 0.55f), shape)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), shape)
     } else {
         this.background(baseColor, shape)
     }

@@ -1,5 +1,7 @@
 package com.harper.ava
 
+import com.harper.ava.core.util.DEFAULT_ARTWORK_URI
+import com.harper.ava.core.util.artworkUriFor
 import com.harper.ava.core.util.songMediaMetadata
 import com.harper.ava.domain.model.Song
 import org.junit.Assert.assertEquals
@@ -78,5 +80,34 @@ class MediaItemLogicTest {
     fun `blank title without a file name falls back to the track id`() {
         val metadata = songMediaMetadata(song(title = "", fileName = null))
         assertEquals("track-1000201063", metadata.title)
+    }
+
+    // --- 0.1-fix1 (Track A): the notification always has artwork ---
+
+    @Test
+    fun `artwork uri is the song album art when present`() {
+        assertEquals(
+            "content://media/external/audio/albumart/7",
+            artworkUriFor(song()),
+        )
+    }
+
+    @Test
+    fun `artwork uri is the ava default cover without album art`() {
+        assertEquals(DEFAULT_ARTWORK_URI, artworkUriFor(song(albumArtUri = null)))
+        assertEquals(DEFAULT_ARTWORK_URI, artworkUriFor(song(albumArtUri = "")))
+        assertEquals(DEFAULT_ARTWORK_URI, artworkUriFor(song(albumArtUri = "   ")))
+    }
+
+    @Test
+    fun `default artwork uri is an android resource uri to a raster drawable`() {
+        // The stock BitmapLoader loads artworkUri through
+        // DefaultDataSource, which routes android.resource URIs to
+        // RawResourceDataSource — a vector drawable would fail to
+        // decode there, so the default art must be a PNG drawable.
+        assertEquals(
+            "android.resource://com.harper.ava/drawable/ava_default_artwork",
+            DEFAULT_ARTWORK_URI,
+        )
     }
 }

@@ -63,6 +63,13 @@ data class PlaybackState(
     val queue: List<Song> = emptyList(),
     val queueIndex: Int = -1,
     val isPlaying: Boolean = false,
+    /**
+     * Position at the last prepare / seek / track change — NOT a live
+     * tick. The live position lives in [PlayerRepository.positionMs]:
+     * the old 500 ms tick used to write here, which re-emitted this
+     * whole state twice a second and recomposed every screen that
+     * collects it (MainActivity, Now Playing, Mini Player, Queue).
+     */
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
@@ -120,8 +127,14 @@ class PlayerRepository(
                         currentSong = song,
                         queueIndex = song?.let { s -> it.queue.indexOf(s) } ?: -1,
                         durationMs = safeDuration(),
+                        positionMs = player.currentPosition.coerceAtLeast(0L),
                     )
                 }
+                // Run 8: the live position belongs to the new track now;
+                // without this, a paused skip would leave the old track's
+                // position in positionMs until playback resumes and the
+                // tick runs again.
+                _positionMs.value = player.currentPosition.coerceAtLeast(0L)
                 // 0.7.0 Insights: a new track while playing is a real
                 // play — including auto-advance, Next/Previous and
                 // notification/headset skips, which no ViewModel ever
@@ -185,6 +198,21 @@ class PlayerRepository(
 
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
+
+    /**
+     * Improve loop, run 8 (performance): the live playback position
+     * (ms), ticking every 500 ms while playing — on its OWN flow, so
+     * the tick no longer re-emits [state] and recomposes MainActivity,
+     * Now Playing, the Mini Player and Queue twice a second. Only the
+     * progress UI reads this flow (Now Playing slider + times, Mini
+     * Player progress line, lyrics highlight); everything else reads
+     * [state], which now only changes on real events (play/pause,
+     * track change, seek, queue edits). The flow is also refreshed
+     * on track change / prepare / seek, so it never shows a stale
+     * track's position while paused (the tick only runs while playing).
+     */
+    private val _positionMs = MutableStateFlow(0L)
+    val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
 
     private var positionJob: Job? = null
 
@@ -494,8 +522,16 @@ class PlayerRepository(
                 delay(500L)
                 val current = player.currentMediaItem
                 if (current != null && player.isPlaying) {
-                    _state.update {
-                        it.copy(positionMs = player.currentPosition, durationMs = safeDuration())
+                    // Run 8: the position tick writes ONLY the position
+                    // flow now — writing it into _state re-emitted the
+                    // whole PlaybackState twice a second. The duration
+                    // still lands in _state, but only when it actually
+                    // changed (it is unknown until ExoPlayer resolves it,
+                    // so the tick is the safety net for prepare-time 0).
+                    _positionMs.value = player.currentPosition
+                    val duration = safeDuration()
+                    if (duration != _state.value.durationMs) {
+                        _state.update { it.copy(durationMs = duration) }
                     }
                     // 0.7.0 Insights: bank the listened time every ~10s
                     // while playing, so a skip or an auto-advance never
@@ -536,8 +572,17 @@ class PlayerRepository(
         // the system (notification / lock screen / headset) can control it.
         ensurePlaybackService()
         _state.update {
-            it.copy(queue = songs, queueIndex = index, currentSong = songs[index])
+            it.copy(
+                queue = songs,
+                queueIndex = index,
+                currentSong = songs[index],
+                positionMs = 0L,
+            )
         }
+        // Run 8: a fresh play starts at 0 — the tick would catch up
+        // within 500 ms, but the slider should not show the previous
+        // track's position for half a second.
+        _positionMs.value = 0L
         refreshEqualizer()
         beginListen(songs[index])
         saveCheckpoint()
@@ -564,6 +609,8 @@ class PlayerRepository(
                 positionMs = position,
             )
         }
+        // Run 8: keep the live position flow in step with the prepared spot.
+        _positionMs.value = position
         refreshEqualizer()
     }
 
@@ -588,6 +635,8 @@ class PlayerRepository(
                 positionMs = position,
             )
         }
+        // Run 8: keep the live position flow in step with the prepared spot.
+        _positionMs.value = position
         refreshEqualizer()
     }
 
@@ -612,9 +661,15 @@ class PlayerRepository(
         val current = _state.value
         if (!needsPlayerRebuild(player.mediaItemCount, player.playbackState == Player.STATE_IDLE, current.queue.size)) return
         val index = current.queueIndex.coerceIn(0, current.queue.lastIndex)
-        val position = current.positionMs.coerceAtLeast(0L)
+        // Run 8: resume from the LIVE position, not state.positionMs —
+        // the tick no longer writes the state, so the state's position
+        // is only as fresh as the last prepare/seek/track change.
+        // _positionMs ticks while playing and freezes at the pause
+        // point, so it is the right resume spot in both cases.
+        val position = _positionMs.value.coerceAtLeast(0L)
         player.setMediaItems(current.queue.map { it.toMediaItem() }, index, position)
         player.prepare()
+        _state.update { it.copy(positionMs = position) }
     }
 
     /** Jumps to a queue item and starts it. */
@@ -816,7 +871,10 @@ class PlayerRepository(
         // currentPosition reads 0 even though the seek will land at
         // target — keep the requested target instead of clobbering the
         // resume position with 0.
-        _state.update { it.copy(positionMs = player.currentPosition.takeIf { it > 0L } ?: target) }
+        val landed = player.currentPosition.takeIf { it > 0L } ?: target
+        _state.update { it.copy(positionMs = landed) }
+        // Run 8: the slider should jump at once, not on the next tick.
+        _positionMs.value = landed
     }
 
     fun toggleShuffle() {

@@ -3,11 +3,16 @@ package com.harper.ava.ui.nowplaying
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -55,6 +61,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,19 +72,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.rememberAvaHaptics
-import com.harper.ava.data.preferences.SettingsState
+import com.harper.ava.core.util.shouldDismissOnRelease
+import com.harper.ava.core.util.swipeDismissThresholdPx
 import com.harper.ava.data.repository.RepeatMode
-import com.harper.ava.ui.theme.SeasonalDecor
 import com.harper.ava.ui.theme.rememberIsResumed
 import com.harper.ava.ui.theme.LocalAppThemeSpec
 import com.harper.ava.ui.common.AvaMotion
@@ -98,6 +110,7 @@ fun NowPlayingScreen(
     onOpenEqualizer: () -> Unit = {},
     onOpenLyrics: () -> Unit = {},
     onOpenSongDetails: (Long) -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: NowPlayingViewModel = viewModel(
         factory = NowPlayingViewModel.factory(
@@ -108,8 +121,6 @@ fun NowPlayingScreen(
     val state by viewModel.playback.collectAsState()
     val isFavorite by viewModel.isCurrentFavorite.collectAsState()
     val sleepTimer by viewModel.sleepTimer.collectAsState()
-    // 0.7.2: theme + seasonal-effects toggle drive the background decor.
-    val settings by app.container.userPreferences.settings.collectAsState(initial = SettingsState())
     var moreMenuOpen by remember { mutableStateOf(false) }
     val song = state.currentSong
 
@@ -141,8 +152,6 @@ fun NowPlayingScreen(
     }
 
     var coverFailed by remember(song.albumArtUri) { mutableStateOf(false) }
-    var sliderDragging by remember { mutableStateOf(false) }
-    var sliderValue by remember(song.id) { mutableStateOf(state.positionMs.toFloat()) }
     val haptics = rememberAvaHaptics()
 
     // 0.7.0 motion: the big cover is the other end of the shared element
@@ -172,15 +181,10 @@ fun NowPlayingScreen(
     var heartPop by remember { mutableIntStateOf(0) }
     LaunchedEffect(heartPop) {
         if (heartPop > 0) {
-            heartScale.animateTo(1.3f, AvaMotion.pressSpring)
+            heartScale.animateTo(1.2f, AvaMotion.pressSpring)
             heartScale.animateTo(1f, AvaMotion.pressSpring)
         }
     }
-    LaunchedEffect(state.positionMs) {
-        if (!sliderDragging) sliderValue = state.positionMs.toFloat()
-    }
-    val duration = state.durationMs
-    val remaining = (duration - state.positionMs).coerceAtLeast(0L)
     val speed = state.playbackSpeed
     val speedLabel = if (speed % 1f == 0f) "${speed.toInt()}×" else "$speed×"
     val artist = song.artist.ifBlank { stringResource(R.string.unknown_artist) }
@@ -258,18 +262,61 @@ fun NowPlayingScreen(
             active = isResumed,
             modifier = Modifier.fillMaxSize(),
         )
-        // 0.7.2: seasonal decor above the blurred-art background, behind
-        // the content column.
-        SeasonalDecor(
-            theme = settings.appTheme,
-            effectsEnabled = settings.seasonalEffectsEnabled,
-            modifier = Modifier.fillMaxSize(),
-            active = isResumed,
-        )
+
+        // 0.1-fix1 (Track F): swipe down to dismiss. The content Column
+        // follows the finger (a vertical `draggable`); past a quarter
+        // of the screen height — or on a fast downward fling — it
+        // slides off and pops the back stack (playback keeps going,
+        // the mini player stays). Below the threshold it springs back
+        // on the shared soft spring. The blurred-art backdrop and the
+        // glow stay put: only the content moves, so the backdrop never
+        // flashes (Track B). The screen does not scroll (lyrics live
+        // on their own screen), so the drag never fights scrolling;
+        // the seek slider is horizontal, so it never fights this
+        // vertical gesture either. Taps still work: `draggable` only
+        // consumes movement, not taps.
+        val sheetHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
+        val dismissOffset = remember { Animatable(0f) }
+        val dismissScope = rememberCoroutineScope()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .offset { IntOffset(0, dismissOffset.value.roundToInt()) }
+                .graphicsLayer {
+                    // Fade gently as the sheet leaves — 1.0 at rest,
+                    // 0.6 at the bottom edge, never fully invisible
+                    // mid-drag (the slide-off finishes the job).
+                    alpha = 1f - (dismissOffset.value / sheetHeightPx) * 0.4f
+                }
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        dismissScope.launch {
+                            dismissOffset.snapTo(
+                                (dismissOffset.value + delta).coerceAtLeast(0f),
+                            )
+                        }
+                    },
+                    orientation = Orientation.Vertical,
+                    onDragStopped = { velocity ->
+                        dismissScope.launch {
+                            if (shouldDismissOnRelease(
+                                    dismissOffset.value,
+                                    velocity,
+                                    swipeDismissThresholdPx(sheetHeightPx),
+                                )
+                            ) {
+                                dismissOffset.animateTo(
+                                    sheetHeightPx,
+                                    tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                )
+                                onBack()
+                            } else {
+                                dismissOffset.animateTo(0f, AvaMotion.coverScaleSpring)
+                            }
+                        }
+                    },
+                )
                 .padding(horizontal = AvaTokens.space24),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -333,6 +380,13 @@ fun NowPlayingScreen(
                                     onOpenSongDetails(song.id)
                                 },
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.song_set_as_ringtone)) },
+                                onClick = {
+                                    moreMenuOpen = false
+                                    onOpenRingtoneEditor(song.id)
+                                },
+                            )
                         }
                     }
                 },
@@ -343,7 +397,7 @@ fun NowPlayingScreen(
             // Cover + titles animate softly when the track changes.
             AnimatedContent(
                 targetState = song,
-                transitionSpec = { (fadeIn() + scaleIn(initialScale = 0.96f)) togetherWith fadeOut() },
+                transitionSpec = { (fadeIn(AvaMotion.crossFade) + scaleIn(initialScale = 0.96f, animationSpec = AvaMotion.coverScaleSpring)) togetherWith fadeOut(AvaMotion.crossFade) },
                 label = "now-playing-cover",
                 modifier = coverModifier,
             ) { current ->
@@ -414,39 +468,16 @@ fun NowPlayingScreen(
             }
             Spacer(modifier = Modifier.weight(1f))
 
-            Slider(
-                value = sliderValue,
-                onValueChange = {
-                    sliderDragging = true
-                    sliderValue = it
-                },
-                onValueChangeFinished = {
-                    sliderDragging = false
-                    viewModel.seekTo(sliderValue.toLong())
-                },
-                valueRange = 0f..duration.coerceAtLeast(1L).toFloat(),
+            // Run 8: the slider + times live in their own composable, so
+            // the 500 ms position tick recomposes only this small section —
+            // not the whole screen (blurred cover, glow, decor, titles).
+            NowPlayingProgress(
+                positionMs = viewModel.positionMs,
+                durationMs = state.durationMs,
+                songId = song.id,
+                onSeek = { viewModel.seekTo(it) },
                 modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                ),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = formatDuration(state.positionMs),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "-${formatDuration(remaining)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             Spacer(modifier = Modifier.height(AvaTokens.space8))
 
             // 0.6.0: skip buttons sit on soft tonal discs (48dp) so the
@@ -493,7 +524,7 @@ fun NowPlayingScreen(
                     // swapping instantly, like the mini player.
                     AnimatedContent(
                         targetState = state.isPlaying,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        transitionSpec = { fadeIn(AvaMotion.crossFade) togetherWith fadeOut(AvaMotion.crossFade) },
                         label = "now-playing-play-icon",
                     ) { playing ->
                         Icon(
@@ -591,6 +622,68 @@ fun NowPlayingScreen(
                 }
             }
             Spacer(modifier = Modifier.height(AvaTokens.space24))
+        }
+    }
+}
+
+/**
+ * Improve loop, run 8 (performance): the seek slider + elapsed /
+ * remaining times, isolated in their own composable. This is the ONLY
+ * part of Now Playing that reads the 500 ms position tick, so the tick
+ * recomposes just a Slider and two Texts — the rest of the screen
+ * (blurred cover, AmbientGlow, titles, controls) only
+ * recomposes on real playback changes (play/pause, track, speed,
+ * shuffle, repeat). The drag state lives here too, so a track change
+ * resets the slider through [songId] exactly as before.
+ */
+@Composable
+private fun NowPlayingProgress(
+    positionMs: StateFlow<Long>,
+    durationMs: Long,
+    songId: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val position by positionMs.collectAsState()
+    var sliderDragging by remember { mutableStateOf(false) }
+    var sliderValue by remember(songId) { mutableStateOf(position.toFloat()) }
+    LaunchedEffect(position) {
+        if (!sliderDragging) sliderValue = position.toFloat()
+    }
+    val remaining = (durationMs - position).coerceAtLeast(0L)
+    Column(modifier = modifier) {
+        Slider(
+            value = sliderValue,
+            onValueChange = {
+                sliderDragging = true
+                sliderValue = it
+            },
+            onValueChangeFinished = {
+                sliderDragging = false
+                onSeek(sliderValue.toLong())
+            },
+            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            ),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = formatDuration(position),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "-${formatDuration(remaining)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

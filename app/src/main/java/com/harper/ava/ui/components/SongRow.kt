@@ -97,13 +97,15 @@ fun SongRow(
     onOpenDetails: (() -> Unit)? = null,
     /** 0.7.2: delete the song's file from the device (confirm dialog lives in the caller). */
     onDeleteSong: ((Song) -> Unit)? = null,
+    /** 0.1-fix1 (Track G): open the ringtone editor for this song. */
+    onSetAsRingtone: ((Song) -> Unit)? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var artFailed by remember(song.albumArtUri) { mutableStateOf(false) }
     val showMenu = playlists != null || onAddToPlaylist != null ||
         onCreatePlaylistAndAdd != null || onAddToQueue != null || onPlayNext != null ||
-        onOpenDetails != null || onDeleteSong != null
+        onOpenDetails != null || onDeleteSong != null || onSetAsRingtone != null
     val artist = song.artist.ifBlank { stringResource(R.string.unknown_artist) }
     val haptics = rememberAvaHaptics()
 
@@ -130,7 +132,7 @@ fun SongRow(
     var heartPop by remember { mutableIntStateOf(0) }
     LaunchedEffect(heartPop) {
         if (heartPop > 0) {
-            heartScale.animateTo(1.3f, AvaMotion.pressSpring)
+            heartScale.animateTo(1.2f, AvaMotion.pressSpring)
             heartScale.animateTo(1f, AvaMotion.pressSpring)
         }
     }
@@ -235,6 +237,12 @@ fun SongRow(
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.song_details)) },
                             onClick = { onOpenDetails(); menuOpen = false },
+                        )
+                    }
+                    if (onSetAsRingtone != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.song_set_as_ringtone)) },
+                            onClick = { onSetAsRingtone(song); menuOpen = false },
                         )
                     }
                     if ((playlists != null && onAddToPlaylist != null) ||

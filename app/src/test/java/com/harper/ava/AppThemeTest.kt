@@ -5,6 +5,8 @@ import com.harper.ava.playback.notificationAccentArgb
 import com.harper.ava.ui.theme.appThemeSpec
 import com.harper.ava.ui.theme.argbLuminance
 import com.harper.ava.ui.theme.contrastRatio
+import com.harper.ava.ui.theme.glassAuroraAlpha
+import com.harper.ava.ui.theme.glassAuroraBlobAlpha
 import com.harper.ava.ui.theme.resolveAppTheme
 import com.harper.ava.ui.theme.spec
 import org.junit.Assert.assertEquals
@@ -180,5 +182,47 @@ class AppThemeTest {
         // and hero checks above already cover it.
         assertEquals("آیفون", AppTheme.IPHONE.spec.nameFa)
         assertEquals("iPhone", AppTheme.IPHONE.spec.nameEn)
+    }
+
+    @Test
+    fun `iphone backgrounds are unmistakable`() {
+        // 0.1-fix1 (Track C): Harper felt no change when selecting
+        // IPHONE — partly because its backgrounds were not distinct
+        // enough to notice. Pin them: pure-black dark (Apple's dark
+        // mode) and #F2F2F7 light (Apple's grouped background), and no
+        // other theme shares either value.
+        val iphone = AppTheme.IPHONE.spec
+        assertEquals(0xFF000000L, iphone.darkBackground)
+        assertEquals(0xFFF2F2F7L, iphone.lightBackground)
+        for (theme in AppTheme.entries) {
+            if (theme == AppTheme.IPHONE) continue
+            assertNotEquals(theme.name, 0xFF000000L, theme.spec.darkBackground)
+            assertNotEquals(theme.name, 0xFFF2F2F7L, theme.spec.lightBackground)
+        }
+    }
+
+    @Test
+    fun `glass aurora strength is faint and mode-aware`() {
+        // 0.1-fix1 (Track C): the aurora behind the glass panels must
+        // be visible (dark 0.14, light 0.10) but never loud — every
+        // blob stays in 0.05..0.16, and AMOLED is the quietest (0.065).
+        assertEquals(0.14f, glassAuroraAlpha(0.0, false))
+        assertEquals(0.10f, glassAuroraAlpha(0.9, false))
+        assertEquals(0.065f, glassAuroraAlpha(0.0, true))
+        for (amoled in listOf(false, true)) {
+            for (luminance in listOf(0.0, 0.5, 1.0)) {
+                val base = glassAuroraAlpha(luminance, amoled)
+                for (blob in 0 until 3) {
+                    val alpha = glassAuroraBlobAlpha(base, blob)
+                    assertTrue("alpha $alpha", alpha in 0.05f..0.16f)
+                }
+            }
+        }
+        // The blue field is strongest, violet the quietest: one sky
+        // with a direction, not three equal spots.
+        val base = glassAuroraAlpha(0.0, false)
+        assertEquals(base, glassAuroraBlobAlpha(base, 0))
+        assertTrue(glassAuroraBlobAlpha(base, 0) > glassAuroraBlobAlpha(base, 1))
+        assertTrue(glassAuroraBlobAlpha(base, 1) > glassAuroraBlobAlpha(base, 2))
     }
 }

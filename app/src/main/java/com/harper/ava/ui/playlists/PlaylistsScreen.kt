@@ -56,6 +56,7 @@ import com.harper.ava.domain.model.Playlist
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.launch
+import com.harper.ava.ui.common.AvaMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,7 +134,7 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
                         // Stage 6: deleting a playlist is destructive and
                         // used to happen on one tap with no confirmation.
                         onDelete = { playlistToDelete = playlist },
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier.animateItem(placementSpec = AvaMotion.listItemPlacement),
                     )
                 }
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

@@ -550,3 +550,34 @@ fun contrastRatio(a: Long, b: Long): Double {
     val lo = minOf(la, lb)
     return (hi + 0.05) / (lo + 0.05)
 }
+
+// -- Glass aurora (0.1-fix1, Track C) ---------------------------------------
+// Pure strength rules for the IPHONE theme's aurora backdrop. The aurora
+// is the one bold element that makes the glass theme unmistakable: three
+// soft colour fields (iOS blue / cyan / violet) drifting behind the
+// frosted surfaces. Strength is chosen from the backdrop luminance, so
+// the fields read the same in dark, light and AMOLED — faint enough to
+// stay a backdrop (never above 0.16), strong enough to be seen through
+// the 0.55-alpha glass panels.
+
+/**
+ * Base aurora alpha for a backdrop of [backgroundLuminance] (0 = black,
+ * 1 = white, [argbLuminance] scale): AMOLED 0.065 (the fields must stay
+ * whisper-quiet on a pure-black screen), dark 0.14, light 0.10.
+ */
+fun glassAuroraAlpha(backgroundLuminance: Double, amoled: Boolean): Float = when {
+    amoled -> 0.065f
+    backgroundLuminance < 0.2 -> 0.14f
+    else -> 0.10f
+}
+
+/**
+ * Per-blob strength: the blue field is the strongest, cyan a touch
+ * quieter, violet the quietest — so the three fields read as one sky
+ * with a direction, not three equal spots.
+ */
+fun glassAuroraBlobAlpha(baseAlpha: Float, blobIndex: Int): Float = baseAlpha * when (blobIndex) {
+    0 -> 1.0f
+    1 -> 0.9f
+    else -> 0.8f
+}

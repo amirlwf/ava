@@ -50,12 +50,33 @@ fun notificationTitle(song: Song): String =
     }
 
 /**
+ * The artwork URI for a [Song]: the song's own album art when it has
+ * one, otherwise Ava's branded default cover
+ * (`res/drawable/ava_default_artwork.png` — Galaxy hero gradient +
+ * white note). 0.1-fix1 (Track A): songs without album art used to
+ * post a notification (and lock screen) with NO artwork at all, so
+ * the shade's media player showed a blank grey tile — the single
+ * biggest reason the notification "doesn't feel like the app's".
+ * The default art is a raster PNG on purpose: the stock
+ * `BitmapLoader` loads `artworkUri` through `DefaultDataSource`,
+ * which routes `android.resource` URIs to `RawResourceDataSource`
+ * (verified in the shipped media3-datasource 1.11.1 bytecode) — a
+ * vector drawable would fail to decode there. Pure (a plain string),
+ * so the offline JUnit suite pins it.
+ */
+const val DEFAULT_ARTWORK_URI =
+    "android.resource://com.harper.ava/drawable/ava_default_artwork"
+
+fun artworkUriFor(song: Song): String =
+    song.albumArtUri?.takeIf { it.isNotBlank() } ?: DEFAULT_ARTWORK_URI
+
+/**
  * The full [MediaItem] for a [Song]: same uri + media id as before,
- * plus the metadata above and the album-art uri when the song has one.
- * A blank/absent art uri simply means no artwork (Media3 loads no
- * large icon then, exactly as before) — never a crash: the load runs
- * through Media3's `BitmapLoader`, which reports a failed load to the
- * provider instead of throwing.
+ * plus the metadata above and the album-art uri — or Ava's default
+ * cover when the song has none ([artworkUriFor]), so the notification
+ * and lock screen ALWAYS show artwork. A failed load is never a
+ * crash: the load runs through Media3's `BitmapLoader`, which reports
+ * a failed load to the provider instead of throwing.
  *
  * Behaviour is otherwise unchanged: playback keys off the uri, and
  * the queue / resume / rebuild paths all keep calling this through
@@ -63,7 +84,7 @@ fun notificationTitle(song: Song): String =
  */
 fun songToMediaItem(song: Song): MediaItem {
     val metadata = songMediaMetadata(song).buildUpon().apply {
-        song.albumArtUri?.takeIf { it.isNotBlank() }?.let { setArtworkUri(it.toUri()) }
+        setArtworkUri(artworkUriFor(song).toUri())
     }.build()
     return MediaItem.Builder()
         .setUri(song.uri)

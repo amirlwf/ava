@@ -23,6 +23,13 @@ class NowPlayingViewModel(
 
     val playback: StateFlow<PlaybackState> = playerRepository.state
 
+    /**
+     * Improve loop, run 8: the live position on its own flow, so the
+     * Now Playing screen can subscribe to the 500 ms tick in just the
+     * progress section instead of recomposing the whole screen.
+     */
+    val positionMs: StateFlow<Long> = playerRepository.positionMs
+
     /** Live sleep-timer state, for the Now Playing overflow menu label. */
     val sleepTimer: StateFlow<com.harper.ava.core.util.SleepTimerState> =
         playerRepository.sleepTimerState

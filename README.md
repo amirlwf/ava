@@ -34,12 +34,12 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.1](https://github.com/amirlwf/ava/releases/tag/v0.1) | [ava-0.1-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.1/ava-0.1-debug.apk) | ~58 MB |
+| [v0.2](https://github.com/amirlwf/ava/releases/tag/v0.2) | [ava-0.2-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.2/ava-0.2-debug.apk) | ~58 MB |
 
 ## Installation
 
 1. Download the APK from the table above.
-2. If you have an older Ava installed, **uninstall it first**, then install the new APK.
+2. If you have an older Ava installed, install the new APK right over it — 0.2 is a normal update after 0.1, and the in-app updater offers it as usual.
 3. Open the APK on your phone and install. If your browser blocks the install, allow "Install unknown apps" for it.
 4. On first launch, allow the **Music and audio** permission so Ava can scan your songs.
 5. Allow **Notifications** if you want playback controls in the notification shade and on the lock screen.
@@ -64,8 +64,8 @@ Yes. No ads, no account, no tracking, no in-app purchases.
 **Does Ava need the internet?**
 No. Everything — playback, library, lyrics, insights — works fully offline. The only network use is the optional once-a-day update check, which you can turn off in Settings.
 
-**Why is this version 0.1, after 0.7.6?**
-0.1 starts a new version line and replaces the 0.7.x releases, which were removed. The in-app updater compares version numbers, so a 0.7.6 install will not offer 0.1 automatically — install 0.1 from the download link above. Future updates (0.2, 0.3, …) will be offered normally.
+**How do I update from 0.1?**
+Normally: 0.2 is a regular update after 0.1, so the in-app updater offers it, and installing the APK over 0.1 just works — no need to uninstall first. (The one-time exception was 0.1 itself: it replaced the removed 0.7.x line, so a 0.7.6 install never offered it.)
 
 **My songs have no tags / show the wrong title?**
 Ava titles untagged songs with their file name. Rescan from Home (the refresh button) to pick up the fix for songs scanned before.

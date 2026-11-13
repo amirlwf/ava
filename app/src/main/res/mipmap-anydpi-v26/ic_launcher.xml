@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 0.7.1: Harper's own artwork (anime girl with glowing notes on black),
-     pre-cropped to a full-bleed circle. Foreground is the round PNG itself
-     and the background is transparent, so the icon is a pure circle on
-     every launcher shape — no square corners, no coloured backdrop. -->
+<!-- 0.1-fix1 (Track I): Harper's NEW artwork (2026-11-13) — the purple
+     neon squircle version of the anime artwork. Full-bleed, NOT cropped
+     to a circle: the squircle frame is the design. Background is black
+     to match the artwork's black field, so any launcher mask that clips
+     the frame's edges still reads as one black square. The purple /
+     green circular variants stay as switchable aliases. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@android:color/transparent" />
+    <background android:drawable="@android:color/black" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>

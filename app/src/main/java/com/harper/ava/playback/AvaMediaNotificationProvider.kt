@@ -53,12 +53,12 @@ import com.harper.ava.ui.theme.spec
  *   creation (the 0.6.0 flaw). [updateAccentColor] lets the service
  *   push the current theme's accent whenever the settings change, and
  *   `createNotification()` is called by Media3 on every notification
- *   refresh, so later notifications take the new colour. Honest
- *   limit: a theme change alone does NOT re-post the notification —
- *   there is no public Media3 hook to force a re-post from the
- *   subclass — so the visible notification picks the new accent up
- *   on the next refresh (play / pause / track change), not the
- *   instant the theme changes.
+ *   refresh, so later notifications take the new colour. 0.1-fix1
+ *   (Track A) removed the old honest limit: a theme change alone now
+ *   DOES re-post the notification — the service re-pushes the current
+ *   media-button preferences after `updateAccentColor`, which Media3
+ *   treats as a preferences change and rebuilds the notification
+ *   (verified in the 1.11.1 bytecode; see `AvaPlaybackService`).
  * - Rounded artwork: the reason it was NOT done in 0.7.5 was verified,
  *   not assumed — `PlayerRepository.Song.toMediaItem()` set NO
  *   `MediaMetadata` at all (uri + media id only), so Media3 had no
@@ -201,6 +201,22 @@ import com.harper.ava.ui.theme.spec
  * the system uses the notification colour. On Android 13+ the
  * shade's media player additionally derives its own colours from
  * the artwork, which the app cannot override.
+ *
+ * 0.1-fix1 (Track A) — the two remaining gaps from Harper's third
+ * "still ugly" report, both closed inside this safe path:
+ *
+ * - Accent re-post: the service re-pushes the media-button
+ *   preferences after every accent change, so the notification is
+ *   rebuilt with the new accent immediately (see
+ *   `AvaPlaybackService` for the bytecode evidence).
+ * - Guaranteed artwork: every media item now carries an artwork
+ *   URI — the song's album art, or Ava's branded default cover
+ *   (`artworkUriFor` in `MediaItemLogic`) — so the shade's media
+ *   player never shows a blank tile. On Android 13+ the shade
+ *   derives its background from the artwork, so guaranteed artwork
+ *   is the strongest remaining lever for making the notification
+ *   feel like Ava's; the layout, font and seek bar stay
+ *   SystemUI-owned and are honestly out of reach on this path.
  */
 class AvaMediaNotificationProvider(
     context: Context,
@@ -227,12 +243,14 @@ class AvaMediaNotificationProvider(
      * `AvaPlaybackService`); Media3 calls `createNotification()` on
      * every notification refresh, so the next notification posted
      * after this call uses the new colour via `setColor` in
-     * [addNotificationActions]. A theme change alone does not re-post
-     * the notification, so the visible one updates on the next
-     * refresh (play / pause / track change) — see the class KDoc.
-     * Plain setter on purpose: the provider has no coroutine scope
-     * of its own (the 0.7.4 ticker scope died with the RemoteViews
-     * provider), and the service owns the settings collection.
+     * [addNotificationActions]. 0.1-fix1: the service re-pushes the
+     * media-button preferences right after this call, so the
+     * notification is rebuilt (and re-posted) immediately on a theme
+     * change instead of waiting for the next play / pause / track
+     * change. Plain setter on purpose: the provider has no coroutine
+     * scope of its own (the 0.7.4 ticker scope died with the
+     * RemoteViews provider), and the service owns the settings
+     * collection.
      */
     fun updateAccentColor(newArgb: Int) {
         accentColorArgb = newArgb

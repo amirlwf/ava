@@ -3,6 +3,70 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2] — 2026-11-13
+
+The fix round after 0.1, built from Harper's test of 0.1 on his phone.
+Version 0.2 (versionCode 22) — a minor release, because this round
+adds features, not just fixes. It folds in improve-loop run 8
+(playback position on its own flow, so the 500 ms tick no longer
+recomposes the whole app).
+
+### Added
+
+- **Ringtone editing** — from a song's menu or Now Playing, trim a
+  segment of the song, preview the trimmed segment, and set it as the
+  phone ringtone. Real trim (Media3 Transformer re-encodes to AAC/MP4)
+  and a real system ringtone (MediaStore + RingtoneManager, with the
+  WRITE_SETTINGS grant flow explained in the app).
+- **1-second launch intro** — on every cold start the new logo and
+  the app name ease in softly, and at the bottom, small, the
+  dedication «تقدیم به آوا رحمانی راد» types itself out in the Almas
+  handwritten face, then the app opens (onboarding on first run, Home
+  afterwards).
+- **New app logo** — the purple neon squircle artwork is now the main
+  launcher icon (and the intro logo). The purple/green switchable
+  icons stay available in Settings.
+
+### Changed
+
+- **Notification feels like Ava's** — every media item now carries
+  artwork (the song's album art, or Ava's branded default cover when
+  a song has none), so the shade's media player never shows a blank
+  tile; on Android 13+ the shade derives its colours from the
+  artwork. A theme change now also re-posts the notification with the
+  new accent immediately (it used to wait for the next play/pause).
+  Still the safe MediaStyle path — a fully custom notification layout
+  crashed twice on this phone and is never coming back.
+- **iPhone theme is unmistakable now** — a slow glass aurora (blue /
+  cyan / violet colour fields) drifts behind every screen, so the
+  frosted panels finally have something real to blur; the bottom bar
+  is more translucent (0.55) with a 1 dp hairline, like iOS's tab bar.
+  The 0.1 problem was real: the glass sat over a flat opaque
+  background, so selecting the theme changed almost nothing visible.
+- **Galaxy is calm and realistic, not crowded** — one soft Milky Way
+  band, sparse stars, a few faint nebula clouds, at most one rare
+  shooting star. No solar system, no constellations, no meteor
+  shower.
+- **Softer motions everywhere** — one easing family app-wide
+  (FastOutSlowIn), longer fades/slides, soft springs that settle
+  instead of bouncing (damping 0.7–0.9); one 350 ms cross-fade for
+  every swap; one soft spring for list rows.
+- **Swipe down on Now Playing** — drag the screen down and it follows
+  your finger; past the threshold it exits back to Home (playback
+  keeps going, the mini player stays), below it springs back. It
+  never fights lyrics scrolling: it engages from the top / when the
+  list is already at the top.
+
+### Fixed
+
+- **Galaxy background no longer flashes away on navigation** — the
+  sky used to live inside Home and Now Playing, tied to each
+  destination's resume state, so tapping an icon (e.g. Settings)
+  dropped the destination below RESUMED and the Canvas left
+  composition mid-transition. The backdrop is now one persistent
+  layer behind the NavHost (and outside every nav transition); going
+  to the background freezes the last frame instead of blanking it.
+
 ## [0.1] — 2026-11-13
 
 0.1 starts a new version line and replaces the 0.7.x releases, which were

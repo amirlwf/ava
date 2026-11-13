@@ -57,6 +57,7 @@ import com.harper.ava.core.util.queueRowKey
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.common.AvaMotion
 
 /**
  * The playback queue: the current song on top, the upcoming songs below.
@@ -186,7 +187,7 @@ fun QueueScreen(
                         onRemove = { viewModel.removeAt(absoluteIndex) },
                         modifier = Modifier
                             .padding(horizontal = AvaTokens.space8)
-                            .animateItem()
+                            .animateItem(placementSpec = AvaMotion.listItemPlacement)
                             .graphicsLayer {
                                 translationY = if (isDragged) dragOffsetY else 0f
                                 shadowElevation = if (isDragged) 8f else 0f

@@ -43,6 +43,7 @@ import com.harper.ava.core.util.ParsedLyrics
 import com.harper.ava.core.util.lyricIndexAt
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Lyrics: the current song's local .lrc file, with the playing line
@@ -63,7 +64,6 @@ fun LyricsScreen(app: AvaApplication, onBack: () -> Unit) {
         ),
     )
     val song by viewModel.currentSong.collectAsState()
-    val positionMs by viewModel.positionMs.collectAsState()
     val lyricsState by viewModel.lyrics.collectAsState()
 
     Scaffold(
@@ -144,11 +144,26 @@ fun LyricsScreen(app: AvaApplication, onBack: () -> Unit) {
                     }
                 }
                 is LyricsUiState.Loaded -> {
-                    LyricsList(lyrics = state.lyrics, positionMs = positionMs)
+                    // Run 8: the position is collected inside
+                    // LyricsListWithPosition, so the 500 ms tick
+                    // recomposes only the list — not this screen.
+                    LyricsListWithPosition(
+                        lyrics = state.lyrics,
+                        positionMs = viewModel.positionMs,
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun LyricsListWithPosition(
+    lyrics: ParsedLyrics,
+    positionMs: StateFlow<Long>,
+) {
+    val position by positionMs.collectAsState()
+    LyricsList(lyrics = lyrics, positionMs = position)
 }
 
 @Composable

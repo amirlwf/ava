@@ -37,6 +37,10 @@ DIRECT = [
     ("androidx.media3", "media3-exoplayer", "1.11.1"),
     ("androidx.media3", "media3-session", "1.11.1"),
     ("androidx.media3", "media3-common", "1.11.1"),
+    # 0.1-fix1 (Track G, ringtone trim): Transformer re-encodes a song
+    # segment to AAC/MP4. Transitive: media3-effect, media3-muxer,
+    # kotlinx-coroutines-guava (resolved by the BFS below).
+    ("androidx.media3", "media3-transformer", "1.11.1"),
     ("androidx.room", "room-runtime", "2.8.5"),
     ("androidx.room", "room-ktx", "2.8.5"),
     ("androidx.datastore", "datastore-preferences", "1.3.0"),
@@ -215,7 +219,13 @@ def download_artifact(outdir: str, g: str, a: str, v: str) -> str | None:
                         with z.open("classes.jar") as src:
                             with zipfile.ZipFile(src) as cj:
                                 for n in cj.namelist():
-                                    if n.endswith(".class"):
+                                    # .class files plus Kotlin module files:
+                                    # kotlinc discovers a package's top-level
+                                    # functions (e.g. coil3.compose.AsyncImage)
+                                    # from META-INF/*.kotlin_module — dropping
+                                    # it makes those symbols unresolvable even
+                                    # though the .class files are present.
+                                    if n.endswith(".class") or n.endswith(".kotlin_module"):
                                         out.writestr(n, cj.read(n))
                                         written.add(n)
                         for lib in sorted(n for n in names

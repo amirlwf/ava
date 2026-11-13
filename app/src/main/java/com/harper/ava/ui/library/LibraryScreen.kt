@@ -62,12 +62,14 @@ import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.common.AvaMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     app: AvaApplication,
     onOpenSongDetails: (Long) -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: LibraryViewModel = viewModel(
         factory = LibraryViewModel.factory(app.container.musicRepository, app.container.playerRepository),
@@ -206,6 +208,7 @@ fun LibraryScreen(
                 viewModel = viewModel,
                 playlists = playlists,
                 onOpenSongDetails = onOpenSongDetails,
+                onOpenRingtoneEditor = onOpenRingtoneEditor,
                 isLoading = isScanning && groupSongs.isEmpty(),
             )
             return@Column
@@ -256,6 +259,7 @@ fun LibraryScreen(
                         viewModel = viewModel,
                         playlists = playlists,
                         onOpenSongDetails = onOpenSongDetails,
+                        onOpenRingtoneEditor = onOpenRingtoneEditor,
                     )
                 }
             }
@@ -397,6 +401,7 @@ private fun SongList(
     viewModel: LibraryViewModel,
     playlists: List<com.harper.ava.domain.model.Playlist>,
     onOpenSongDetails: (Long) -> Unit,
+    onOpenRingtoneEditor: (Long) -> Unit = {},
     isLoading: Boolean = false,
 ) {
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
@@ -428,7 +433,8 @@ private fun SongList(
                 onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                 onOpenDetails = { onOpenSongDetails(song.id) },
                 onDeleteSong = { songToDelete = it },
-                modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                onSetAsRingtone = { onOpenRingtoneEditor(song.id) },
+                modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
             )
         }
         item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

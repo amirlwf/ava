@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,7 @@ import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.common.rememberPressScale
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.glassPanel
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Mini player shown above the bottom bar whenever something is loaded in the
@@ -75,10 +77,16 @@ import com.harper.ava.ui.theme.glassPanel
  * first time it appears (real spring, [AvaMotion.miniPlayerEnterSpring]),
  * the play button squashes to 0.88x on a spring while pressed, and
  * play/pause + next buzz through [rememberAvaHaptics].
+ *
+ * Run 8 (performance): the progress line reads the live position from
+ * its own flow ([positionMs]) inside [MiniPlayerProgress], so the 500 ms
+ * tick recomposes only that thin line — the pill itself only recomposes
+ * on real playback changes (play/pause, track change).
  */
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
+    positionMs: StateFlow<Long>,
     onTogglePlayPause: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -86,11 +94,6 @@ fun MiniPlayer(
 ) {
     val song = state.currentSong ?: return
     var artFailed by remember(song.albumArtUri) { mutableStateOf(false) }
-    val progress = if (state.durationMs > 0) {
-        (state.positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
     val haptics = rememberAvaHaptics()
     // Spring entrance: the pill rises into place whenever it (re)appears
     // — e.g. the first play after launch — instead of popping in.
@@ -144,7 +147,7 @@ fun MiniPlayer(
         ) {
             AnimatedContent(
                 targetState = song,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { fadeIn(AvaMotion.crossFade) togetherWith fadeOut(AvaMotion.crossFade) },
                 label = "mini-player-song",
             ) { current ->
                 Box(
@@ -175,7 +178,7 @@ fun MiniPlayer(
             Spacer(modifier = Modifier.width(AvaTokens.space12))
             AnimatedContent(
                 targetState = song,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { fadeIn(AvaMotion.crossFade) togetherWith fadeOut(AvaMotion.crossFade) },
                 label = "mini-player-titles",
                 modifier = Modifier.weight(1f),
             ) { current ->
@@ -218,7 +221,7 @@ fun MiniPlayer(
                 // tap most.
                 AnimatedContent(
                     targetState = state.isPlaying,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    transitionSpec = { fadeIn(AvaMotion.crossFade) togetherWith fadeOut(AvaMotion.crossFade) },
                     label = "mini-player-play-icon",
                 ) { playing ->
                     Icon(
@@ -247,15 +250,40 @@ fun MiniPlayer(
         Spacer(modifier = Modifier.height(AvaTokens.space8))
         // Inset, thin, round-ended progress — a quiet line, not a bar
         // slammed against the pill's edge.
-        LinearProgressIndicator(
-            progress = { progress },
+        MiniPlayerProgress(
+            positionMs = positionMs,
+            durationMs = state.durationMs,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = AvaTokens.space4)
-                .height(4.dp)
-                .clip(RoundedCornerShape(AvaTokens.radiusFull)),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+                .padding(horizontal = AvaTokens.space4),
         )
     }
+}
+
+/**
+ * Run 8 (performance): the progress line alone reads the 500 ms
+ * position tick, so the tick recomposes only this thin line — the pill
+ * itself (cover, titles, buttons) only recomposes on real playback
+ * changes. Same look as before: inset, thin, round-ended.
+ */
+@Composable
+private fun MiniPlayerProgress(
+    positionMs: StateFlow<Long>,
+    durationMs: Long,
+    modifier: Modifier = Modifier,
+) {
+    val position by positionMs.collectAsState()
+    val progress = if (durationMs > 0) {
+        (position.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = modifier
+            .height(4.dp)
+            .clip(RoundedCornerShape(AvaTokens.radiusFull)),
+        color = MaterialTheme.colorScheme.primary,
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+    )
 }

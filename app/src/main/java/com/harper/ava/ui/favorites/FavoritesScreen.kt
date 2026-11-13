@@ -53,6 +53,7 @@ fun FavoritesScreen(
     app: AvaApplication,
     onBack: () -> Unit,
     onOpenSongDetails: (Long) -> Unit = {},
+    onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: FavoritesViewModel = viewModel(
         factory = FavoritesViewModel.factory(app.container.musicRepository, app.container.playerRepository),
@@ -146,7 +147,8 @@ fun FavoritesScreen(
                         onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                         onOpenDetails = { onOpenSongDetails(song.id) },
                         onDeleteSong = { songToDelete = it },
-                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                        onSetAsRingtone = { onOpenRingtoneEditor(song.id) },
+                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                     )
                 }
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

@@ -21,6 +21,7 @@ import androidx.navigation.navArgument
 import com.harper.ava.AvaApplication
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.details.SongDetailsScreen
+import com.harper.ava.ui.ringtone.RingtoneEditorScreen
 import com.harper.ava.ui.equalizer.EqualizerScreen
 import com.harper.ava.ui.favorites.FavoritesScreen
 import com.harper.ava.ui.home.HomeScreen
@@ -147,6 +148,9 @@ fun AvaNavGraph(
                         onOpenSongDetails = { songId ->
                             navController.navigate(SongDetailsRoute.create(songId))
                         },
+                        onOpenRingtoneEditor = { songId ->
+                            navController.navigate(RingtoneEditorRoute.create(songId))
+                        },
                         onOpenFavorites = { navController.navigate(FavoritesRoute.ROUTE) },
                     )
                 }
@@ -162,6 +166,9 @@ fun AvaNavGraph(
                         onOpenSongDetails = { songId ->
                             navController.navigate(SongDetailsRoute.create(songId))
                         },
+                        onOpenRingtoneEditor = { songId ->
+                            navController.navigate(RingtoneEditorRoute.create(songId))
+                        },
                     )
                 }
             }
@@ -173,9 +180,15 @@ fun AvaNavGraph(
                     LocalAvaSharedTransitionScope provides sharedScope,
                     LocalAvaAnimatedVisibilityScope provides this,
                 ) {
-                    LibraryScreen(app) { songId ->
+                    LibraryScreen(
+                    app,
+                    onOpenSongDetails = { songId ->
                         navController.navigate(SongDetailsRoute.create(songId))
-                    }
+                    },
+                    onOpenRingtoneEditor = { songId ->
+                        navController.navigate(RingtoneEditorRoute.create(songId))
+                    },
+                )
                 }
             }
             composable(Destination.Search.route) {
@@ -183,9 +196,15 @@ fun AvaNavGraph(
                     LocalAvaSharedTransitionScope provides sharedScope,
                     LocalAvaAnimatedVisibilityScope provides this,
                 ) {
-                    SearchScreen(app) { songId ->
+                    SearchScreen(
+                    app,
+                    onOpenSongDetails = { songId ->
                         navController.navigate(SongDetailsRoute.create(songId))
-                    }
+                    },
+                    onOpenRingtoneEditor = { songId ->
+                        navController.navigate(RingtoneEditorRoute.create(songId))
+                    },
+                )
                 }
             }
             composable(Destination.Playlists.route) {
@@ -204,6 +223,9 @@ fun AvaNavGraph(
                     onBack = { navController.popBackStack() },
                     onOpenSongDetails = { songId ->
                         navController.navigate(SongDetailsRoute.create(songId))
+                    },
+                    onOpenRingtoneEditor = { songId ->
+                        navController.navigate(RingtoneEditorRoute.create(songId))
                     },
                 )
             }
@@ -230,6 +252,9 @@ fun AvaNavGraph(
                         onOpenSongDetails = { songId ->
                             navController.navigate(SongDetailsRoute.create(songId))
                         },
+                        onOpenRingtoneEditor = { songId ->
+                            navController.navigate(RingtoneEditorRoute.create(songId))
+                        },
                     )
                 }
             }
@@ -248,6 +273,13 @@ fun AvaNavGraph(
             ) { backStackEntry ->
                 val songId = backStackEntry.arguments?.getLong(SongDetailsRoute.ARG_ID) ?: 0L
                 SongDetailsScreen(app, songId) { navController.popBackStack() }
+            }
+            composable(
+                route = RingtoneEditorRoute.ROUTE,
+                arguments = listOf(navArgument(RingtoneEditorRoute.ARG_ID) { type = NavType.LongType }),
+            ) { backStackEntry ->
+                val songId = backStackEntry.arguments?.getLong(RingtoneEditorRoute.ARG_ID) ?: 0L
+                RingtoneEditorScreen(app, songId) { navController.popBackStack() }
             }
             composable(QueueRoute.ROUTE) {
                 QueueScreen(

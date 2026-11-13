@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">آوا</string>
+    <string name="splash_dedication">تقدیم به آوا رحمانی راد</string>
 
     <!-- Navigation -->
     <string name="nav_home">خانه</string>
@@ -142,6 +143,21 @@
     <!-- Song actions -->
     <string name="song_add_to_queue">افزودن به صف</string>
     <string name="song_play_next">پخش بعدی</string>
+    <string name="song_set_as_ringtone">تنظیم به‌عنوان زنگ تماس</string>
+    <string name="ringtone_editor_title">ویرایش زنگ تماس</string>
+    <string name="ringtone_editor_subtitle">بخشی از آهنگ را ببُرید، پیش‌نمایش بگیرید و بعد آن را به‌عنوان زنگ تماس تنظیم کنید.</string>
+    <string name="ringtone_trim_start">شروع</string>
+    <string name="ringtone_trim_end">پایان</string>
+    <string name="ringtone_preview">پیش‌نمایش بخش انتخاب‌شده</string>
+    <string name="ringtone_stop_preview">توقف پیش‌نمایش</string>
+    <string name="ringtone_set">تنظیم به‌عنوان زنگ تماس</string>
+    <string name="ringtone_trimming">در حال برش…</string>
+    <string name="ringtone_success">زنگ تماس تنظیم شد — گوشی شما با این آهنگ زنگ می‌خورد.</string>
+    <string name="ringtone_error">ساخت زنگ تماس ممکن نشد. بخش کوتاه‌تری را امتحان کنید.</string>
+    <string name="ringtone_needs_permission">آوا برای تغییر زنگ تماس سیستم به اجازه نیاز دارد. تنظیمات را باز کنید و «تغییر تنظیمات سیستم» را فعال کنید، بعد دوباره امتحان کنید.</string>
+    <string name="ringtone_open_settings">باز کردن تنظیمات</string>
+    <string name="ringtone_done">تمام</string>
+    <string name="ringtone_preview_note">پیش‌نمایش، بخش انتخاب‌شده را با پخش‌کننده پخش می‌کند.</string>
     <string name="song_add_to_playlist">افزودن به پلی‌لیست</string>
     <string name="song_no_playlists">هنوز پلی‌لیستی نیست</string>
     <string name="song_more_actions">گزینه‌های بیشتر</string>

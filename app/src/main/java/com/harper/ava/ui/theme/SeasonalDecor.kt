@@ -35,13 +35,12 @@ import kotlin.math.sin
  * - SUMMER: a soft sun glow in the top corner + a few green leaves.
  * - AUTUMN: amber / red leaves falling.
  * - WINTER: snowflakes drifting down.
- * - GALAXY: a deep sky — a three-layer twinkling starfield with
- *   parallax depth, a diagonal Milky Way band packed with dust, six
- *   layered nebula clouds, two faint constellations, and — since
- *   0.7.3, enriched in 0.7.4 — 4 shooting stars with long glowing
- *   tails and a visible solar system (a warm glowing sun with a
- *   corona, 5 planets on faint elliptical orbits, moons on two of
- *   them and a ring on the outermost).
+ * - GALAXY: a calm, realistic night sky — one soft Milky Way band,
+ *   sparse twinkling stars, a few faint nebula clouds and, rarely, a
+ *   single shooting star. Deliberately NOT crowded: no solar system,
+ *   no constellations, no meteor shower (0.1-fix1 — Harper: "not too
+ *   crowded, just beautiful and real"). The one memorable element is
+ *   the Milky Way band itself; everything else is quiet.
  * - Every other theme (Emerald, Violet, Ocean, Sunset): no decor.
  *
  * All vector / Canvas-drawn, no images, no new fonts. One slow
@@ -50,27 +49,29 @@ import kotlin.math.sin
  * frame on at most two screens; particle positions are deterministic
  * functions of `progress` + a per-particle seed, so there is no state
  * churn and nothing to remember across recompositions. Galaxy
- * particle counts stay small per layer (36 far + 26 mid + 10 bright
- * stars, 34 Milky Way dust grains, 6 nebula clouds, 2 constellations)
- * and alphas low (0.04–0.18 for dust, nebula ≤ 0.10, brightest
- * sparkles ≤ 0.45, only a meteor head briefly reaches 0.35) —
+ * particle counts stay small per layer (24 far + 18 mid + 6 bright
+ * stars, 18 Milky Way dust grains, 4 nebula clouds, 1 rare meteor)
+ * and alphas low (0.03–0.12 for dust, nebula ≤ 0.06, brightest
+ * sparkles ≤ 0.30, the single meteor head briefly reaches 0.30) —
  * decoration, not noise.
  *
- * Battery (improve run 3, 2026-11-12): the Canvas is NOT drawn while
- * its screen is not the current destination — each screen passes
- * `active = rememberIsResumed()` (see DecorVisibility.kt), which reads
- * the destination's NavBackStackEntry lifecycle: a back-stack entry
- * drops below RESUMED the moment another screen opens above it (and
- * when the app backgrounds), so Home's sky stops the moment Now
- * Playing opens above it instead of redrawing a full-screen canvas
- * behind a screen nobody sees. The 36 s clock itself keeps running
- * while hidden (one float per frame — cheap) so the sky resumes
- * mid-loop with no visual jump when the user navigates back; only the
- * expensive part — the full-screen redraw — is skipped. Per-frame
- * allocations are also gone: sparkle/leaf [Path]s are cached by radius
- * (they were rebuilt ~35× per frame) and the small constant lists
- * (meteor tail segments, planet radii, Milky Way glow stops) are
- * hoisted to file-level vals instead of being rebuilt per frame.
+ * Battery (improve run 3, 2026-11-12; frozen-frame fix in 0.1-fix1):
+ * the Canvas FREEZES while its screen is not the current destination
+ * — each screen passes `active = rememberIsResumed()` (see
+ * DecorVisibility.kt), which reads the destination's NavBackStackEntry
+ * lifecycle: a back-stack entry drops below RESUMED the moment another
+ * screen opens above it (and when the app backgrounds). The frozen
+ * frame stays on screen instead of the Canvas leaving composition —
+ * the old behaviour removed it instantly and the background flashed
+ * away mid-transition (the flash Harper reported in 0.1). While
+ * frozen, nothing subscribes to the ticking clock, so no frame is
+ * recomposed; the 36 s clock itself keeps running while hidden (one
+ * float per frame — cheap) so the sky resumes mid-loop with no visual
+ * jump when the user navigates back. Per-frame allocations are also
+ * gone: sparkle/leaf [Path]s are cached by radius (they were rebuilt
+ * ~35× per frame) and the small constant lists (meteor tail segments,
+ * Milky Way glow stops) are hoisted to file-level vals instead of
+ * being rebuilt per frame.
  *
  * NOTE: this file must not read a CompositionLocal directly
  * (`LocalLifecycleOwner.current` and friends): the unit-test compile
@@ -126,8 +127,9 @@ fun seasonalDecorKind(theme: AppTheme, effectsEnabled: Boolean): SeasonalDecorKi
  *
  * @param active false while this screen is not the current destination
  * (the caller reads its NavBackStackEntry lifecycle — see
- * [rememberIsResumed]); the Canvas then draws no frames, so a hidden
- * screen's sky costs nothing. Defaults to true.
+ * [rememberIsResumed]); the Canvas then keeps its last frame frozen
+ * instead of disappearing, so navigation never flashes the background
+ * away. Defaults to true.
  */
 @Composable
 fun SeasonalDecor(
@@ -147,7 +149,7 @@ private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Mo
     // The transition is created BEFORE the visibility gate on purpose:
     // while this screen is hidden its clock keeps ticking (one float per
     // frame — cheap), so the sky resumes mid-loop with no jump when the
-    // user navigates back. Only the Canvas — the expensive part — stops.
+    // user navigates back.
     val transition = rememberInfiniteTransition(label = "seasonal-decor")
     val progress by transition.animateFloat(
         initialValue = 0f,
@@ -159,14 +161,36 @@ private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Mo
         label = "seasonal-progress",
     )
     // Paused while this screen is not the current destination (or the
-    // app is backgrounded): a canvas nobody sees draws no frames, so
-    // Home's sky stops the moment Now Playing opens above it.
-    if (!active) return
+    // app is backgrounded): the Canvas keeps drawing, but with the last
+    // frame frozen instead of disappearing. The old code returned early
+    // here, which removed the Canvas from composition the instant a
+    // navigation started — the Galaxy background vanished mid-transition
+    // while the outgoing screen was still fading out (the flash Harper
+    // reported in 0.1). `progress` is only read inside the draw block
+    // while active, so while frozen the ticking clock schedules no
+    // redraws and the last frame stays; the frozen value lives in the
+    // file-level [lastDecorProgress] (UI thread only, like the path
+    // caches below) because this file is also compiled by the offline
+    // unit-test step WITHOUT the Compose plugin — `remember` /
+    // `SideEffect` cannot be used here (they fail to inline there).
     val scheme = MaterialTheme.colorScheme
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawDecor(kind, progress, scheme.primary, scheme.secondary, scheme.tertiary, scheme.onBackground)
+        val drawProgress = if (active) {
+            lastDecorProgress = progress
+            progress
+        } else {
+            lastDecorProgress
+        }
+        drawDecor(kind, drawProgress, scheme.primary, scheme.secondary, scheme.tertiary, scheme.onBackground)
     }
 }
+
+/**
+ * Last live decor progress, for the frozen frame while inactive (see
+ * [SeasonalDecorCanvas]). Plain var on purpose — see the note above.
+ * Drawn on the UI thread only, so no synchronisation is needed.
+ */
+private var lastDecorProgress = 0f
 
 /** Deterministic pseudo-random 0..1 from an index + salt (no Random state). */
 private fun hash01(index: Int, salt: Int): Float {
@@ -186,25 +210,21 @@ private fun wrap01(v: Float): Float = ((v % 1f) + 1f) % 1f
 // extra animation loop — the single 36 s loop drives everything.
 // ---------------------------------------------------------------------------
 
-/** Number of shooting stars in the galaxy sky (0.1: was 4). */
-const val GALAXY_METEOR_COUNT = 5
+/** Number of shooting stars in the galaxy sky (0.1-fix1: was 5) — one,
+ * rare, so a meteor is a small event, not a shower. */
+const val GALAXY_METEOR_COUNT = 1
 
-/** Number of planets orbiting the galaxy sun (0.7.4: was 3 in 0.7.3). */
-const val GALAXY_PLANET_COUNT = 5
+/** Max alpha of the single meteor head (0.1-fix1: was 0.35). */
+const val GALAXY_METEOR_MAX_ALPHA = 0.30f
 
-/**
- * Max alpha of a meteor head — the brightest (first) meteor; the other
- * meteors peak at 0.25 ([meteorMaxAlpha]).
- */
-const val GALAXY_METEOR_MAX_ALPHA = 0.35f
+/** Starfield layers: 0 = far (tiny, dim, slow), 1 = mid, 2 = near/bright.
+ * 0.1-fix1: fewer, sparser — 24 / 18 / 6 (was 36 / 26 / 10). */
+const val GALAXY_FAR_STAR_COUNT = 24
+const val GALAXY_MID_STAR_COUNT = 18
+const val GALAXY_BRIGHT_STAR_COUNT = 6
 
-/** Starfield layers: 0 = far (tiny, dim, slow), 1 = mid, 2 = near/bright. */
-const val GALAXY_FAR_STAR_COUNT = 36
-const val GALAXY_MID_STAR_COUNT = 26
-const val GALAXY_BRIGHT_STAR_COUNT = 10
-
-/** Dust grains packed along the Milky Way band (0.1: was 34). */
-const val GALAXY_MILKY_WAY_DUST_COUNT = 44
+/** Dust grains packed along the Milky Way band (0.1-fix1: was 44). */
+const val GALAXY_MILKY_WAY_DUST_COUNT = 18
 
 // ---------------------------------------------------------------------------
 // Per-frame allocations removed (improve run 3, 2026-11-12). The Canvas
@@ -226,9 +246,6 @@ val METEOR_TAIL_WIDTHS_DP = listOf(2.2f, 1.8f, 1.4f, 1.1f, 0.8f)
 
 /** Milky Way glow stops along the band (0..1); colours are violet, pink, violet. */
 val MILKY_WAY_GLOW_STOPS = listOf(0.25f, 0.50f, 0.75f)
-
-/** Planet radii in dp, inner to outer — one entry per planet. */
-val GALAXY_PLANET_RADII_DP = listOf(4.5f, 3.5f, 3f, 4f, 5f)
 
 /**
  * Origin-centred sparkle / leaf paths, cached by radius: the galaxy
@@ -276,8 +293,8 @@ private fun leafPath(radius: Float): Path = leafPathCache.getOrPut(radius) {
     }
 }
 
-/** Peak alpha of meteor [index]: the first meteor is the bright one. */
-fun meteorMaxAlpha(index: Int): Float = if (index == 0) GALAXY_METEOR_MAX_ALPHA else 0.25f
+/** Peak alpha of the single meteor (0.1-fix1: only one meteor exists now). */
+fun meteorMaxAlpha(index: Int): Float = GALAXY_METEOR_MAX_ALPHA
 
 /** Length of meteor [index]'s tail, as a fraction of the canvas width. */
 fun meteorTailLength(index: Int): Float = 0.13f + 0.09f * hash01(index, 26)
@@ -289,8 +306,7 @@ fun meteorTailLength(index: Int): Float = 0.13f + 0.09f * hash01(index, 26)
  * for ~10–15% of the loop (~4–5 s), then waits for the next loop.
  * The tail points up-right, opposite the direction of travel; [alpha]
  * fades in at the start and out at the end so the meteor appears and
- * dissolves instead of popping in/out. Tail length varies per meteor
- * ([meteorTailLength]); the first meteor burns brighter than the rest.
+ * dissolves instead of popping in/out.
  */
 data class MeteorState(
     val headX: Float,
@@ -322,50 +338,10 @@ fun meteorState(index: Int, progress: Float): MeteorState? {
     )
 }
 
-/**
- * Elliptical orbit radii of planet [index] around the galaxy sun, as
- * fractions of the canvas width (horizontal) and height (vertical).
- * The vertical radius is deliberately ~half the horizontal one, so the
- * orbit reads as a tilted ellipse seen from slightly above rather than
- * a flat circle. Radii grow with the index: the planets never share a
- * track and never cross each other's path. Kept compact (widest
- * 0.25 x 0.138) so all five orbits fit around the sun at (0.70, 0.14)
- * without leaving the canvas.
- */
-fun planetOrbitRadius(index: Int): Pair<Float, Float> {
-    val rx = 0.09f + 0.04f * index.toFloat()
-    val ry = 0.05f + 0.022f * index.toFloat()
-    return rx to ry
-}
-
-/** Orbital angle (radians, 0..2π) of planet [index] at loop [progress]. */
-fun planetAngle(index: Int, progress: Float): Float {
-    val lapsPerLoop = 0.6f - 0.09f * index.toFloat() // inner planets orbit faster
-    val phase = hash01(index, 25)
-    return wrap01(progress * lapsPerLoop + phase) * 2f * PI.toFloat()
-}
-
-/** Position of planet [index] on its ellipse around ([centerX], [centerY]). */
-data class OrbitPoint(val x: Float, val y: Float)
-
-fun planetPosition(
-    index: Int,
-    progress: Float,
-    centerX: Float,
-    centerY: Float,
-    radiusX: Float,
-    radiusY: Float,
-): OrbitPoint {
-    val angle = planetAngle(index, progress)
-    return OrbitPoint(
-        x = centerX + radiusX * cos(angle),
-        y = centerY + radiusY * sin(angle),
-    )
-}
-
 // ---------------------------------------------------------------------------
-// 0.7.4 galaxy helpers — starfield depth, Milky Way, nebula, constellations,
-// moons. All pure + deterministic, same single-loop discipline as above.
+// 0.7.4 galaxy helpers — starfield depth, Milky Way, nebula. All pure +
+// deterministic, same single-loop discipline as above. (0.1-fix1: the
+// constellations, planets and moons are gone — the sky is calmer now.)
 // ---------------------------------------------------------------------------
 
 /** Radius (dp) of star [index] on layer [layer] (0 far, 1 mid, 2 bright). */
@@ -377,17 +353,19 @@ fun galaxyStarRadiusDp(index: Int, layer: Int): Float = when (layer) {
 
 /**
  * Twinkling alpha of star [index] on [layer] at [progress]: far stars
- * breathe 0.06–0.22, mid stars 0.10–0.40, bright stars 0.15–0.45. Each
- * star has its own speed + phase, so the sky never twinkles in unison.
+ * breathe 0.06–0.20, mid stars 0.08–0.32, bright stars 0.10–0.30
+ * (0.1-fix1: lower, calmer — was 0.06–0.22 / 0.10–0.40 / 0.15–0.45).
+ * Each star has its own speed + phase, so the sky never twinkles in
+ * unison.
  */
 fun galaxyStarAlpha(index: Int, layer: Int, progress: Float): Float {
     val speed = 0.5f + hash01(index, 54 + layer)
     val phase = index * 1.3f + layer * 2.1f
     val twinkle = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat() * speed + phase)
     return when (layer) {
-        0 -> 0.06f + 0.16f * twinkle
-        2 -> 0.15f + 0.30f * twinkle
-        else -> 0.10f + 0.30f * twinkle
+        0 -> 0.06f + 0.14f * twinkle
+        2 -> 0.10f + 0.20f * twinkle
+        else -> 0.08f + 0.24f * twinkle
     }
 }
 
@@ -434,12 +412,13 @@ fun milkyWayDustPosition(index: Int): Pair<Float, Float> {
     return along to (milkyWayBandCenterY(along) + across)
 }
 
-/** Twinkling alpha of dust grain [index] at [progress] (0.04–0.18). */
+/** Twinkling alpha of dust grain [index] at [progress] (0.03–0.12;
+ * 0.1-fix1: was 0.04–0.18). */
 fun milkyWayDustAlpha(index: Int, progress: Float): Float {
     val (x, y) = milkyWayDustPosition(index)
     val speed = 0.4f + hash01(index, 43)
     val twinkle = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat() * speed + index * 1.1f)
-    return 0.04f + 0.14f * milkyWayDensity(x, y) * twinkle
+    return 0.03f + 0.09f * milkyWayDensity(x, y) * twinkle
 }
 
 /** One soft nebula cloud: [colorIndex] 0 violet, 1 pink, 2 blue, 3 indigo. */
@@ -451,98 +430,15 @@ data class NebulaBlob(
     val alpha: Float,
 )
 
-/** The eight nebula clouds, back to front. Alphas stay ≤ 0.10.
- * Improve run 4 (2026-11-12): raised from ≤ 0.07 — the first lever the
- * 0.7.4 redesign left behind (nebula 0.07→0.10, dust 0.16→0.18): the sky
- * read too faint against the dark background. Still faint by design, so
- * the song list and album art stay readable; the visual call is
- * Harper's on his phone, not this number.
- * 0.1: two more clouds (a rose one low-right, a violet one upper-left)
- * so the sky has depth in every corner, still ≤ 0.10. */
+/** The four nebula clouds, back to front. Alphas stay ≤ 0.06
+ * (0.1-fix1: was eight clouds at ≤ 0.10 — fewer, fainter, so the band
+ * and the stars carry the sky instead of coloured fog). */
 val GALAXY_NEBULA_BLOBS: List<NebulaBlob> = listOf(
-    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.10f),
-    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.06f),
-    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.06f),
-    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.07f),
-    NebulaBlob(0.55f, 0.45f, 0.24f, 1, 0.05f),
-    NebulaBlob(0.38f, 0.85f, 0.26f, 0, 0.06f),
-    NebulaBlob(0.68f, 0.72f, 0.28f, 2, 0.06f),
-    NebulaBlob(0.30f, 0.25f, 0.26f, 1, 0.05f),
+    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.06f),
+    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.05f),
+    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.05f),
+    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.06f),
 )
-
-/** A constellation: normalised star points + the edges joining them. */
-data class Constellation(
-    val points: List<Pair<Float, Float>>,
-    val edges: List<Pair<Int, Int>>,
-)
-
-/** Three constellations: a small kite (upper left), a W (lower left),
- * and a tight Pleiades-like cluster (upper right, 0.1). */
-val GALAXY_CONSTELLATIONS: List<Constellation> = listOf(
-    Constellation(
-        points = listOf(
-            0.10f to 0.34f,
-            0.17f to 0.30f,
-            0.24f to 0.34f,
-            0.17f to 0.42f,
-            0.17f to 0.50f,
-        ),
-        edges = listOf(0 to 1, 1 to 2, 2 to 3, 3 to 0, 3 to 4),
-    ),
-    Constellation(
-        points = listOf(
-            0.12f to 0.66f,
-            0.19f to 0.60f,
-            0.26f to 0.66f,
-            0.33f to 0.60f,
-            0.40f to 0.66f,
-        ),
-        edges = listOf(0 to 1, 1 to 2, 2 to 3, 3 to 4),
-    ),
-    Constellation(
-        points = listOf(
-            0.78f to 0.22f,
-            0.83f to 0.18f,
-            0.88f to 0.22f,
-            0.83f to 0.27f,
-            0.80f to 0.30f,
-            0.86f to 0.30f,
-        ),
-        edges = listOf(0 to 1, 1 to 2, 2 to 3, 1 to 4, 1 to 5),
-    ),
-)
-
-/** Planets with a moon: the 2nd and the 4th. */
-fun planetHasMoon(index: Int): Boolean = index == 1 || index == 3
-
-/** The outermost planet wears a Saturn-like ring. */
-fun planetHasRing(index: Int): Boolean = index == GALAXY_PLANET_COUNT - 1
-
-/** Moon orbit radius around its planet (normalised x; y is 0.55x, tilted like the orbits). */
-fun moonOrbitRadius(planetIndex: Int): Float = 0.020f + 0.004f * planetIndex.toFloat()
-
-/** Moon angle (radians, 0..2π): moons lap much faster than their planet. */
-fun moonAngle(planetIndex: Int, progress: Float): Float {
-    val lapsPerLoop = 1.6f - 0.12f * planetIndex.toFloat()
-    val phase = hash01(planetIndex, 31)
-    return wrap01(progress * lapsPerLoop + phase) * 2f * PI.toFloat()
-}
-
-/** Position of the moon of planet [planetIndex] around ([planetX], [planetY]). */
-fun moonPosition(
-    planetIndex: Int,
-    progress: Float,
-    planetX: Float,
-    planetY: Float,
-): OrbitPoint {
-    val angle = moonAngle(planetIndex, progress)
-    val rx = moonOrbitRadius(planetIndex)
-    val ry = rx * 0.55f
-    return OrbitPoint(
-        x = planetX + rx * cos(angle),
-        y = planetY + ry * sin(angle),
-    )
-}
 
 private fun DrawScope.drawDecor(
     kind: SeasonalDecorKind,
@@ -668,22 +564,21 @@ private fun DrawScope.drawSnowflake(center: Offset, radius: Float, color: Color)
 }
 
 /**
- * Galaxy (0.7.4 deep redesign): the sky is built back-to-front so the
- * depth reads even at a glance, all on the same 36 s `progress` loop:
+ * Galaxy (0.1-fix1 calm redesign): the sky is built back-to-front so the
+ * depth reads even at a glance, all on the same 36 s `progress` loop.
+ * One memorable element — the Milky Way band — and everything else
+ * quiet: no solar system, no constellations, one rare meteor.
  *
- * 1. [drawNebula] — six layered nebula clouds with brighter cores.
- * 2. [drawMilkyWay] — a diagonal band of glow + 34 dust grains.
- * 3. Far starfield (36 tiny dots, parallax layer 0) — the deep sky.
- * 4. [drawConstellations] — a kite + a W in hairline links.
- * 5. Mid starfield (26 stars, parallax layer 1) — the 0.7.3 sky.
- * 6. [drawBrightStars] — 10 near sparkles with cross flares (layer 2).
- * 7. [drawSolarSystem] — the 0.7.3 sun, now with a corona, 5 planets,
- *    moons on two of them and a ring on the outermost; anchored, so
- *    it never drifts with the parallax.
- * 8. [drawMeteors] — 4 shooting stars with long five-segment tails.
+ * 1. [drawNebula] — four soft nebula clouds with brighter cores.
+ * 2. [drawMilkyWay] — a diagonal band of glow + 18 dust grains.
+ * 3. Far starfield (24 tiny dots, parallax layer 0) — the deep sky.
+ * 4. Mid starfield (18 stars, parallax layer 1).
+ * 5. [drawBrightStars] — 6 near sparkles with cross flares (layer 2).
+ * 6. [drawMeteors] — one rare shooting star with a five-segment tail.
  *
- * Every layer is faint (nebula ≤ 0.10, dust ≤ 0.18) and sits behind
- * the content, so the song list and album art stay readable.
+ * Every layer is faint (nebula ≤ 0.06, dust ≤ 0.12, brightest
+ * sparkles ≤ 0.30) and sits behind the content, so the song list and
+ * album art stay readable.
  */
 private fun DrawScope.drawGalaxy(
     progress: Float,
@@ -696,14 +591,12 @@ private fun DrawScope.drawGalaxy(
     drawNebula(progress, violet, pink, blue, indigo)
     drawMilkyWay(progress, violet, pink, white)
     drawStarLayer(progress, layer = 0, violet, pink, blue, white)
-    drawConstellations(progress, white)
     drawStarLayer(progress, layer = 1, violet, pink, blue, white)
     drawBrightStars(progress, white, pink)
-    drawSolarSystem(progress, pink, blue, white)
     drawMeteors(progress)
 }
 
-/** Six soft nebula clouds, each with a brighter core; they sway with the far layer. */
+/** Four soft nebula clouds, each with a brighter core; they sway with the far layer. */
 private fun DrawScope.drawNebula(progress: Float, violet: Color, pink: Color, blue: Color, indigo: Color) {
     val drift = galaxyParallaxDrift(0, progress) * size.width
     for (blob in GALAXY_NEBULA_BLOBS) {
@@ -802,145 +695,6 @@ private fun DrawScope.drawBrightStars(progress: Float, white: Color, pink: Color
         )
         drawStar(center, radius, color)
         drawCircle(color = color.copy(alpha = alpha * 0.6f), radius = radius * 0.18f, center = center)
-    }
-}
-
-/** Two faint constellations: hairline links + slightly brighter stars (brightest = a sparkle). */
-private fun DrawScope.drawConstellations(progress: Float, white: Color) {
-    val drift = galaxyParallaxDrift(1, progress) * size.width
-    for (constellation in GALAXY_CONSTELLATIONS) {
-        val pts = constellation.points.map { (nx, ny) ->
-            Offset(nx * size.width + drift, ny * size.height)
-        }
-        for ((a, b) in constellation.edges) {
-            drawLine(
-                color = white.copy(alpha = 0.12f),
-                start = pts[a],
-                end = pts[b],
-                strokeWidth = 1.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
-        for ((index, pt) in pts.withIndex()) {
-            if (index == 1) {
-                drawStar(pt, 3.5.dp.toPx(), white.copy(alpha = 0.38f))
-            } else {
-                drawCircle(color = white.copy(alpha = 0.32f), radius = 2.dp.toPx(), center = pt)
-            }
-        }
-    }
-}
-
-/**
- * The solar system: a small warm sun in the upper area, faint
- * elliptical orbit rings, and 5 planets slowly circling it — moons on
- * the 2nd and 4th, a Saturn-like ring on the outermost. The sun sits
- * right-of-centre near the top so its widest orbit (0.25 × width,
- * 0.138 × height) still fits on screen; the whole system stays in the
- * top band, behind the header content.
- */
-private fun DrawScope.drawSolarSystem(
-    progress: Float,
-    pink: Color,
-    blue: Color,
-    white: Color,
-) {
-    // Sun at 14% height: the widest orbit (ry 0.138) just fits above it,
-    // so no orbit ring is clipped by the top edge of the screen.
-    val sunCenter = Offset(size.width * 0.70f, size.height * 0.14f)
-    val sunWarm = Color(0xFFFFE08A)
-    val sunCore = Color(0xFFFFF6D8)
-    // Halo breathes very gently with the loop — barely noticeable.
-    val breathe = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat())
-    drawCircle(
-        color = sunWarm.copy(alpha = 0.06f + 0.02f * breathe),
-        radius = 52.dp.toPx(),
-        center = sunCenter,
-    )
-    drawCircle(
-        color = sunWarm.copy(alpha = 0.13f + 0.03f * breathe),
-        radius = 30.dp.toPx(),
-        center = sunCenter,
-    )
-    // Corona: eight very faint rays turning almost imperceptibly.
-    for (k in 0 until 8) {
-        val angle = k * PI.toFloat() / 4f + progress * 0.35f
-        val inner = 12.dp.toPx()
-        val outer = inner + 6.dp.toPx()
-        drawLine(
-            color = sunWarm.copy(alpha = 0.10f),
-            start = sunCenter + Offset(cos(angle) * inner, sin(angle) * inner),
-            end = sunCenter + Offset(cos(angle) * outer, sin(angle) * outer),
-            strokeWidth = 1.5.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
-    drawCircle(color = sunCore.copy(alpha = 0.85f), radius = 9.dp.toPx(), center = sunCenter)
-    drawCircle(color = sunWarm.copy(alpha = 0.55f), radius = 6.dp.toPx(), center = sunCenter)
-    // Bright rim + two tiny sunspots, so the disc reads as a sun, not a dot.
-    drawCircle(
-        color = sunCore.copy(alpha = 0.30f),
-        radius = 10.dp.toPx(),
-        center = sunCenter,
-        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()),
-    )
-    drawCircle(
-        color = Color(0xFF92400E).copy(alpha = 0.35f),
-        radius = 1.2.dp.toPx(),
-        center = sunCenter + Offset(3.dp.toPx(), -2.dp.toPx()),
-    )
-    drawCircle(
-        color = Color(0xFF92400E).copy(alpha = 0.30f),
-        radius = 1.dp.toPx(),
-        center = sunCenter + Offset(-2.5.dp.toPx(), 3.dp.toPx()),
-    )
-
-    for (i in 0 until GALAXY_PLANET_COUNT) {
-        val (rxNorm, ryNorm) = planetOrbitRadius(i)
-        val rx = rxNorm * size.width
-        val ry = ryNorm * size.height
-        // Orbit ring: a very faint tilted ellipse.
-        drawOval(
-            color = white.copy(alpha = 0.08f),
-            topLeft = Offset(sunCenter.x - rx, sunCenter.y - ry),
-            size = androidx.compose.ui.geometry.Size(rx * 2f, ry * 2f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()),
-        )
-        val pos = planetPosition(
-            index = i,
-            progress = progress,
-            centerX = sunCenter.x / size.width,
-            centerY = sunCenter.y / size.height,
-            radiusX = rxNorm,
-            radiusY = ryNorm,
-        )
-        val center = Offset(pos.x * size.width, pos.y * size.height)
-        val radius = GALAXY_PLANET_RADII_DP[i].dp.toPx()
-        // Inner to outer: pink, blue, white, amber, pale gold.
-        val color = when (i) {
-            0 -> pink
-            1 -> blue
-            2 -> white
-            3 -> Color(0xFFFBBF24)
-            else -> Color(0xFFD9B36C)
-        }
-        // Saturn-like ring on the outermost planet: a tilted ellipse around the disc.
-        if (planetHasRing(i)) {
-            drawOval(
-                color = color.copy(alpha = 0.28f),
-                topLeft = Offset(center.x - radius * 2.1f, center.y - radius * 0.7f),
-                size = androidx.compose.ui.geometry.Size(radius * 4.2f, radius * 1.4f),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()),
-            )
-        }
-        drawCircle(color = color.copy(alpha = 0.10f), radius = radius * 2f, center = center)
-        drawCircle(color = color.copy(alpha = if (i % 2 == 0) 0.30f else 0.50f), radius = radius, center = center)
-        // Moon circling its planet (2nd and 4th planets).
-        if (planetHasMoon(i)) {
-            val moon = moonPosition(i, progress, pos.x, pos.y)
-            val moonCenter = Offset(moon.x * size.width, moon.y * size.height)
-            drawCircle(color = white.copy(alpha = 0.45f), radius = 1.6.dp.toPx(), center = moonCenter)
-        }
     }
 }
 

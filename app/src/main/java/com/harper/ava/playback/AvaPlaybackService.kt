@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -104,6 +105,17 @@ class AvaPlaybackService : MediaSessionService() {
      */
     private var accentColorArgb: Int = notificationAccentArgb(Accent.VIOLET, null)
 
+    /**
+     * 0.1-fix1 (Track A): the media-button preferences last pushed to
+     * the session (the like button, or empty when no song is loaded).
+     * Kept so the accent collector can re-push them after a theme
+     * change: re-pushing forces Media3 to rebuild the notification
+     * with the new accent (see the accent collector below). The list
+     * is the service's own copy — the like collector assigns it on
+     * every change before pushing.
+     */
+    private var lastMediaButtonPreferences: List<CommandButton> = emptyList()
+
     override fun onCreate() {
         super.onCreate()
         val app = application as AvaApplication
@@ -164,13 +176,33 @@ class AvaPlaybackService : MediaSessionService() {
         // collector is cancelled with serviceScope in onDestroy.
         // Deliberately only the local `provider` is captured — no
         // field, nothing to release.
+        // 0.1-fix1 (Track A): a theme change alone now ALSO re-posts
+        // the notification — the 0.7.5 "updates on the next refresh"
+        // limit is gone. Re-pushing the current media-button
+        // preferences forces the rebuild: verified firsthand in the
+        // shipped media3-session 1.11.1 bytecode,
+        // `MediaSessionImpl.setMediaButtonPreferences` stores the list
+        // unconditionally (no equality guard) and dispatches to
+        // controllers, and
+        // `MediaNotificationManager$MediaControllerListener
+        // .onMediaButtonPreferencesChanged` calls
+        // `MediaSessionService.onUpdateNotificationInternal(session,
+        // false)` — which rebuilds the notification with the new
+        // accent. The first emission is the starting accent (the
+        // notification is built with it anyway), so it is skipped.
         serviceScope.launch {
+            var firstEmission = true
             app.container.userPreferences.settings
                 .map { notificationAccentArgb(it.appTheme, it.customAccentArgb) }
                 .distinctUntilChanged()
                 .collect { accent ->
                     accentColorArgb = accent
                     provider.updateAccentColor(accent)
+                    if (firstEmission) {
+                        firstEmission = false
+                    } else {
+                        mediaSession?.setMediaButtonPreferences(lastMediaButtonPreferences)
+                    }
                 }
         }
         // 0.7.6: keep the notification like button live. The button
@@ -193,19 +225,21 @@ class AvaPlaybackService : MediaSessionService() {
                 .distinctUntilChanged()
                 .collect { (songId, isFavorite) ->
                     val session = mediaSession ?: return@collect
-                    if (songId == null) {
-                        session.setMediaButtonPreferences(emptyList())
+                    // 0.1-fix1 (Track A): remember the preferences so
+                    // the accent collector can re-push them after a
+                    // theme change and force a notification rebuild.
+                    lastMediaButtonPreferences = if (songId == null) {
+                        emptyList()
                     } else {
-                        session.setMediaButtonPreferences(
-                            listOf(
-                                likeButton(
-                                    isFavorite = isFavorite,
-                                    addLabel = getString(R.string.player_favorite_add),
-                                    removeLabel = getString(R.string.player_favorite_remove),
-                                ),
+                        listOf(
+                            likeButton(
+                                isFavorite = isFavorite,
+                                addLabel = getString(R.string.player_favorite_add),
+                                removeLabel = getString(R.string.player_favorite_remove),
                             ),
                         )
                     }
+                    session.setMediaButtonPreferences(lastMediaButtonPreferences)
                 }
         }
     }

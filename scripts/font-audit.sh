@@ -2,7 +2,9 @@
 # Zero-system-font audit for Ava (0.7.0 design round).
 #
 # Goal: no surface of the app renders text in the phone's system font —
-# only Vazirmatn (body/UI) and Lalezar (display), both SIL OFL 1.1.
+# only Vazirmatn (body/UI), Lalezar (display) — both SIL OFL 1.1 — and
+# Almas (splash dedication line only; DigiFont free download, NOT OFL —
+# see Type.kt; never Dana / Manshoor / Yadgar).
 # Run: ./scripts/font-audit.sh        (exit 0 = clean, exit 1 = leak found)
 #
 # Checks:
@@ -10,7 +12,7 @@
 #      Cursive) anywhere in main sources.
 #   2. No TextStyle( outside ui/theme/Type.kt, and every TextStyle in
 #      Type.kt sets a fontFamily.
-#   3. Every `fontFamily =` assignment is Vazirmatn or Lalezar.
+#   3. Every `fontFamily =` assignment is Vazirmatn, Lalezar or Almas.
 #   4. All fifteen Material3 Typography styles are defined in Type.kt —
 #      any style left out silently falls back to the Material3 default,
 #      whose fontFamily is FontFamily.Default (system font). This was a
@@ -20,7 +22,8 @@
 #      rendered in the system font.
 #   5. No android.graphics.Typeface system constant (DEFAULT/MONOSPACE/
 #      ...) outside the one documented fallback (below).
-#   6. res/font holds only the two licensed faces (never dana/manshoor).
+#   6. res/font holds only the three bundled faces (never dana/manshoor/
+#      yadgar).
 #   7. No android:fontFamily / android:typeface attribute in res XML.
 #   8. Every OutlinedTextField/BasicTextField passes an explicit
 #      textStyle from MaterialTheme.typography (its default is
@@ -74,11 +77,12 @@ else
     pass "every TextStyle in Type.kt sets a fontFamily ($STYLE_COUNT)"
 fi
 
-# 3. Only Vazirmatn / Lalezar as fontFamily values.
-if HITS=$(grep -rn --include='*.kt' 'fontFamily =' "$SRC" | grep -vE 'fontFamily = (Vazirmatn|Lalezar),'); then
-    fail "fontFamily other than Vazirmatn/Lalezar:\n$HITS"
+# 3. Only Vazirmatn / Lalezar / Almas as fontFamily values (Almas is
+#    the splash dedication only — see Type.kt).
+if HITS=$(grep -rn --include='*.kt' 'fontFamily =' "$SRC" | grep -vE 'fontFamily = (Vazirmatn|Lalezar|Almas),'); then
+    fail "fontFamily other than Vazirmatn/Lalezar/Almas:\n$HITS"
 else
-    pass "all fontFamily assignments are Vazirmatn or Lalezar"
+    pass "all fontFamily assignments are Vazirmatn, Lalezar or Almas"
 fi
 
 # 4. All fifteen Material3 Typography styles defined.
@@ -102,11 +106,12 @@ else
     pass "no system Typeface outside the safe-mode fallback"
 fi
 
-# 6. res/font: only the two licensed faces.
-if HITS=$(ls app/src/main/res/font/ | grep -vE '^(vazirmatn_(regular|medium|semibold|bold)\.ttf|lalezar_regular\.ttf)$'); then
-    fail "unexpected file in res/font (only Vazirmatn + Lalezar are licensed for bundling):\n$HITS"
+# 6. res/font: only the three bundled faces (Vazirmatn + Lalezar SIL OFL;
+#    Almas, DigiFont free download — splash dedication only).
+if HITS=$(ls app/src/main/res/font/ | grep -vE '^(vazirmatn_(regular|medium|semibold|bold)\.ttf|lalezar_regular\.ttf|almas_bold\.ttf)$'); then
+    fail "unexpected file in res/font (only Vazirmatn + Lalezar + Almas may be bundled):\n$HITS"
 else
-    pass "res/font holds only Vazirmatn + Lalezar"
+    pass "res/font holds only Vazirmatn + Lalezar + Almas"
 fi
 
 # 7. No font attributes in res XML.

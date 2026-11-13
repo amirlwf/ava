@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ava</string>
+    <string name="splash_dedication">تقدیم به آوا رحمانی راد</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>
@@ -142,6 +143,21 @@
     <!-- Song actions -->
     <string name="song_add_to_queue">Add to queue</string>
     <string name="song_play_next">Play next</string>
+    <string name="song_set_as_ringtone">Set as ringtone</string>
+    <string name="ringtone_editor_title">Ringtone editor</string>
+    <string name="ringtone_editor_subtitle">Trim a segment, preview it, then set it as your ringtone.</string>
+    <string name="ringtone_trim_start">Start</string>
+    <string name="ringtone_trim_end">End</string>
+    <string name="ringtone_preview">Preview segment</string>
+    <string name="ringtone_stop_preview">Stop preview</string>
+    <string name="ringtone_set">Set as ringtone</string>
+    <string name="ringtone_trimming">Trimming…</string>
+    <string name="ringtone_success">Ringtone set — your phone will ring with this song.</string>
+    <string name="ringtone_error">Could not make the ringtone. Try a shorter segment.</string>
+    <string name="ringtone_needs_permission">Ava needs permission to change the system ringtone. Open settings and allow “Modify system settings”, then try again.</string>
+    <string name="ringtone_open_settings">Open settings</string>
+    <string name="ringtone_done">Done</string>
+    <string name="ringtone_preview_note">Preview plays the selected segment through the player.</string>
     <string name="song_add_to_playlist">Add to playlist</string>
     <string name="song_no_playlists">No playlists yet</string>
     <string name="song_more_actions">More actions</string>
