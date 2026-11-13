@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.common)
+    implementation(libs.media3.transformer)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

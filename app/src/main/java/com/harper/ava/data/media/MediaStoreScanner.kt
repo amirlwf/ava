@@ -46,14 +46,6 @@ class MediaStoreScanner(
 ) {
 
     /**
-     * 0.2-fix (Track 1): probe results, one per distinct album id for
-     * the lifetime of this scanner. A thumbnail can appear between
-     * scans (the user adds art), so the cache is per-scan, never
-     * static: the next rescan probes again.
-     */
-    private val albumArtProbeCache = mutableMapOf<Long, Boolean>()
-
-    /**
      * True when the MediaStore actually has a thumbnail for this
      * album. Opens the albumart uri once and closes it immediately —
      * no decode, no bitmap, just proof the file exists and opens.
@@ -62,9 +54,18 @@ class MediaStoreScanner(
      * falls back to Ava's default cover. Best-effort by design — a
      * probe failure must never fail the scan, and the probe runs on
      * Dispatchers.IO with the rest of the scan.
+     *
+     * [probeCache] is the caller's per-scan map (one entry per
+     * distinct album id, created fresh by [rescan] for each scan):
+     * a thumbnail can appear or disappear between scans, so probe
+     * results must never survive a scan. A field cache would keep a
+     * stale false (art added after the first scan ignored until the
+     * process restarts) or a stale true (a deleted thumbnail stored
+     * again, shadowing the default cover the way the broken albums/
+     * uri did in 0.2).
      */
-    private fun hasAlbumArt(albumId: Long): Boolean =
-        albumArtProbeCache.getOrPut(albumId) {
+    private fun hasAlbumArt(albumId: Long, probeCache: MutableMap<Long, Boolean>): Boolean =
+        probeCache.getOrPut(albumId) {
             val uri = albumArtUriForAlbum(albumId) ?: return@getOrPut false
             runCatching {
                 context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")
@@ -73,6 +74,9 @@ class MediaStoreScanner(
         }
 
     suspend fun rescan(): ScanResult = withContext(Dispatchers.IO) {
+        // 0.3-fix (improve loop, run 10): the probe cache is created
+        // fresh for this scan — see hasAlbumArt.
+        val albumArtProbes = mutableMapOf<Long, Boolean>()
         val rawSongs = mutableListOf<RawScannedSong>()
         var skipped = 0
         val projection = arrayOf(
@@ -135,7 +139,7 @@ class MediaStoreScanner(
                     // [hasAlbumArt]): most libraries have far fewer
                     // albums than songs, and the probe is one cheap
                     // file-descriptor open with no decode.
-                    val artUri = if (hasAlbumArt(albumId)) {
+                    val artUri = if (hasAlbumArt(albumId, albumArtProbes)) {
                         albumArtUriForAlbum(albumId)
                     } else {
                         null
