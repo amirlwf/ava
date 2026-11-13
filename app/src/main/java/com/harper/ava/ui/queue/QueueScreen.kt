@@ -3,6 +3,7 @@ package com.harper.ava.ui.queue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,8 +23,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +80,10 @@ fun QueueScreen(
     // 0.1: the now-playing row used to be a dead tap — it now opens
     // Now Playing, like every other now-playing surface in the app.
     onOpenNowPlaying: () -> Unit = {},
+    // Run 11 (UX): the empty state tells the user to play a song
+    // but offers no way there — Queue is full-screen (no bottom bar),
+    // so this opens the Library root.
+    onBrowseLibrary: () -> Unit = {},
 ) {
     val viewModel: QueueViewModel = viewModel(
         factory = QueueViewModel.factory(app.container.playerRepository),
@@ -125,14 +132,24 @@ fun QueueScreen(
         )
 
         if (queue.isEmpty() || currentSong == null) {
-            Box(
+            // Run 11 (UX): the only way out used to be the back arrow —
+            // the action is now right here, next to the words that ask
+            // for it (same button-under-empty-state pattern as run 6).
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 EmptyState(
                     title = stringResource(R.string.queue_empty_title),
                     body = stringResource(R.string.queue_empty_body),
                 )
+                Spacer(modifier = Modifier.height(AvaTokens.space16))
+                Button(onClick = onBrowseLibrary) {
+                    Icon(Icons.Filled.LibraryMusic, contentDescription = null)
+                    Spacer(modifier = Modifier.width(AvaTokens.space8))
+                    Text(stringResource(R.string.empty_go_to_library))
+                }
             }
             return
         }

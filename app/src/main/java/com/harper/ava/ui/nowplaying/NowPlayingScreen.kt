@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -111,6 +114,10 @@ fun NowPlayingScreen(
     onOpenLyrics: () -> Unit = {},
     onOpenSongDetails: (Long) -> Unit = {},
     onOpenRingtoneEditor: (Long) -> Unit = {},
+    // Run 11 (UX): the empty state tells the user to play a song
+    // from the library but offers no way there — Now Playing is
+    // full-screen (no bottom bar), so this opens the Library root.
+    onBrowseLibrary: () -> Unit = {},
 ) {
     val viewModel: NowPlayingViewModel = viewModel(
         factory = NowPlayingViewModel.factory(
@@ -137,15 +144,25 @@ fun NowPlayingScreen(
                     }
                 },
             )
-            Box(
+            // Run 11 (UX): the only way out used to be the back arrow —
+            // the action is now right here, next to the words that ask
+            // for it (same button-under-empty-state pattern as run 6).
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 // Stage 6: this used the queue's empty copy — wrong screen, wrong text.
                 EmptyState(
                     title = stringResource(R.string.now_playing_empty_title),
                     body = stringResource(R.string.now_playing_empty_body),
                 )
+                Spacer(modifier = Modifier.height(AvaTokens.space16))
+                Button(onClick = onBrowseLibrary) {
+                    Icon(Icons.Filled.LibraryMusic, contentDescription = null)
+                    Spacer(modifier = Modifier.width(AvaTokens.space8))
+                    Text(stringResource(R.string.empty_go_to_library))
+                }
             }
         }
         return

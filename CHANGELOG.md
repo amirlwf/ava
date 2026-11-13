@@ -3,6 +3,26 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] — 2026-11-13
+
+A small patch on 0.4, from Harper's request after testing 0.4.
+Version 0.4.1 (versionCode 25) — a patch release: a longer splash
+intro and one small UX fix, no new features.
+
+### Changed
+
+- **Splash intro is now about 2 seconds** — the dedication line
+  ("تقدیم به آوا رحمانی راد") types at ~70 ms per character
+  (~1600 ms for the 23-character line) with a 400 ms hold before
+  the hand-over, instead of ~1 second before.
+
+### Fixed
+
+- **Empty Queue and Now Playing screens gain a "Go to library"
+  button** — both empty states told the user to play a song from
+  the library but offered no way there. The button opens the
+  Library root (via the nav reset).
+
 ## [0.4] — 2026-11-13
 
 The fix round after 0.3, built from Harper's test of 0.3 on his phone.

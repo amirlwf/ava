@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.harper.ava.AvaApplication
+import com.harper.ava.core.util.bottomBarNavOptions
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.details.SongDetailsScreen
 import com.harper.ava.ui.ringtone.RingtoneEditorScreen
@@ -272,6 +273,16 @@ fun AvaNavGraph(
                     NowPlayingScreen(
                         app = app,
                         onBack = { navController.popBackStack() },
+                        onBrowseLibrary = {
+                            // Run 11 (UX): the empty state's button —
+                            // the same reset the bottom bar uses (pop to
+                            // Home, then Library), so no Now Playing /
+                            // Queue destinations are left stacked above it.
+                            navController.navigate(
+                                Destination.Library.route,
+                                bottomBarNavOptions(),
+                            )
+                        },
                         onOpenQueue = { navController.navigate(QueueRoute.ROUTE) },
                         onOpenSleepTimer = { navController.navigate(SleepTimerRoute.ROUTE) },
                         onOpenEqualizer = { navController.navigate(EqualizerRoute.ROUTE) },
@@ -313,6 +324,13 @@ fun AvaNavGraph(
                     app,
                     onBack = { navController.popBackStack() },
                     onOpenNowPlaying = { navController.navigate(NowPlayingRoute.ROUTE) },
+                    // Run 11 (UX): same reset as Now Playing's button.
+                    onBrowseLibrary = {
+                        navController.navigate(
+                            Destination.Library.route,
+                            bottomBarNavOptions(),
+                        )
+                    },
                 )
             }
             composable(SettingsRoute.ROUTE) {

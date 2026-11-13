@@ -42,7 +42,7 @@ import kotlinx.coroutines.delay
  * character in the Almas handwritten face.
  *
  * Flow: this screen is shown while the persisted settings load
- * (`ready == false`) and for ~1 s after they arrive; then
+ * (`ready == false`) and for ~2 s after they arrive; then
  * [onIntroFinished] hands over to the graph (onboarding on first run,
  * Home afterwards). The entrance plays on first composition, the
  * typewriter starts when `ready` becomes true, so a slow settings
@@ -50,9 +50,9 @@ import kotlinx.coroutines.delay
  *
  * One orchestrated moment, per the design skill: the logo + name
  * fade/scale in on the shared [AvaMotion] family (350 ms cross-fade,
- * soft 0.96x → 1x spring), the dedication types at ~35 ms per
- * character (~800 ms for the 23-character line), then a short hold
- * before the hand-over — about one second in total. The dedication
+ * soft 0.96x → 1x spring), the dedication types at ~70 ms per
+ * character (~1600 ms for the 23-character line), then a 400 ms hold
+ * before the hand-over — about two seconds in total. The dedication
  * line is the ONLY place Almas is used (see `Type.kt`: DigiFont free
  * download, not OFL — never Dana / Manshoor / Yadgar).
  *
@@ -71,12 +71,12 @@ fun SplashScreen(
 
     LaunchedEffect(ready) {
         if (!ready) return@LaunchedEffect
-        val perCharMs = 800L / dedication.length.coerceAtLeast(1)
+        val perCharMs = 1600L / dedication.length.coerceAtLeast(1)
         for (i in 1..dedication.length) {
             typedCount = i
             delay(perCharMs)
         }
-        delay(200)
+        delay(400)
         onIntroFinished()
     }
 

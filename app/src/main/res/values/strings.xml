@@ -137,6 +137,7 @@
     <string name="queue_up_next">Up next</string>
     <string name="queue_empty_title">Queue is empty</string>
     <string name="queue_empty_body">Play a song and it will show up here.</string>
+    <string name="empty_go_to_library">Go to library</string>
     <string name="queue_clear">Clear queue</string>
     <string name="queue_shuffle">Shuffle queue</string>
     <string name="queue_remove">Remove from queue</string>

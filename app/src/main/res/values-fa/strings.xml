@@ -137,6 +137,7 @@
     <string name="queue_up_next">بعدی‌ها</string>
     <string name="queue_empty_title">صف خالی است</string>
     <string name="queue_empty_body">آهنگی پخش کن تا اینجا نمایش داده شود.</string>
+    <string name="empty_go_to_library">رفتن به کتابخانه</string>
     <string name="queue_clear">پاک کردن صف</string>
     <string name="queue_shuffle">بر زدن صف</string>
     <string name="queue_remove">حذف از صف</string>
