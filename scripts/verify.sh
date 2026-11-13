@@ -78,8 +78,10 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/data/repository/MusicRepository.kt \
   app/src/main/java/com/harper/ava/domain/model/Models.kt \
   app/src/main/java/com/harper/ava/ui/theme/AppTheme.kt \
+  app/src/main/java/com/harper/ava/ui/theme/Type.kt \
   app/src/main/java/com/harper/ava/playback/AvaMediaNotificationProvider.kt \
   app/src/main/java/com/harper/ava/playback/NotificationLikeLogic.kt \
+  app/src/main/java/com/harper/ava/playback/NotificationRepeatShuffleLogic.kt \
   app/src/test/java/com/harper/ava/TimeFormatTest.kt \
   app/src/test/java/com/harper/ava/QueueLogicTest.kt \
   app/src/test/java/com/harper/ava/ScanNormalizeTest.kt \
@@ -107,6 +109,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/MotionTest.kt \
   app/src/test/java/com/harper/ava/SwipeDismissLogicTest.kt \
   app/src/test/java/com/harper/ava/RingtoneLogicTest.kt \
+  app/src/test/java/com/harper/ava/SplashDedicationStyleTest.kt \
+  app/src/test/java/com/harper/ava/NotificationRepeatShuffleTest.kt \
   "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
 java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
@@ -137,4 +141,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.PlaylistLogicTest \
   com.harper.ava.MotionTest \
   com.harper.ava.SwipeDismissLogicTest \
-  com.harper.ava.RingtoneLogicTest 2>&1 | tail -5
+  com.harper.ava.RingtoneLogicTest \
+  com.harper.ava.SplashDedicationStyleTest \
+  com.harper.ava.NotificationRepeatShuffleTest 2>&1 | tail -5

@@ -2,6 +2,9 @@ package com.harper.ava
 
 import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.playback.notificationAccentArgb
+import com.harper.ava.ui.theme.AmoledSurfaceStep
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
+import com.harper.ava.ui.theme.amoledLiftedContainer
 import com.harper.ava.ui.theme.appThemeSpec
 import com.harper.ava.ui.theme.argbLuminance
 import com.harper.ava.ui.theme.contrastRatio
@@ -97,6 +100,49 @@ class AppThemeTest {
             // Surfaces are tinted, not pure black — each theme keeps a whisper of hue.
             assertNotEquals("${theme.name} surface", 0xFF000000L, s.amoledSurface)
         }
+    }
+
+    // --- 0.2-fix (Track 2): AMOLED containers must read on pure black ---
+    // The old elevation steps were invisible (surfaceContainer 1.11:1,
+    // surfaceContainerHigh 1.35:1 vs black), so dialogs, the nav bar,
+    // cards and rows melted into the background. The lifted steps are
+    // pinned here per theme: every step must clear its floor, and the
+    // steps must stay ordered and distinct — while the spec values
+    // themselves (and the pure-black background) stay untouched, so
+    // the test above still holds.
+    @Test
+    fun `amoled lifted containers read on pure black`() {
+        val black = 0xFF000000L
+        for (theme in AppTheme.entries) {
+            val s = theme.spec
+            val low = amoledLiftedContainer(s.amoledSurface, AmoledSurfaceStep.LOW)
+            val container = amoledLiftedContainer(s.amoledSurfaceVariant, AmoledSurfaceStep.CONTAINER)
+            val high = amoledLiftedContainer(s.amoledSurfaceVariant, AmoledSurfaceStep.HIGH)
+            val highest = amoledLiftedContainer(s.amoledSurfaceVariant, AmoledSurfaceStep.HIGHEST)
+            assertTrue("${theme.name} low", contrastRatio(low, black) >= 1.15)
+            assertTrue("${theme.name} container", contrastRatio(container, black) >= 1.5)
+            assertTrue("${theme.name} high", contrastRatio(high, black) >= 2.2)
+            assertTrue("${theme.name} highest", contrastRatio(highest, black) >= 3.4)
+            assertTrue("${theme.name} low < container", argbLuminance(low) < argbLuminance(container))
+            assertTrue("${theme.name} container < high", argbLuminance(container) < argbLuminance(high))
+            assertTrue("${theme.name} high < highest", argbLuminance(high) < argbLuminance(highest))
+            // The lift never touches the alpha channel.
+            assertEquals(0xFF000000L, low and 0xFF000000L)
+            assertEquals(0xFF000000L, highest and 0xFF000000L)
+        }
+    }
+
+    @Test
+    fun `inactive track alpha is a visible track on pure black`() {
+        // 0.22 of near-white onSurface on black is 1.79:1 — a track
+        // that reads as a track while staying subtle. The old values
+        // (0.10 = 1.19:1, 0.12 = 1.26:1) and the M3 default
+        // (surfaceVariant = 1.11:1) were invisible in AMOLED.
+        assertEquals(0.22f, INACTIVE_TRACK_ALPHA)
+        // Composite 22% white over pure black: 255 * 0.22 = 56 per channel.
+        val channel = (255 * INACTIVE_TRACK_ALPHA).toLong()
+        val composited = 0xFF000000L or (channel shl 16) or (channel shl 8) or channel
+        assertTrue(contrastRatio(composited, 0xFF000000L) >= 1.7)
     }
 
     @Test

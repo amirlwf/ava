@@ -1,6 +1,7 @@
 package com.harper.ava
 
 import com.harper.ava.core.util.DEFAULT_ARTWORK_URI
+import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.artworkUriFor
 import com.harper.ava.core.util.songMediaMetadata
 import com.harper.ava.domain.model.Song
@@ -109,5 +110,31 @@ class MediaItemLogicTest {
             "android.resource://com.harper.ava/drawable/ava_default_artwork",
             DEFAULT_ARTWORK_URI,
         )
+    }
+
+    // --- 0.2-fix (Track 1): the albumart uri form ---
+
+    @Test
+    fun `album art uri uses the albumart form, not the albums row uri`() {
+        // 0.2 root cause: the scanner stored the album ROW uri
+        // (content://media/external/audio/albums/<id>), which is
+        // metadata only — opening it as an image stream fails, so
+        // Media3's BitmapLoader dropped every cover silently. The
+        // albumart form is the one the MediaProvider serves as a
+        // thumbnail file.
+        assertEquals(
+            "content://media/external/audio/albumart/7",
+            albumArtUriForAlbum(7L),
+        )
+        assertEquals(
+            "content://media/external/audio/albumart/1000201063",
+            albumArtUriForAlbum(1000201063L),
+        )
+    }
+
+    @Test
+    fun `album art uri is null without an album id`() {
+        assertNull(albumArtUriForAlbum(0L))
+        assertNull(albumArtUriForAlbum(-1L))
     }
 }

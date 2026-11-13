@@ -43,6 +43,7 @@ import com.harper.ava.core.util.formatFileSize
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 
 /**
  * Storage & library: real counts from Room (songs, total play time,
@@ -154,7 +155,14 @@ fun StorageScreen(app: AvaApplication, onBack: () -> Unit) {
                 }
                 if (scanState is ScanUiState.Scanning) {
                     Spacer(modifier = Modifier.height(AvaTokens.space12))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        // 0.2-fix (Track 2): the M3 default track is
+                        // surfaceVariant — invisible on pure black in
+                        // AMOLED. An explicit onSurface track at
+                        // INACTIVE_TRACK_ALPHA stays visible.
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+                    )
                 }
                 if (scanState is ScanUiState.Done) {
                     val done = scanState as ScanUiState.Done

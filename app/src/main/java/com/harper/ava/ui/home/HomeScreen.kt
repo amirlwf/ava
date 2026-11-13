@@ -58,6 +58,7 @@ import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.openAppSettings
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.common.AvaMotion
 
 @Composable
@@ -150,7 +151,14 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(AvaTokens.space8))
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        // 0.2-fix (Track 2): the M3 default track is
+                        // surfaceVariant — invisible on pure black in
+                        // AMOLED. An explicit onSurface track at
+                        // INACTIVE_TRACK_ALPHA stays visible.
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+                    )
                     Spacer(modifier = Modifier.height(AvaTokens.space12))
                 }
                 is ScanUiState.Done -> {

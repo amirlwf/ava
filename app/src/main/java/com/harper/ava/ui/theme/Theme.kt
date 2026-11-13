@@ -83,10 +83,34 @@ private fun Color.darkened(factor: Float): Color {
 
 private fun darkScheme(spec: ThemeSpec, amoled: Boolean): androidx.compose.material3.ColorScheme {
     val variant = if (amoled) Color(spec.amoledSurfaceVariant) else Color(spec.darkSurfaceVariant)
-    // Elevation steps: a gentle lift above the variant. AMOLED steps stay
-    // very small so surfaces remain effectively black.
-    val high = variant.lightened(if (amoled) 0.06f else 0.35f)
-    val highest = variant.lightened(if (amoled) 0.12f else 0.6f)
+    // Elevation steps: a gentle lift above the variant. Non-AMOLED
+    // keeps the 0.7.0 factors (0.35 / 0.6 on the dark variant).
+    // 0.2-fix (Track 2): the old AMOLED steps (0.06 / 0.12) were
+    // invisible on pure black (1.11:1 / 1.35:1) — dialogs, the nav
+    // bar, cards and rows melted into the background. AMOLED now
+    // lifts through the named steps in [amoledLiftedContainer]
+    // (pure, pinned in AppThemeTest): the background stays pure
+    // black, only the containers read as surfaces.
+    val low = if (amoled) {
+        Color(amoledLiftedContainer(spec.amoledSurface, AmoledSurfaceStep.LOW))
+    } else {
+        Color(spec.darkSurface)
+    }
+    val container = if (amoled) {
+        Color(amoledLiftedContainer(spec.amoledSurfaceVariant, AmoledSurfaceStep.CONTAINER))
+    } else {
+        variant
+    }
+    val high = if (amoled) {
+        Color(amoledLiftedContainer(spec.amoledSurfaceVariant, AmoledSurfaceStep.HIGH))
+    } else {
+        variant.lightened(0.35f)
+    }
+    val highest = if (amoled) {
+        Color(amoledLiftedContainer(spec.amoledSurfaceVariant, AmoledSurfaceStep.HIGHEST))
+    } else {
+        variant.lightened(0.6f)
+    }
     return darkColorScheme(
     primary = Color(spec.primaryDark),
     onPrimary = Color(spec.onPrimaryDark),
@@ -101,8 +125,8 @@ private fun darkScheme(spec: ThemeSpec, amoled: Boolean): androidx.compose.mater
     surfaceVariant = if (amoled) Color(spec.amoledSurfaceVariant) else Color(spec.darkSurfaceVariant),
     onSurfaceVariant = Color(spec.darkOnSurfaceVariant),
     surfaceContainerLowest = if (amoled) Color.Black else Color(spec.darkBackground),
-    surfaceContainerLow = if (amoled) Color(spec.amoledSurface) else Color(spec.darkSurface),
-    surfaceContainer = variant,
+    surfaceContainerLow = low,
+    surfaceContainer = container,
     surfaceContainerHigh = high,
     surfaceContainerHighest = highest,
     outline = Color(spec.outlineDark),

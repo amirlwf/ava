@@ -116,6 +116,8 @@
     <string name="player_favorite_add">Add to favorites</string>
     <string name="player_favorite_remove">Remove from favorites</string>
     <string name="player_shuffle">Shuffle</string>
+    <string name="player_shuffle_on">Turn shuffle on</string>
+    <string name="player_shuffle_off">Turn shuffle off</string>
     <string name="player_repeat">Repeat</string>
     <string name="player_repeat_off">Repeat off</string>
     <string name="player_repeat_all">Repeat all</string>

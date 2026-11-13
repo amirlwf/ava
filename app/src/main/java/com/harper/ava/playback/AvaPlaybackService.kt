@@ -63,13 +63,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * 0.7.6 — the notification gains a like button (heart in the
  * expanded view) via a MediaSession custom command: the session is
- * built with [AvaSessionCallback] (which grants the like command to
- * connecting controllers and routes the tap to
- * `MusicRepository.toggleFavorite`), and a collector below keeps
- * the button's heart in sync with the current song's favourite
+ * built with [AvaSessionCallback] (which grants the custom commands
+ * to connecting controllers and routes the taps), and a collector
+ * below keeps the buttons in sync with the current song's favourite
  * state via `MediaSession.setMediaButtonPreferences`. Stock Media3
  * plumbing only — see `NotificationLikeLogic` for the full chain
  * and its benign failure modes.
+ * 0.2-fix (Track 1): repeat + shuffle join the same chain (the
+ * like collector became the notification-buttons collector) —
+ * Harper's 0.2 report: no repeat, no shuffle in the notification.
+ * See `NotificationRepeatShuffleLogic`.
  */
 class AvaPlaybackService : MediaSessionService() {
 
@@ -107,12 +110,12 @@ class AvaPlaybackService : MediaSessionService() {
 
     /**
      * 0.1-fix1 (Track A): the media-button preferences last pushed to
-     * the session (the like button, or empty when no song is loaded).
-     * Kept so the accent collector can re-push them after a theme
-     * change: re-pushing forces Media3 to rebuild the notification
-     * with the new accent (see the accent collector below). The list
-     * is the service's own copy — the like collector assigns it on
-     * every change before pushing.
+     * the session (the notification buttons — like, repeat, shuffle —
+     * or empty when no song is loaded). Kept so the accent collector
+     * can re-push them after a theme change: re-pushing forces Media3
+     * to rebuild the notification with the new accent (see the accent
+     * collector below). The list is the service's own copy — the
+     * buttons collector assigns it on every change before pushing.
      */
     private var lastMediaButtonPreferences: List<CommandButton> = emptyList()
 
@@ -150,6 +153,10 @@ class AvaPlaybackService : MediaSessionService() {
             // (see AvaSessionCallback) — the like custom command must
             // be in a controller's available commands or the tap is
             // dropped and the button filtered out of the notification.
+            // 0.2-fix (Track 1): repeat + shuffle route through the
+            // same callback (Harper's 0.2 report: no repeat, no
+            // shuffle in the notification) — the player already owns
+            // both modes, the callback only routes the tap.
             .setCallback(
                 AvaSessionCallback(
                     onToggleFavorite = {
@@ -158,6 +165,12 @@ class AvaPlaybackService : MediaSessionService() {
                                 musicRepository.toggleFavorite(song)
                             }
                         }
+                    },
+                    onToggleRepeat = {
+                        serviceScope.launch { playerRepository.cycleRepeatMode() }
+                    },
+                    onToggleShuffle = {
+                        serviceScope.launch { playerRepository.toggleShuffle() }
                     },
                 ),
             )
@@ -205,26 +218,37 @@ class AvaPlaybackService : MediaSessionService() {
                     }
                 }
         }
-        // 0.7.6: keep the notification like button live. The button
+        // 0.7.6: keep the notification buttons live. The like button
         // shows in the notification's EXPANDED view only (compact
         // view has three slots, all taken by transport); its heart
-        // fills when the current song is a favourite. Pushing
-        // preferences rebuilds the notification (Media3 refreshes on
-        // preferences change), so the icon follows the favourite
-        // state. distinctUntilChanged on (songId, isFavorite) so
+        // fills when the current song is a favourite.
+        // 0.2-fix (Track 1): repeat + shuffle join the same list
+        // (Harper's 0.2 report: no repeat, no shuffle in the
+        // notification). One collector owns the whole preference list
+        // — like + repeat + shuffle — so a mode change rebuilds all
+        // three together and the accent collector can re-push the
+        // same list after a theme change. distinctUntilChanged on
+        // (songId, isFavorite, repeatMode, shuffleEnabled) so
         // unchanged state never re-posts the notification. No song
-        // loaded means no like button at all (empty preferences).
+        // loaded means no custom buttons at all (empty preferences).
         serviceScope.launch {
             combine(
                 playerRepository.state.map { it.currentSong?.id },
                 musicRepository.observeFavorites()
                     .map { favorites -> favorites.map { it.id }.toSet() },
-            ) { songId, favoriteIds ->
-                songId to (songId != null && songId in favoriteIds)
+                playerRepository.state.map { it.repeatMode },
+                playerRepository.state.map { it.shuffleEnabled },
+            ) { songId, favoriteIds, repeatMode, shuffleEnabled ->
+                Triple(
+                    songId to (songId != null && songId in favoriteIds),
+                    repeatMode,
+                    shuffleEnabled,
+                )
             }
                 .distinctUntilChanged()
-                .collect { (songId, isFavorite) ->
+                .collect { (songAndFavorite, repeatMode, shuffleEnabled) ->
                     val session = mediaSession ?: return@collect
+                    val (songId, isFavorite) = songAndFavorite
                     // 0.1-fix1 (Track A): remember the preferences so
                     // the accent collector can re-push them after a
                     // theme change and force a notification rebuild.
@@ -236,6 +260,17 @@ class AvaPlaybackService : MediaSessionService() {
                                 isFavorite = isFavorite,
                                 addLabel = getString(R.string.player_favorite_add),
                                 removeLabel = getString(R.string.player_favorite_remove),
+                            ),
+                            repeatButton(
+                                mode = repeatMode,
+                                offLabel = getString(R.string.player_repeat_off),
+                                allLabel = getString(R.string.player_repeat_all),
+                                oneLabel = getString(R.string.player_repeat_one),
+                            ),
+                            shuffleButton(
+                                enabled = shuffleEnabled,
+                                onLabel = getString(R.string.player_shuffle_on),
+                                offLabel = getString(R.string.player_shuffle_off),
                             ),
                         )
                     }

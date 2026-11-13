@@ -24,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import com.harper.ava.ui.settings.SettingsSectionHeader
 import com.harper.ava.ui.settings.SettingsSpacer
 import com.harper.ava.ui.settings.SettingsSwitchRow
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 
 /**
  * Equalizer: device presets + manual band sliders, driven by Android's
@@ -163,6 +165,14 @@ fun EqualizerScreen(app: AvaApplication, onBack: () -> Unit) {
                             onValueChange = { viewModel.setBand(band, it) },
                             valueRange = eq.minLevelDb..eq.maxLevelDb,
                             modifier = Modifier.fillMaxWidth(),
+                            // 0.2-fix (Track 2): the M3 default track
+                            // is surfaceVariant — invisible on pure
+                            // black in AMOLED. An explicit onSurface
+                            // track at INACTIVE_TRACK_ALPHA stays
+                            // visible.
+                            colors = SliderDefaults.colors(
+                                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+                            ),
                         )
                     }
                 }

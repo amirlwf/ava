@@ -3,6 +3,54 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3] — 2026-11-13
+
+The fix round after 0.2, built from Harper's test of 0.2 on his phone.
+Version 0.3 (versionCode 23) — a minor release, because this round
+adds features (repeat/shuffle in the notification, a new logo), not
+just fixes. It folds in improve-loop run 9 (the splash dedication
+line now uses a dedicated Type.kt style, so it stays centred when it
+wraps on a narrow screen).
+
+### Fixed
+
+- **Notification finally shows the cover** — the scanner stored the
+  wrong album URI (the `albums/` row URI, whose `openInputStream`
+  fails), so Media3's BitmapLoader silently loaded nothing and the
+  shade showed no art. The scanner now stores the real `albumart`
+  file URI, probed at scan time; stored library rows pick it up on
+  the next Rescan.
+- **Notification no longer white** — on Android 13+ the shade derives
+  its background from the artwork, so the missing cover was also the
+  missing theme; with real artwork the shade takes the song's colours
+  again, plus Ava's accent.
+- **AMOLED black-on-black** — in the AMOLED theme some black elements
+  (track rows, dividers, icons) vanished on the pure-black
+  background. A shared lifted-container colour and a shared
+  inactive-track alpha now keep every element visible while the
+  background stays true black.
+
+### Added
+
+- **Repeat + shuffle in the notification** — repeat (off / all / one)
+  and shuffle buttons in the expanded notification, wired to the
+  player's real repeat mode and shuffle mode, mirroring the
+  like-button session-command pattern.
+- **New app logo** — the boteh-note mark (a Persian boteh paisley
+  flowing into a music note, violet with a gold accent line) is now
+  the main launcher icon and the intro logo. The purple/green
+  switchable icons stay available in Settings.
+
+### Changed
+
+- **Update check on every entry** — the 24-hour cooldown is gone; the
+  app checks GitHub every time you open it (cold start and return
+  from background, at most once per 5 minutes), quietly, never
+  blocking startup.
+
+After installing 0.3, tap Rescan once so stored library rows pick up
+the fixed artwork URI.
+
 ## [0.2] — 2026-11-13
 
 The fix round after 0.1, built from Harper's test of 0.1 on his phone.

@@ -18,7 +18,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,20 +35,19 @@ import com.harper.ava.ui.theme.AvaTokens
  * so it is visible on every screen until dismissed. Shown only when the
  * automatic check found a newer release the user has not dismissed.
  *
- * The automatic check is triggered here (once per composition entry),
- * never from MainActivity: [LaunchedEffect] runs after the first frame,
- * and [com.harper.ava.data.update.UpdateManager] does the network work
- * on its own IO scope, so startup is never blocked. All text styles come
- * from MaterialTheme (Vazirmatn body / Lalezar display) — no system font.
+ * The banner only READS the state — it never triggers a check.
+ * The automatic check is triggered from MainActivity's RESUMED
+ * lifecycle (0.2-fix, Track 3: every entry into the app, cold start
+ * and return from background), and
+ * [com.harper.ava.data.update.UpdateManager] does the network work
+ * on its own IO scope, so startup is never blocked. All text styles
+ * come from MaterialTheme (Vazirmatn body / Lalezar display) — no
+ * system font.
  */
 @Composable
 fun UpdateBanner(app: AvaApplication) {
     val updateManager = app.container.updateManager
     val banner by updateManager.bannerState.collectAsState()
-
-    LaunchedEffect(Unit) {
-        updateManager.checkIfDue()
-    }
 
     val state = banner ?: return
     val context = LocalContext.current

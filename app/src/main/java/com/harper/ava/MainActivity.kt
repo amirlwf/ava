@@ -44,7 +44,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.harper.ava.core.util.CrashReporter
@@ -129,6 +131,19 @@ class MainActivity : ComponentActivity() {
                         "watchdog: still waiting for settings.first after ${waited}s",
                     )
                 }
+            }
+        }
+        // 0.2-fix (Track 3): check for updates on every entry into
+        // the app. repeatOnLifecycle(RESUMED) re-runs on every
+        // foreground entry — cold start AND return from background —
+        // which is what Harper asked for ("every time the user enters
+        // the app"). The manager's own 5-minute guard dedupes rapid
+        // re-entries (rotation, returning from a system screen) and
+        // the check itself runs on the manager's IO scope, so it
+        // never blocks startup or the UI.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                app.container.updateManager.checkOnAppEntry()
             }
         }
         StartupTracer.mark(this, "activity.edgeToEdge.begin")

@@ -20,8 +20,33 @@ const val UPDATE_RELEASE_PAGE_URL =
 /** Harper's website, linked from About and Settings (0.7.4). */
 const val HARPER_WEBSITE_URL = "https://amirlwf.ir"
 
-/** Minimum gap between automatic (background) update checks. */
-const val UPDATE_CHECK_COOLDOWN_MS: Long = 24L * 60L * 60L * 1000L
+/**
+ * Minimum gap between automatic update checks — the anti-hammer
+ * guard (0.2-fix, Track 3).
+ *
+ * Harper's 0.2 report: the app must check every time the user
+ * enters it, so the old 24-hour cooldown is gone. The guard that
+ * remains is deliberately small (5 minutes): it only stops the
+ * check from hammering GitHub when the app re-enters in quick
+ * succession (a rotation, returning from a system screen, a fast
+ * background/foreground bounce). GitHub's unauthenticated rate
+ * limit is 60 requests/hour, so even a guard-free check on every
+ * entry would stay under it — 5 minutes is belt and braces, not a
+ * throttle on the feature. The check is silent when there is no
+ * update and never blocks startup, so checking often costs nothing
+ * visible.
+ */
+const val UPDATE_CHECK_MIN_INTERVAL_MS: Long = 5L * 60L * 1000L
+
+/**
+ * True when an automatic check may run now: the minimum interval
+ * has passed since the last attempt, or there never was one
+ * ([lastCheckMs] <= 0). A clock that went backwards (now < last)
+ * is not due — the guard must not be defeatable by a clock skew.
+ * Pure, so UpdateLogicTest pins the boundary.
+ */
+fun isUpdateCheckDue(nowMs: Long, lastCheckMs: Long): Boolean =
+    lastCheckMs <= 0L || nowMs - lastCheckMs >= UPDATE_CHECK_MIN_INTERVAL_MS
 
 /**
  * True when [latest] is a newer version than [current].

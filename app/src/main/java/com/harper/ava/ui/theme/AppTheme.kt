@@ -551,6 +551,56 @@ fun contrastRatio(a: Long, b: Long): Double {
     return (hi + 0.05) / (lo + 0.05)
 }
 
+// -- AMOLED container lifts (0.2-fix, Track 2) -----------------------
+// Harper's 0.2 report: in AMOLED mode some black things become
+// invisible. The old elevation steps were too shy: surfaceContainer
+// (the 0x16 variant) vs pure black is 1.11:1, surfaceContainerHigh
+// (variant lightened 0.06) 1.35:1 — edges the eye cannot see, so
+// dialogs, the nav bar, cards and rows melted into the black
+// background. The background stays pure black (that is the point of
+// AMOLED); only the containers are lifted, in four named steps, so
+// every container reads as a surface and the steps stay distinct.
+// Pure (Long ARGB in, Long ARGB out) so AppThemeTest pins the
+// resulting contrast ratios on the real spec values.
+
+/**
+ * The alpha of an inactive slider / progress track
+ * (`onSurface.copy(alpha = INACTIVE_TRACK_ALPHA)`).
+ *
+ * The M3 defaults use `surfaceVariant` for tracks — 1.11:1 vs pure
+ * black in AMOLED, invisible — and the two hand-set values were no
+ * better (Now Playing 0.12 = 1.26:1, MiniPlayer 0.10 = 1.19:1).
+ * 22% of the near-white `onSurface` on black is 1.79:1: the track
+ * reads as a track while staying subtle. One shared constant so the
+ * value cannot drift per screen again.
+ */
+const val INACTIVE_TRACK_ALPHA = 0.22f
+
+/** The four AMOLED container elevation steps, low to high. */
+enum class AmoledSurfaceStep { LOW, CONTAINER, HIGH, HIGHEST }
+
+/**
+ * Lifts [baseArgb] toward white by the step's factor, returning an
+ * opaque ARGB colour. Factors — LOW 0.08, CONTAINER 0.14, HIGH 0.24,
+ * HIGHEST 0.36 — chosen so every step reads on pure black (VIOLET
+ * contrasts vs black: 1.25 / 1.74 / 2.48 / 3.83) while the steps
+ * stay clearly ordered and the background itself stays black.
+ */
+fun amoledLiftedContainer(baseArgb: Long, step: AmoledSurfaceStep): Long {
+    val factor = when (step) {
+        AmoledSurfaceStep.LOW -> 0.08f
+        AmoledSurfaceStep.CONTAINER -> 0.14f
+        AmoledSurfaceStep.HIGH -> 0.24f
+        AmoledSurfaceStep.HIGHEST -> 0.36f
+    }
+    fun lift(channel: Long): Long =
+        (channel + ((255 - channel) * factor)).toLong().coerceIn(0L, 255L)
+    return 0xFF000000L or
+        (lift((baseArgb shr 16) and 0xFF) shl 16) or
+        (lift((baseArgb shr 8) and 0xFF) shl 8) or
+        lift(baseArgb and 0xFF)
+}
+
 // -- Glass aurora (0.1-fix1, Track C) ---------------------------------------
 // Pure strength rules for the IPHONE theme's aurora backdrop. The aurora
 // is the one bold element that makes the glass theme unmistakable: three

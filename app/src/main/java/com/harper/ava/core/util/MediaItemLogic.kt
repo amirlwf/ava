@@ -63,9 +63,39 @@ fun notificationTitle(song: Song): String =
  * (verified in the shipped media3-datasource 1.11.1 bytecode) — a
  * vector drawable would fail to decode there. Pure (a plain string),
  * so the offline JUnit suite pins it.
+ *
+ * 0.2-fix (Track 1) — the root cause of Harper's "no cover at all"
+ * report on 0.2: the scanner used to store the album ROW uri
+ * (`content://media/external/audio/albums/<id>`) as the artwork
+ * uri. That uri is for querying album metadata — it carries no
+ * image data, so `ContentResolver.openInputStream` on it fails and
+ * Media3's `BitmapLoader` drops the artwork silently (caught, no
+ * large icon, no crash). Worse, the broken uri is non-blank, so it
+ * shadowed the working default cover: every tagged song posted with
+ * no cover. The correct form is the albumart uri
+ * ([albumArtUriForAlbum]) — the documented
+ * `content://media/external/audio/albumart/<id>`, which the
+ * MediaProvider serves as a thumbnail file. The scanner also probes
+ * it (see `MediaStoreScanner`): an album with no thumbnail stores
+ * null, so the default cover applies and a cover is genuinely
+ * guaranteed.
  */
 const val DEFAULT_ARTWORK_URI =
     "android.resource://com.harper.ava/drawable/ava_default_artwork"
+
+/**
+ * The album-art URI for a MediaStore album id, or null when the song
+ * has no album. The `albumart` form is the one the MediaProvider
+ * serves as an image: `content://media/external/audio/albumart/<id>`
+ * opens with `openInputStream` / `openFileDescriptor` (AOSP
+ * MusicUtils, the documented pattern). The albums ROW uri
+ * (`content://media/external/audio/albums/<id>`) looks almost the
+ * same but is metadata only — opening it as a stream fails, which
+ * is exactly how 0.2 lost every cover. Pure, so the offline JUnit
+ * suite pins the form.
+ */
+fun albumArtUriForAlbum(albumId: Long): String? =
+    if (albumId > 0L) "content://media/external/audio/albumart/$albumId" else null
 
 fun artworkUriFor(song: Song): String =
     song.albumArtUri?.takeIf { it.isNotBlank() } ?: DEFAULT_ARTWORK_URI

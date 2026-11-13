@@ -62,6 +62,7 @@ import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.scan.ScanUiState
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.common.AvaMotion
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -142,7 +143,14 @@ fun LibraryScreen(
         )
         when (scanState) {
             ScanUiState.Scanning -> {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    // 0.2-fix (Track 2): the M3 default track is
+                    // surfaceVariant — invisible on pure black in
+                    // AMOLED. An explicit onSurface track at
+                    // INACTIVE_TRACK_ALPHA stays visible.
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+                )
                 Text(
                     text = stringResource(R.string.scan_scanning),
                     style = MaterialTheme.typography.bodySmall,

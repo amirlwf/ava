@@ -2,8 +2,10 @@ package com.harper.ava.data.media
 
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
 import com.harper.ava.core.util.RawScannedSong
+import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.dedupeScannedSongs
 import com.harper.ava.core.util.normalizeScannedSong
 import com.harper.ava.data.repository.MusicRepository
@@ -42,6 +44,33 @@ class MediaStoreScanner(
     private val context: Context,
     private val musicRepository: MusicRepository,
 ) {
+
+    /**
+     * 0.2-fix (Track 1): probe results, one per distinct album id for
+     * the lifetime of this scanner. A thumbnail can appear between
+     * scans (the user adds art), so the cache is per-scan, never
+     * static: the next rescan probes again.
+     */
+    private val albumArtProbeCache = mutableMapOf<Long, Boolean>()
+
+    /**
+     * True when the MediaStore actually has a thumbnail for this
+     * album. Opens the albumart uri once and closes it immediately —
+     * no decode, no bitmap, just proof the file exists and opens.
+     * Any failure (no thumbnail, revoked permission, provider error)
+     * means "no art": the caller stores null and the notification
+     * falls back to Ava's default cover. Best-effort by design — a
+     * probe failure must never fail the scan, and the probe runs on
+     * Dispatchers.IO with the rest of the scan.
+     */
+    private fun hasAlbumArt(albumId: Long): Boolean =
+        albumArtProbeCache.getOrPut(albumId) {
+            val uri = albumArtUriForAlbum(albumId) ?: return@getOrPut false
+            runCatching {
+                context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")
+                    ?.use { true } ?: false
+            }.getOrDefault(false)
+        }
 
     suspend fun rescan(): ScanResult = withContext(Dispatchers.IO) {
         val rawSongs = mutableListOf<RawScannedSong>()
@@ -97,10 +126,17 @@ class MediaStoreScanner(
                     val uri = ContentUris
                         .withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                         .toString()
-                    val artUri = if (albumId > 0L) {
-                        ContentUris
-                            .withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
-                            .toString()
+                    // 0.2-fix (Track 1): the artwork uri is the albumart
+                    // form ([albumArtUriForAlbum]) AND it is probed — an
+                    // album with no MediaStore thumbnail stores null, so
+                    // the notification falls back to Ava's default cover
+                    // instead of posting with no cover. Probed once per
+                    // distinct album id, not per song (see
+                    // [hasAlbumArt]): most libraries have far fewer
+                    // albums than songs, and the probe is one cheap
+                    // file-descriptor open with no decode.
+                    val artUri = if (hasAlbumArt(albumId)) {
+                        albumArtUriForAlbum(albumId)
                     } else {
                         null
                     }

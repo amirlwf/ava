@@ -28,18 +28,18 @@ Ava is a premium offline music player for Android, built with Kotlin, Jetpack Co
 - 🗑️ **Delete songs** — deletes the audio file itself (with Android's system confirmation)
 - 🔄 **Resume playback** — picks up where you left off, including the full queue
 - 🌐 **Languages** — full Persian (RTL) and English (LTR), switchable in the app
-- 🔔 **Update check** — checks GitHub once a day when you are online, with a quiet banner when a newer version is ready
+- 🔔 **Update check** — checks GitHub every time you open the app when you are online, with a quiet banner when a newer version is ready
 
 ## Download
 
 | Version | File | Size |
 | ------- | ---- | ---- |
-| [v0.2](https://github.com/amirlwf/ava/releases/tag/v0.2) | [ava-0.2-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.2/ava-0.2-debug.apk) | ~58 MB |
+| [v0.3](https://github.com/amirlwf/ava/releases/tag/v0.3) | [ava-0.3-debug.apk](https://github.com/amirlwf/ava/releases/download/v0.3/ava-0.3-debug.apk) | ~59 MB |
 
 ## Installation
 
 1. Download the APK from the table above.
-2. If you have an older Ava installed, install the new APK right over it — 0.2 is a normal update after 0.1, and the in-app updater offers it as usual.
+2. If you have an older Ava installed, install the new APK right over it — 0.3 is a normal update after 0.2, and the in-app updater offers it as usual.
 3. Open the APK on your phone and install. If your browser blocks the install, allow "Install unknown apps" for it.
 4. On first launch, allow the **Music and audio** permission so Ava can scan your songs.
 5. Allow **Notifications** if you want playback controls in the notification shade and on the lock screen.
@@ -62,10 +62,10 @@ If Gradle cannot run in your environment, `scripts/manual-build.sh` reproduces t
 Yes. No ads, no account, no tracking, no in-app purchases.
 
 **Does Ava need the internet?**
-No. Everything — playback, library, lyrics, insights — works fully offline. The only network use is the optional once-a-day update check, which you can turn off in Settings.
+No. Everything — playback, library, lyrics, insights — works fully offline. The only network use is the optional update check each time you open the app, which you can turn off in Settings.
 
-**How do I update from 0.1?**
-Normally: 0.2 is a regular update after 0.1, so the in-app updater offers it, and installing the APK over 0.1 just works — no need to uninstall first. (The one-time exception was 0.1 itself: it replaced the removed 0.7.x line, so a 0.7.6 install never offered it.)
+**How do I update from 0.2?**
+Normally: 0.3 is a regular update after 0.2, so the in-app updater offers it, and installing the APK over 0.2 just works — no need to uninstall first. (The one-time exception was 0.1 itself: it replaced the removed 0.7.x line, so a 0.7.6 install never offered it.)
 
 **My songs have no tags / show the wrong title?**
 Ava titles untagged songs with their file name. Rescan from Home (the refresh button) to pick up the fix for songs scanned before.

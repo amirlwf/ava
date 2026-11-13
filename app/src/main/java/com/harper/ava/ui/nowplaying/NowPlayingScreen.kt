@@ -99,6 +99,7 @@ import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
 import com.harper.ava.ui.navigation.LocalAvaSharedTransitionScope
 import com.harper.ava.ui.navigation.songCoverSharedKey
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -667,7 +668,10 @@ private fun NowPlayingProgress(
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                // 0.2-fix (Track 2): was 0.12 (1.26:1 vs pure black
+                // in AMOLED — the track vanished). The shared
+                // INACTIVE_TRACK_ALPHA (0.22, 1.79:1) keeps it visible.
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
             ),
         )
         Row(

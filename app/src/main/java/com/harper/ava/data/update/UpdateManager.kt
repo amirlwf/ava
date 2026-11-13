@@ -1,7 +1,7 @@
 package com.harper.ava.data.update
 
 import android.content.Context
-import com.harper.ava.core.util.UPDATE_CHECK_COOLDOWN_MS
+import com.harper.ava.core.util.isUpdateCheckDue
 import com.harper.ava.data.preferences.UserPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,11 +33,15 @@ sealed interface ManualUpdateCheckState {
  * startup or the UI, and any failure just stays silent.
  *
  * Rules:
- * - Automatic check: only when auto-check is on, more than 24 h have
- *   passed since the last attempt, and the device is online. The
- *   timestamp is stamped after every real attempt (success or error),
- *   so a failing network does not retry on every launch; offline
- *   (no network at all) does not stamp anything.
+ * - Automatic check: on every entry into the app (0.2-fix, Track
+ *   3 — cold start AND return from background, triggered from
+ *   MainActivity's RESUMED lifecycle), when auto-check is on and
+ *   the device is online. The only throttle is a 5-minute
+ *   anti-hammer guard ([UPDATE_CHECK_MIN_INTERVAL_MS]) against
+ *   rapid re-entries — not a cooldown on the feature. The
+ *   timestamp is stamped after every real attempt (success or
+ *   error), so a failing network does not retry on every entry;
+ *   offline (no network at all) does not stamp anything.
  * - A version the user dismissed ("don't tell me again for this
  *   version") is never shown by the automatic check again — until the
  *   next release. A manual check still reports it.
@@ -57,13 +61,20 @@ class UpdateManager(
         MutableStateFlow<ManualUpdateCheckState>(ManualUpdateCheckState.Idle)
     val manualCheckState: StateFlow<ManualUpdateCheckState> = _manualCheckState.asStateFlow()
 
-    /** Automatic check, called once per app start from the banner. No-op when not due. */
-    fun checkIfDue() {
+    /**
+     * Automatic check, called on every entry into the app from
+     * MainActivity (cold start + return from background). No-op
+     * when auto-check is off, when the 5-minute anti-hammer guard
+     * has not elapsed since the last attempt, or when offline.
+     * Silent when there is no update — the banner only appears when
+     * a newer release exists and the user has not dismissed it.
+     */
+    fun checkOnAppEntry() {
         scope.launch {
             val settings = userPreferences.settings.first()
             if (!settings.autoUpdateCheck) return@launch
             val now = System.currentTimeMillis()
-            if (now - settings.lastUpdateCheckMs < UPDATE_CHECK_COOLDOWN_MS) return@launch
+            if (!isUpdateCheckDue(now, settings.lastUpdateCheckMs)) return@launch
             if (!updateChecker.isOnline()) return@launch
             val result = runCheckAndStamp(now) ?: return@launch
             if (result is UpdateCheckResult.Available &&

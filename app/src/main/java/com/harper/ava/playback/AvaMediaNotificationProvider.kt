@@ -217,6 +217,46 @@ import com.harper.ava.ui.theme.spec
  *   is the strongest remaining lever for making the notification
  *   feel like Ava's; the layout, font and seek bar stay
  *   SystemUI-owned and are honestly out of reach on this path.
+ *
+ * 0.2-fix (Track 1) — Harper's 0.2 report, three exact symptoms,
+ * audited firsthand against the 1.11.1 bytecode (not guessed):
+ *
+ * - NO COVER AT ALL. Root cause, in the scanner, not the provider:
+ *   `MediaStoreScanner` stored the album ROW uri
+ *   (`content://media/external/audio/albums/<id>`) as the artwork
+ *   uri. That uri is metadata only — `ContentResolver.openInputStream`
+ *   on it fails — so the session's `BitmapLoader` dropped every
+ *   cover silently (caught, no large icon, no crash) AND the broken
+ *   uri shadowed the working default cover, so no song showed any
+ *   cover. Fix: the albumart uri
+ *   (`content://media/external/audio/albumart/<id>`, the documented
+ *   form the MediaProvider serves as a thumbnail) + a scan-time
+ *   probe per album id, so an album with no thumbnail stores null
+ *   and the default Galaxy cover applies. The provider chain itself
+ *   was verified intact: `createNotification` loads
+ *   `metadata.artworkUri` through the session's `BitmapLoader`
+ *   (`CacheBitmapLoader(SizeLimitedBitmapLoader(...))`) and calls
+ *   `setLargeIcon` — and `DefaultDataSource` routes both
+ *   `android.resource` (the default cover) and `content` (album
+ *   art). One honest limit remains: a rescan is needed once after
+ *   this fix — the library rows already stored hold the broken
+ *   albums uri, and `syncLibrary` upserts them on rescan.
+ * - NO REPEAT, NO SHUFFLE. The stock provider only emits prev /
+ *   play / next; repeat and shuffle are session commands, so they
+ *   ride the like button's mechanism (`NotificationRepeatShuffleLogic`):
+ *   `SLOT_OVERFLOW` buttons in the expanded view, state-reflecting
+ *   icons, taps routed by `AvaSessionCallback` to the player's real
+ *   repeat mode / shuffle mode. Compact view keeps exactly the
+ *   three transport buttons.
+ * - PLAIN WHITE, NO THEME. On Android 13+ the shade derives the
+ *   media player's background from the artwork — no artwork, white
+ *   player. The accent itself DOES reach the posted notification:
+ *   `addNotificationActions` calls `builder.setColor(accent)` on
+ *   every post, and the 0.2 re-post chain was verified in the
+ *   bytecode (`onMediaButtonPreferencesChanged` calls
+ *   `MediaSessionService.onUpdateNotificationInternal`), so a theme
+ *   change rebuilds it. Fixing the cover is what restores the
+ *   theme; there is no separate colour bug.
  */
 class AvaMediaNotificationProvider(
     context: Context,

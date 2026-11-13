@@ -76,20 +76,27 @@ fun likeSessionCommand(): SessionCommand = SessionCommand(LIKE_COMMAND_ACTION, B
 
 /**
  * Available session commands for a connecting controller: the
- * platform defaults for that controller PLUS the like custom
- * command.
+ * platform defaults for that controller PLUS the notification custom
+ * commands (like, repeat, shuffle).
  *
  * The defaults MUST be kept, not replaced: `AcceptedResultBuilder`
  * starts with the right defaults for the controller (trusted ->
  * [MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS],
  * untrusted -> `DEFAULT_UNTRUSTED_SESSION_COMMANDS`), but
  * `setAvailableSessionCommands` REPLACES them — building a set with
- * only the like command would silently strip the controller of
+ * only the custom commands would silently strip the controller of
  * every default session command. This function mirrors the
- * builder's trusted/untrusted choice and adds the like command on
- * top. Pinned by test for both branches.
+ * builder's trusted/untrusted choice and adds the custom commands on
+ * top. Pinned by test for both branches (the like grant; the repeat
+ * and shuffle grants ride the same builder call).
+ *
+ * 0.2-fix (Track 1): the grant used to cover only the like command
+ * ([availableSessionCommandsWithLike], renamed here) — Harper's 0.2
+ * report asked for repeat and shuffle in the notification, and a tap
+ * is dropped silently without its command in the available set, so
+ * both ride this grant now.
  */
-fun availableSessionCommandsWithLike(isTrusted: Boolean): SessionCommands {
+fun availableSessionCommandsWithNotificationActions(isTrusted: Boolean): SessionCommands {
     val base = if (isTrusted) {
         MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
     } else {
@@ -98,8 +105,18 @@ fun availableSessionCommandsWithLike(isTrusted: Boolean): SessionCommands {
     return SessionCommands.Builder()
         .addSessionCommands(base.commands)
         .add(likeSessionCommand())
+        .add(repeatSessionCommand())
+        .add(shuffleSessionCommand())
         .build()
 }
+
+/**
+ * The like-only grant, kept as a thin alias: older call sites and
+ * the like test pin this name. New code grants the full notification
+ * set through [availableSessionCommandsWithNotificationActions].
+ */
+fun availableSessionCommandsWithLike(isTrusted: Boolean): SessionCommands =
+    availableSessionCommandsWithNotificationActions(isTrusted)
 
 /**
  * The like button for the current song.

@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,6 +56,7 @@ import com.harper.ava.core.util.hsvToArgb
 import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.theme.accentPalette
 import com.harper.ava.ui.theme.spec
 import java.util.Locale
@@ -319,19 +321,45 @@ private fun CustomColorPicker(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
+        Slider(
+            value = hue,
+            onValueChange = { hue = it },
+            valueRange = 0f..360f,
+            // 0.2-fix (Track 2): the M3 default track is
+            // surfaceVariant — invisible on pure black in AMOLED. An
+            // explicit onSurface track at INACTIVE_TRACK_ALPHA stays
+            // visible. Same for the saturation and brightness sliders
+            // below.
+            colors = SliderDefaults.colors(
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+            ),
+        )
         Text(
             text = stringResource(R.string.color_saturation),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Slider(value = saturation, onValueChange = { saturation = it }, valueRange = 0f..1f)
+        Slider(
+            value = saturation,
+            onValueChange = { saturation = it },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+            ),
+        )
         Text(
             text = stringResource(R.string.color_brightness),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f)
+        Slider(
+            value = value,
+            onValueChange = { value = it },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+            ),
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AvaTokens.space12),

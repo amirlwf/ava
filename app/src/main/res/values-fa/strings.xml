@@ -116,6 +116,8 @@
     <string name="player_favorite_add">افزودن به محبوب‌ها</string>
     <string name="player_favorite_remove">حذف از محبوب‌ها</string>
     <string name="player_shuffle">بر زدن</string>
+    <string name="player_shuffle_on">روشن کردن بر زدن</string>
+    <string name="player_shuffle_off">خاموش کردن بر زدن</string>
     <string name="player_repeat">تکرار</string>
     <string name="player_repeat_off">تکرار خاموش</string>
     <string name="player_repeat_all">تکرار همه</string>

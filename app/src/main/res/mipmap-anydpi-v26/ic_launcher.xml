@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 0.1-fix1 (Track I): Harper's NEW artwork (2026-11-13) — the purple
-     neon squircle version of the anime artwork. Full-bleed, NOT cropped
-     to a circle: the squircle frame is the design. Background is black
-     to match the artwork's black field, so any launcher mask that clips
-     the frame's edges still reads as one black square. The purple /
-     green circular variants stay as switchable aliases. -->
+<!-- 0.2-fix (Track 4): Harper's NEW logo (2026-11-13) — the boteh
+     (بته‌جقه) + music-note mark he generated from the delivered
+     prompt: a purple gradient note with a gold accent line on black.
+     The main launcher icon is the artwork itself, centred on its
+     black field; the purple / green circular variants stay as
+     switchable aliases.
+     Safe zone: the note's tip reached 454px from the centre of the
+     1254px artwork — outside the adaptive-icon safe circle (383px
+     radius) — so the foreground is the artwork scaled 0.835x and
+     re-centred (max extent now 370px), so no circular or squircle
+     mask clips the tip. The source was a JPEG inside a .png name;
+     it was decoded and re-encoded as a real PNG, never copied raw.
+     Background is black to match the artwork's black field. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@android:color/black" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />

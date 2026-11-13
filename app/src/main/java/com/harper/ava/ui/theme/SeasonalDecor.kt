@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.dp
 import com.harper.ava.data.preferences.AppTheme
 import kotlin.math.PI
 import kotlin.math.abs

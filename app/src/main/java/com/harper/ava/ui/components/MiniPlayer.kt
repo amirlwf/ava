@@ -56,6 +56,7 @@ import com.harper.ava.data.repository.PlaybackState
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.common.rememberPressScale
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.theme.glassPanel
 import kotlinx.coroutines.flow.StateFlow
 
@@ -284,6 +285,9 @@ private fun MiniPlayerProgress(
             .height(4.dp)
             .clip(RoundedCornerShape(AvaTokens.radiusFull)),
         color = MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f),
+        // 0.2-fix (Track 2): was 0.10 (1.19:1 vs pure black in
+        // AMOLED — the track vanished). The shared
+        // INACTIVE_TRACK_ALPHA (0.22, 1.79:1) keeps it visible.
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
     )
 }

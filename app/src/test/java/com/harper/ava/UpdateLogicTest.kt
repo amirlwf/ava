@@ -1,6 +1,8 @@
 package com.harper.ava
 
+import com.harper.ava.core.util.UPDATE_CHECK_MIN_INTERVAL_MS
 import com.harper.ava.core.util.isNewerVersion
+import com.harper.ava.core.util.isUpdateCheckDue
 import com.harper.ava.core.util.parseJsonStringField
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,13 +12,7 @@ import org.junit.Test
 
 /**
  * Update-check logic (0.7.2). Pure JUnit — no Android runtime.
- *
- * NOTE: not yet registered in scripts/verify.sh (the integrator adds
- * the file + the JUnitCore entry); run manually, e.g.:
- *   kotlinc -cp <cp> -d /tmp/update-test-classes \
- *     app/src/main/java/com/harper/ava/core/util/UpdateLogic.kt \
- *     app/src/test/java/com/harper/ava/UpdateLogicTest.kt
- *   java -cp ... org.junit.runner.JUnitCore com.harper.ava.UpdateLogicTest
+ * Registered in scripts/verify.sh (test-compile list + JUnitCore list).
  */
 class UpdateLogicTest {
 
@@ -111,5 +107,42 @@ class UpdateLogicTest {
         assertFalse(isNewerVersion("v0.1", "0.7.6"))
         assertTrue(isNewerVersion("v0.2", "0.1"))
         assertFalse(isNewerVersion("v0.1", "0.1"))
+    }
+
+    // -- every-entry check guard (0.2-fix, Track 3) ----------------------
+    // The old 24-hour cooldown is gone: the app checks on every
+    // entry. What remains is a 5-minute anti-hammer guard against
+    // rapid re-entries (rotation, returning from a system screen).
+    // The boundary is pinned here; the manager calls this function.
+
+    @Test
+    fun `check guard is five minutes`() {
+        assertEquals(5L * 60L * 1000L, UPDATE_CHECK_MIN_INTERVAL_MS)
+    }
+
+    @Test
+    fun `first ever check is due`() {
+        assertTrue(isUpdateCheckDue(nowMs = 1_000_000L, lastCheckMs = 0L))
+        assertTrue(isUpdateCheckDue(nowMs = 1_000_000L, lastCheckMs = -1L))
+    }
+
+    @Test
+    fun `check just made is not due again`() {
+        assertFalse(isUpdateCheckDue(nowMs = 1_000_000L, lastCheckMs = 1_000_000L))
+        assertFalse(isUpdateCheckDue(nowMs = 1_000_000L, lastCheckMs = 999_999L))
+    }
+
+    @Test
+    fun `check is due again after the five minute guard`() {
+        val last = 1_000_000L
+        assertFalse(isUpdateCheckDue(nowMs = last + 4L * 60L * 1000L, lastCheckMs = last))
+        assertFalse(isUpdateCheckDue(nowMs = last + 5L * 60L * 1000L - 1L, lastCheckMs = last))
+        assertTrue(isUpdateCheckDue(nowMs = last + 5L * 60L * 1000L, lastCheckMs = last))
+        assertTrue(isUpdateCheckDue(nowMs = last + 60L * 60L * 1000L, lastCheckMs = last))
+    }
+
+    @Test
+    fun `clock going backwards is not due`() {
+        assertFalse(isUpdateCheckDue(nowMs = 500_000L, lastCheckMs = 1_000_000L))
     }
 }

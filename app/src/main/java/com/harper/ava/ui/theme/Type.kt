@@ -5,12 +5,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.harper.ava.R
 
 /**
- * Two typefaces, both SIL OFL 1.1 (free for commercial use and app
- * embedding; licences in `assets/OFL.txt` and `assets/OFL-lalezar.txt`):
+ * Two typefaces make up the UI type system, both SIL OFL 1.1 (free for
+ * commercial use and app embedding; licences in `assets/OFL.txt` and
+ * `assets/OFL-lalezar.txt`):
  *
  * - Vazirmatn is the body / UI face: every body, label and title style
  *   below, so fa/en render with one consistent voice. Weights shipped:
@@ -67,6 +69,23 @@ val Lalezar = FontFamily(
  */
 val Almas = FontFamily(
     Font(R.font.almas_bold, FontWeight.Normal),
+)
+
+/**
+ * Splash dedication line style — the ONLY [TextStyle] that uses
+ * [Almas] (see above): 16 sp on a 24 sp line, centred. A named style
+ * in this file, not inline values in the screen, so the typography
+ * audit ("no `fontSize` / `fontFamily` outside Type.kt") holds and the
+ * line stays centred even if it wraps on a 320 dp screen or under a
+ * large system font scale. Still not a Material3 slot — Almas stays
+ * out of the UI type system.
+ */
+val SplashDedicationStyle = TextStyle(
+    fontFamily = Almas,
+    fontWeight = FontWeight.Normal,
+    fontSize = 16.sp,
+    lineHeight = 24.sp,
+    textAlign = TextAlign.Center,
 )
 
 val AvaTypography = Typography(

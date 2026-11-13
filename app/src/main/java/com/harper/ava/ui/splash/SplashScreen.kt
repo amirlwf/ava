@@ -28,10 +28,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harper.ava.R
 import com.harper.ava.ui.common.AvaMotion
-import com.harper.ava.ui.theme.Almas
+import com.harper.ava.ui.theme.SplashDedicationStyle
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.delay
 
@@ -51,8 +50,8 @@ import kotlinx.coroutines.delay
  *
  * One orchestrated moment, per the design skill: the logo + name
  * fade/scale in on the shared [AvaMotion] family (350 ms cross-fade,
- * soft 0.96x → 1x spring), the dedication types at ~36 ms per
- * character (~800 ms for the 22-character line), then a short hold
+ * soft 0.96x → 1x spring), the dedication types at ~35 ms per
+ * character (~800 ms for the 23-character line), then a short hold
  * before the hand-over — about one second in total. The dedication
  * line is the ONLY place Almas is used (see `Type.kt`: DigiFont free
  * download, not OFL — never Dana / Manshoor / Yadgar).
@@ -111,8 +110,7 @@ fun SplashScreen(
         }
         Text(
             text = dedication.take(typedCount),
-            fontFamily = Almas,
-            fontSize = 16.sp,
+            style = SplashDedicationStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
