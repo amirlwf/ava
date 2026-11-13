@@ -73,6 +73,7 @@
     <string name="search_empty_body">Searches song titles, artist names and album names.</string>
     <string name="search_no_results_title">No results found</string>
     <string name="search_no_results_body">Nothing in your library matches “%1$s”.</string>
+    <string name="search_clear_query">Clear search</string>
     <string name="search_history_title">Recent searches</string>
     <string name="search_history_clear">Clear history</string>
 
@@ -121,6 +122,7 @@
     <string name="player_speed">Speed</string>
     <string name="player_queue">Queue</string>
     <string name="player_notification_channel">Music playback</string>
+    <string name="player_notification_channel_desc">Shows the song that is playing, with playback controls.</string>
 
 
     <!-- Now Playing -->

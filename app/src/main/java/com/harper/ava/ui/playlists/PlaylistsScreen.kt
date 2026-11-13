@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -90,11 +91,25 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                EmptyState(
-                    title = stringResource(R.string.playlists_empty_title),
-                    body = stringResource(R.string.playlists_empty_body),
-                    icon = Icons.AutoMirrored.Filled.QueueMusic,
-                )
+                // 0.1: the empty state used to say "create a playlist"
+                // with no button in sight — only the floating action
+                // button did it. The action is now right here, under
+                // the words that ask for it.
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EmptyState(
+                        title = stringResource(R.string.playlists_empty_title),
+                        body = stringResource(R.string.playlists_empty_body),
+                        icon = Icons.AutoMirrored.Filled.QueueMusic,
+                    )
+                    Spacer(modifier = Modifier.height(AvaTokens.space16))
+                    Button(onClick = { showCreateDialog = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(AvaTokens.space8))
+                        Text(stringResource(R.string.playlists_create))
+                    }
+                }
             }
         } else {
             LazyColumn(
@@ -118,6 +133,7 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
                         // Stage 6: deleting a playlist is destructive and
                         // used to happen on one tap with no confirmation.
                         onDelete = { playlistToDelete = playlist },
+                        modifier = Modifier.animateItem(),
                     )
                 }
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }
@@ -198,10 +214,11 @@ private fun PlaylistRow(
     onPlayAll: () -> Unit,
     onAddSongs: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var artFailed by remember(playlist.coverArtUri) { mutableStateOf(false) }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = AvaTokens.space20, vertical = AvaTokens.space12),

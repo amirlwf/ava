@@ -54,8 +54,11 @@ class StringsParityTest {
         // Leftovers of the 0.7.2 custom notification provider (reverted
         // twice, never coming back), unused Settings subtitles and an
         // unused Insights label — removed in improve-loop run 2.
+        // NOTE: player_notification_channel_desc was in this set until
+        // 0.1 — dead in 0.7.2's leftovers, but 0.1 gives it a real use
+        // (the playback channel's description, set in
+        // AvaPlaybackService), so it is a live string again.
         val dead = setOf(
-            "player_notification_channel_desc",
             "notif_action_previous", "notif_action_play", "notif_action_pause",
             "notif_action_next", "notif_action_like", "notif_unknown_artist",
             "settings_appearance_sub", "settings_language_sub",

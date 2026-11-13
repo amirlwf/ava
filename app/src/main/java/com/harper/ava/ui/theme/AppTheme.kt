@@ -4,7 +4,7 @@ import com.harper.ava.data.preferences.AppTheme
 import kotlin.math.pow
 
 /**
- * 0.7.0 design round — the nine Ava themes.
+ * 0.7.0 design round — the ten Ava themes.
  *
  * A theme is a complete design system, not just an accent colour: its own
  * primary/secondary/tertiary, its own dark + light surfaces, its own hero
@@ -14,7 +14,7 @@ import kotlin.math.pow
  * spec into a Material3 [androidx.compose.material3.ColorScheme] and
  * [androidx.compose.material3.Shapes].
  *
- * The eight themes (default [AppTheme.VIOLET] keeps the exact 0.6.0 look):
+ * The ten themes (default [AppTheme.VIOLET] keeps the exact 0.6.0 look):
  *
  * - SPRING / بهار — fresh leaf green + cherry-blossom pink, soft round shapes.
  * - SUMMER / تابستان — sunny cyan + amber, the roundest, most playful shapes.
@@ -28,6 +28,10 @@ import kotlin.math.pow
  *   pink / blue. NOT the same as AMOLED: AMOLED is pure black with no
  *   identity, Galaxy is a space aesthetic — starfield decor, a nebula
  *   hero gradient and indigo-tinted surfaces in every mode.
+ * - IPHONE / آیفون (0.1) — Apple's design language: frosted-glass
+ *   surfaces, pure-black dark background, airy #F2F2F7 light background,
+ *   large continuous corners. The only glass theme ([ThemeSpec.isGlass]);
+ *   it shows no seasonal decor — the glass itself is its identity.
  *
  * Every theme works in all three [com.harper.ava.data.preferences.ThemeMode]s:
  * dark uses the theme-tinted charcoal surfaces, light uses a theme-tinted
@@ -87,6 +91,15 @@ data class ThemeSpec(
     val radiusMediumDp: Int,
     val radiusLargeDp: Int,
     val radiusExtraLargeDp: Int,
+    /**
+     * 0.1: true when the theme renders frosted-glass surfaces (the
+     * IPHONE theme only). Glass is a deliberate design language, not a
+     * decoration: translucent surfaces + hairline borders + stronger
+     * background blur, applied in [Theme.kt]'s `glassPanel` and the
+     * screens that read this flag. Every other theme is false, so
+     * glass never leaks into a theme that didn't ask for it.
+     */
+    val isGlass: Boolean = false,
 )
 
 /** The spec for a theme. */
@@ -458,6 +471,53 @@ fun appThemeSpec(theme: AppTheme): ThemeSpec = when (theme) {
         radiusMediumDp = 20,
         radiusLargeDp = 24,
         radiusExtraLargeDp = 32,
+    )
+    AppTheme.IPHONE -> ThemeSpec(
+        nameFa = "آیفون",
+        nameEn = "iPhone",
+        moodFa = "شیشه‌ای و مینیمال، به سبک اپل",
+        moodEn = "Frosted glass, minimal — Apple's way",
+        // iOS system blue, deepened just enough that white labels hold
+        // WCAG >= 4.0 (dark) / >= 4.5 (light): pure #0A84FF / #007AFF
+        // with white text score 3.65 / 4.02 and would fail the test.
+        primaryDark = 0xFF0071E3,
+        onPrimaryDark = 0xFFFFFFFF,
+        primaryLight = 0xFF0066CC,
+        onPrimaryLight = 0xFFFFFFFF,
+        secondaryDark = 0xFF64D2FF,
+        secondaryLight = 0xFF0A6E9E,
+        tertiaryDark = 0xFFBF5AF2,
+        tertiaryLight = 0xFFAF52DE,
+        primaryContainerDark = 0xFF0A2A4A,
+        onPrimaryContainerDark = 0xFFDBEAFE,
+        primaryContainerLight = 0xFFE5F2FF,
+        onPrimaryContainerLight = 0xFF00376B,
+        // Apple's own dark surfaces: pure-black background, #1C1C1E /
+        // #2C2C2E cards. Light: #F2F2F7 grouped background, white cards.
+        darkBackground = 0xFF000000,
+        darkSurface = 0xFF1C1C1E,
+        darkSurfaceVariant = 0xFF2C2C2E,
+        darkOnBackground = 0xFFFFFFFF,
+        darkOnSurface = 0xFFFFFFFF,
+        darkOnSurfaceVariant = 0xFFAEAEB2,
+        lightBackground = 0xFFF2F2F7,
+        lightSurface = 0xFFFFFFFF,
+        lightSurfaceVariant = 0xFFE5E5EA,
+        lightOnBackground = 0xFF000000,
+        lightOnSurface = 0xFF000000,
+        lightOnSurfaceVariant = 0xFF3C3C43,
+        amoledSurface = 0xFF0A0A0C,
+        amoledSurfaceVariant = 0xFF14141A,
+        outlineDark = 0xFF38383A,
+        outlineLight = 0xFFC7C7CC,
+        heroDark = listOf(0xFF0071E3, 0xFF64D2FF, 0xFF0A2A4A),
+        heroLight = listOf(0xFF0066CC, 0xFF64D2FF, 0xFFE5F2FF),
+        // Apple's large continuous corners.
+        radiusSmallDp = 16,
+        radiusMediumDp = 20,
+        radiusLargeDp = 28,
+        radiusExtraLargeDp = 36,
+        isGlass = true,
     )
 }
 

@@ -59,7 +59,7 @@ import kotlin.math.sqrt
  * - [seasonalDecorKind]: the toggle + theme → decor mapping (pure logic).
  * - Galaxy spec: deep-space identity, distinct from AMOLED and from the
  *   other eight themes, with a nebula hero gradient. Readability in both
- *   modes is covered by the AppThemeTest loop over all nine themes.
+ *   modes is covered by the AppThemeTest loop over all ten themes.
  */
 class SeasonalDecorTest {
 
@@ -98,9 +98,12 @@ class SeasonalDecorTest {
         val s = AppTheme.GALAXY.spec
         assertTrue(argbLuminance(s.darkBackground) < 0.02)
         assertNotEquals(0xFF000000L, s.darkBackground)
-        // Darker than every other theme's dark background.
+        // Darker than every other theme's dark background — except
+        // IPHONE (0.1), whose pure-black background is Apple's dark
+        // mode by design, not a space aesthetic: it is the one theme
+        // allowed to be blacker than Galaxy.
         for (theme in AppTheme.entries) {
-            if (theme == AppTheme.GALAXY) continue
+            if (theme == AppTheme.GALAXY || theme == AppTheme.IPHONE) continue
             assertTrue(
                 theme.name,
                 argbLuminance(s.darkBackground) <= argbLuminance(theme.spec.darkBackground),
@@ -148,8 +151,8 @@ class SeasonalDecorTest {
     // --- 0.7.3 galaxy: shooting stars + solar system (pure helpers) ---
 
     @Test
-    fun `four meteors each appear for only part of the loop`() {
-        assertEquals(4, GALAXY_METEOR_COUNT)
+    fun `five meteors each appear for only part of the loop`() {
+        assertEquals(5, GALAXY_METEOR_COUNT)
         for (i in 0 until GALAXY_METEOR_COUNT) {
             var visible = 0
             var total = 0
@@ -418,7 +421,7 @@ class SeasonalDecorTest {
 
     @Test
     fun `milky way dust sits inside the band`() {
-        assertEquals(34, GALAXY_MILKY_WAY_DUST_COUNT)
+        assertEquals(44, GALAXY_MILKY_WAY_DUST_COUNT)
         for (i in 0 until GALAXY_MILKY_WAY_DUST_COUNT) {
             val (x, y) = milkyWayDustPosition(i)
             assertTrue("dust $i x $x", x in 0f..1f)
@@ -435,7 +438,7 @@ class SeasonalDecorTest {
         var p = 0f
         while (p < 1f) {
             val a = milkyWayDustAlpha(0, p)
-            assertTrue("dust alpha $a", a in 0.02f..0.17f)
+            assertTrue("dust alpha $a", a in 0.02f..0.19f)
             assertEquals(a, milkyWayDustAlpha(0, p))
             if (a < min) min = a
             if (a > max) max = a
@@ -445,11 +448,11 @@ class SeasonalDecorTest {
     }
 
     @Test
-    fun `nebula has six faint multi-colour clouds`() {
-        assertEquals(6, GALAXY_NEBULA_BLOBS.size)
+    fun `nebula has eight faint multi-colour clouds`() {
+        assertEquals(8, GALAXY_NEBULA_BLOBS.size)
         val colors = mutableSetOf<Int>()
         for (blob in GALAXY_NEBULA_BLOBS) {
-            assertTrue("alpha ${blob.alpha}", blob.alpha in 0.03f..0.09f)
+            assertTrue("alpha ${blob.alpha}", blob.alpha in 0.03f..0.11f)
             assertTrue("cx ${blob.centerX}", blob.centerX in 0f..1f)
             assertTrue("cy ${blob.centerY}", blob.centerY in 0f..1f)
             assertTrue("radius ${blob.radius}", blob.radius in 0.15f..0.45f)
@@ -461,7 +464,7 @@ class SeasonalDecorTest {
 
     @Test
     fun `constellations are valid and on screen`() {
-        assertEquals(2, GALAXY_CONSTELLATIONS.size)
+        assertEquals(3, GALAXY_CONSTELLATIONS.size)
         for (constellation in GALAXY_CONSTELLATIONS) {
             assertTrue(constellation.points.size >= 4)
             assertTrue(constellation.edges.isNotEmpty())

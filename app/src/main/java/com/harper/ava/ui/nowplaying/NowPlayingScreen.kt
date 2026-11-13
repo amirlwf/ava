@@ -9,8 +9,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -81,7 +79,9 @@ import com.harper.ava.data.preferences.SettingsState
 import com.harper.ava.data.repository.RepeatMode
 import com.harper.ava.ui.theme.SeasonalDecor
 import com.harper.ava.ui.theme.rememberIsResumed
+import com.harper.ava.ui.theme.LocalAppThemeSpec
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.common.rememberPressScale
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.navigation.LocalAvaAnimatedVisibilityScope
 import com.harper.ava.ui.navigation.LocalAvaSharedTransitionScope
@@ -165,12 +165,7 @@ fun NowPlayingScreen(
 
     // Hero play button: spring squash while pressed, like the mini player.
     val playInteraction = remember { MutableInteractionSource() }
-    val playPressed by playInteraction.collectIsPressedAsState()
-    val playScale by animateFloatAsState(
-        targetValue = if (playPressed) 0.88f else 1f,
-        animationSpec = AvaMotion.pressSpring,
-        label = "now-playing-play-scale",
-    )
+    val playScale = rememberPressScale(playInteraction, pressedScale = 0.88f)
 
     // Heart pop on every favorite tap (same spring as the rows).
     val heartScale = remember { Animatable(1f) }
@@ -193,6 +188,12 @@ fun NowPlayingScreen(
     // Stage 6: the cover was a fixed 300dp, but the content column is only
     // 272dp wide on a 320dp screen (24dp padding each side) — the cover
     // overflowed. It now adapts to the available width/height.
+    // 0.1: the glass theme frosts this screen (stronger blur + a
+    // translucent veil); the ambient glow below is gated by the same
+    // resumed flag as the seasonal decor, so a hidden Now Playing
+    // screen costs no animation frames.
+    val glass = LocalAppThemeSpec.current.isGlass
+    val isResumed = rememberIsResumed()
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val coverSize = minOf(
             AvaTokens.nowPlayingCoverSize,
@@ -209,7 +210,7 @@ fun NowPlayingScreen(
                 onError = { coverFailed = true },
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(64.dp)
+                    .blur(if (glass) 96.dp else 64.dp)
                     .graphicsLayer { alpha = 0.55f },
             )
         } else {
@@ -239,13 +240,31 @@ fun NowPlayingScreen(
                     ),
                 ),
         )
+        // 0.1: on the glass theme, a translucent surface veil over the
+        // blur is what makes it read as frosted glass instead of just a
+        // blurry photo; on other themes the scrim above is enough.
+        if (glass) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f)),
+            )
+        }
+        // 0.1: the ambient glow — slow drifting colour from the theme
+        // palette, breathing a little harder while the song plays.
+        // Ambient only: it never pretends to follow the music.
+        AmbientGlow(
+            isPlaying = state.isPlaying,
+            active = isResumed,
+            modifier = Modifier.fillMaxSize(),
+        )
         // 0.7.2: seasonal decor above the blurred-art background, behind
         // the content column.
         SeasonalDecor(
             theme = settings.appTheme,
             effectsEnabled = settings.seasonalEffectsEnabled,
             modifier = Modifier.fillMaxSize(),
-            active = rememberIsResumed(),
+            active = isResumed,
         )
 
         Column(
@@ -470,14 +489,22 @@ fun NowPlayingScreen(
                         }
                         .background(MaterialTheme.colorScheme.primary, CircleShape),
                 ) {
-                    Icon(
-                        imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(
-                            if (state.isPlaying) R.string.player_pause else R.string.player_play,
-                        ),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(40.dp),
-                    )
+                    // 0.1: the play/pause icon cross-fades instead of
+                    // swapping instantly, like the mini player.
+                    AnimatedContent(
+                        targetState = state.isPlaying,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "now-playing-play-icon",
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = stringResource(
+                                if (playing) R.string.player_pause else R.string.player_play,
+                            ),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
                 }
                 IconButton(
                     onClick = { haptics.tap(); viewModel.playNext() },

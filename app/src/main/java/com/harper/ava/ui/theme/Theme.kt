@@ -1,5 +1,7 @@
 package com.harper.ava.ui.theme
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -9,7 +11,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppTheme
@@ -35,6 +39,33 @@ fun themeShapes(spec: ThemeSpec): Shapes = Shapes(
     large = RoundedCornerShape(spec.radiusLargeDp.dp),
     extraLarge = RoundedCornerShape(spec.radiusExtraLargeDp.dp),
 )
+
+/**
+ * 0.1: frosted-glass panel for the glass theme (IPHONE only).
+ *
+ * When the active theme is glass, the surface becomes translucent
+ * (72% of the theme's surface container) with a 1dp hairline border
+ * in the theme outline — the frosted-glass look: content behind the
+ * panel shows through faintly, and the hairline keeps the edge crisp
+ * against any background. On every other theme this is exactly
+ * `background(baseColor, shape)`, so non-glass themes are untouched.
+ *
+ * Glass is applied only where it earns its place (the floating
+ * MiniPlayer pill, the bottom navigation bar, the Now Playing
+ * backdrop): never on plain list rows or text, where translucency
+ * would only hurt readability.
+ */
+@Composable
+fun Modifier.glassPanel(shape: Shape, baseColor: Color): Modifier {
+    val spec = LocalAppThemeSpec.current
+    return if (spec.isGlass) {
+        this
+            .background(baseColor.copy(alpha = 0.72f), shape)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), shape)
+    } else {
+        this.background(baseColor, shape)
+    }
+}
 
 /** Moves a colour toward white ([factor] 0..1); 0 returns the colour unchanged. */
 private fun Color.lightened(factor: Float): Color {

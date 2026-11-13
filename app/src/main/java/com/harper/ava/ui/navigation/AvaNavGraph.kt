@@ -6,8 +6,8 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -90,23 +90,40 @@ fun AvaNavGraph(
                 navController = navController,
                 startDestination = startDestination,
                 modifier = Modifier.weight(1f),
-            // Default destination transition: a short fade with a
-            // barely-there scale — calm, never a slide that fights RTL.
+            // Default destination transition (0.1): a short fade with a
+            // gentle vertical rise — the screen drifts up 24dp while
+            // fading in. Vertical only, on purpose: a horizontal slide
+            // would fight the RTL layout direction (a slide that reads
+            // as "forward" in LTR reads as "back" in RTL); a rise reads
+            // the same in both directions. Now Playing keeps its
+            // fade-only transition below (shared-element destination).
             enterTransition = {
                 fadeIn(AvaMotion.navEnterFade) +
-                    scaleIn(initialScale = 0.98f, animationSpec = AvaMotion.navEnterFade)
+                    slideInVertically(
+                        initialOffsetY = { it / 24 },
+                        animationSpec = AvaMotion.navEnterSlide,
+                    )
             },
             exitTransition = {
                 fadeOut(AvaMotion.navExitFade) +
-                    scaleOut(targetScale = 0.98f, animationSpec = AvaMotion.navExitFade)
+                    slideOutVertically(
+                        targetOffsetY = { it / 12 },
+                        animationSpec = AvaMotion.navExitSlide,
+                    )
             },
             popEnterTransition = {
                 fadeIn(AvaMotion.navEnterFade) +
-                    scaleIn(initialScale = 0.98f, animationSpec = AvaMotion.navEnterFade)
+                    slideInVertically(
+                        initialOffsetY = { it / 24 },
+                        animationSpec = AvaMotion.navEnterSlide,
+                    )
             },
             popExitTransition = {
                 fadeOut(AvaMotion.navExitFade) +
-                    scaleOut(targetScale = 0.98f, animationSpec = AvaMotion.navExitFade)
+                    slideOutVertically(
+                        targetOffsetY = { it / 12 },
+                        animationSpec = AvaMotion.navExitSlide,
+                    )
             },
         ) {
             composable(OnboardingRoute.ROUTE) {
@@ -233,7 +250,11 @@ fun AvaNavGraph(
                 SongDetailsScreen(app, songId) { navController.popBackStack() }
             }
             composable(QueueRoute.ROUTE) {
-                QueueScreen(app) { navController.popBackStack() }
+                QueueScreen(
+                    app,
+                    onBack = { navController.popBackStack() },
+                    onOpenNowPlaying = { navController.navigate(NowPlayingRoute.ROUTE) },
+                )
             }
             composable(SettingsRoute.ROUTE) {
                 SettingsScreen(

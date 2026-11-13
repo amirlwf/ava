@@ -3,6 +3,7 @@ package com.harper.ava.ui.playlists
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.harper.ava.core.util.normalizePlaylistName
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
 import com.harper.ava.data.repository.SongDeleteCoordinator
@@ -43,7 +44,10 @@ class PlaylistsViewModel(
 
     fun createPlaylist(name: String) {
         viewModelScope.launch {
-            runCatching { musicRepository.createPlaylist(name) }
+            // 0.1: blank / whitespace-padded names never reach the table.
+            normalizePlaylistName(name)?.let { clean ->
+                runCatching { musicRepository.createPlaylist(clean) }
+            }
         }
     }
 
@@ -104,8 +108,10 @@ class PlaylistDetailViewModel(
     /** 0.7.2 playlist-add fix: create a playlist from the song menu and add this song to it. */
     fun createPlaylistAndAdd(song: Song, name: String) {
         viewModelScope.launch {
+            // 0.1: blank / whitespace-padded names never reach the table.
+            val clean = normalizePlaylistName(name) ?: return@launch
             runCatching {
-                val id = musicRepository.createPlaylist(name)
+                val id = musicRepository.createPlaylist(clean)
                 musicRepository.addSongToPlaylist(id, song.id)
             }
         }

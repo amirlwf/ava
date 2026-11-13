@@ -9,7 +9,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,7 +53,9 @@ import com.harper.ava.R
 import com.harper.ava.core.util.rememberAvaHaptics
 import com.harper.ava.data.repository.PlaybackState
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.common.rememberPressScale
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassPanel
 
 /**
  * Mini player shown above the bottom bar whenever something is loaded in the
@@ -108,12 +109,7 @@ fun MiniPlayer(
     // Press squash on the hero play button: 0.88x while held, springing
     // back on release.
     val playInteraction = remember { MutableInteractionSource() }
-    val playPressed by playInteraction.collectIsPressedAsState()
-    val playScale by animateFloatAsState(
-        targetValue = if (playPressed) 0.88f else 1f,
-        animationSpec = AvaMotion.pressSpring,
-        label = "mini-player-play-scale",
-    )
+    val playScale = rememberPressScale(playInteraction, pressedScale = 0.88f)
     val pillShape = RoundedCornerShape(AvaTokens.radiusExtraLarge)
     Column(
         modifier = modifier
@@ -127,7 +123,10 @@ fun MiniPlayer(
             )
             .shadow(AvaTokens.elevationSoft, pillShape)
             .clip(pillShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            // 0.1: on the glass theme this is a frosted pill (translucent
+            // + hairline border); on every other theme it is exactly the
+            // same solid surface as before.
+            .glassPanel(pillShape, MaterialTheme.colorScheme.surfaceContainer)
             .padding(
                 start = AvaTokens.space12,
                 end = AvaTokens.space6,
@@ -214,14 +213,23 @@ fun MiniPlayer(
                     }
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
             ) {
-                Icon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = stringResource(
-                        if (state.isPlaying) R.string.player_pause else R.string.player_play,
-                    ),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(28.dp),
-                )
+                // 0.1: the play/pause icon cross-fades instead of swapping
+                // instantly — a small, soft motion on the control people
+                // tap most.
+                AnimatedContent(
+                    targetState = state.isPlaying,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "mini-player-play-icon",
+                ) { playing ->
+                    Icon(
+                        imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = stringResource(
+                            if (playing) R.string.player_pause else R.string.player_play,
+                        ),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(AvaTokens.space4))
             IconButton(

@@ -66,6 +66,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/InsightsLogic.kt \
   app/src/main/java/com/harper/ava/core/util/DeleteSongLogic.kt \
   app/src/main/java/com/harper/ava/core/util/UpdateLogic.kt \
+  app/src/main/java/com/harper/ava/core/util/PlaylistLogic.kt \
+  app/src/main/java/com/harper/ava/ui/nowplaying/AmbientGlow.kt \
   app/src/main/java/com/harper/ava/core/util/MediaItemLogic.kt \
   app/src/main/java/com/harper/ava/ui/theme/SeasonalDecor.kt \
   app/src/main/java/com/harper/ava/data/local/db/Database.kt \
@@ -78,6 +80,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/TimeFormatTest.kt \
   app/src/test/java/com/harper/ava/QueueLogicTest.kt \
   app/src/test/java/com/harper/ava/ScanNormalizeTest.kt \
+  app/src/test/java/com/harper/ava/LibraryLogicTest.kt \
   app/src/test/java/com/harper/ava/SettingsLogicTest.kt \
   app/src/test/java/com/harper/ava/LyricsLogicTest.kt \
   app/src/test/java/com/harper/ava/ListKeyTest.kt \
@@ -96,6 +99,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/AddToPlaylistTest.kt \
   app/src/test/java/com/harper/ava/StringsParityTest.kt \
   app/src/test/java/com/harper/ava/NotificationLikeTest.kt \
+  app/src/test/java/com/harper/ava/AmbientGlowLogicTest.kt \
+  app/src/test/java/com/harper/ava/PlaylistLogicTest.kt \
   "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
 java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
@@ -103,6 +108,7 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.TimeFormatTest \
   com.harper.ava.QueueLogicTest \
   com.harper.ava.ScanNormalizeTest \
+  com.harper.ava.LibraryLogicTest \
   com.harper.ava.SettingsLogicTest \
   com.harper.ava.LyricsLogicTest \
   com.harper.ava.ListKeyTest \
@@ -120,4 +126,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.CustomNotificationLogicTest \
   com.harper.ava.AddToPlaylistTest \
   com.harper.ava.StringsParityTest \
-  com.harper.ava.NotificationLikeTest 2>&1 | tail -5
+  com.harper.ava.NotificationLikeTest \
+  com.harper.ava.AmbientGlowLogicTest \
+  com.harper.ava.PlaylistLogicTest 2>&1 | tail -5

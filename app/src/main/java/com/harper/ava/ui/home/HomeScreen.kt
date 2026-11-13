@@ -1,9 +1,8 @@
 package com.harper.ava.ui.home
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -246,14 +245,27 @@ fun HomeScreen(
                 if (scanState is ScanUiState.Scanning) {
                     SkeletonList()
                 } else {
-                    EmptyState(
-                        title = stringResource(R.string.home_empty_title),
-                        body = stringResource(R.string.home_empty_body),
-                        note = stringResource(R.string.home_empty_note),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = AvaTokens.space48),
-                    )
+                    // Run 6 (UX): the note used to say "tap Rescan" with
+                    // no button in sight — the action is now right here,
+                    // next to the words that ask for it.
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        EmptyState(
+                            title = stringResource(R.string.home_empty_title),
+                            body = stringResource(R.string.home_empty_body),
+                            note = stringResource(R.string.home_empty_note),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = AvaTokens.space48),
+                        )
+                        Spacer(modifier = Modifier.height(AvaTokens.space16))
+                        Button(onClick = requestScan) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null)
+                            Spacer(modifier = Modifier.width(AvaTokens.space8))
+                            Text(stringResource(R.string.scan_rescan))
+                        }
+                    }
                 }
             }
         } else {
@@ -265,7 +277,10 @@ fun HomeScreen(
                 // recentlyPlayed AND recentlyAdded as soon as it is played
                 // once, and a bare id key crashed 0.5.5 (duplicate key).
                 items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, recentlyPlayed, onOpenSongDetails) { songToDelete = it }
+                    HomeSongRow(
+                        viewModel, playlists, song, recentlyPlayed, onOpenSongDetails,
+                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                    ) { songToDelete = it }
                 }
             }
             if (recentlyAdded.isNotEmpty()) {
@@ -273,7 +288,10 @@ fun HomeScreen(
                     SectionTitle(stringResource(R.string.home_recently_added))
                 }
                 items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, recentlyAdded, onOpenSongDetails) { songToDelete = it }
+                    HomeSongRow(
+                        viewModel, playlists, song, recentlyAdded, onOpenSongDetails,
+                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                    ) { songToDelete = it }
                 }
             }
             if (favorites.isNotEmpty()) {
@@ -311,7 +329,10 @@ fun HomeScreen(
                     }
                 }
                 items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
-                    HomeSongRow(viewModel, playlists, song, favorites, onOpenSongDetails) { songToDelete = it }
+                    HomeSongRow(
+                        viewModel, playlists, song, favorites, onOpenSongDetails,
+                        modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
+                    ) { songToDelete = it }
                 }
             }
             if (playlists.isNotEmpty()) {
@@ -321,7 +342,10 @@ fun HomeScreen(
                 // Playlists share this LazyColumn's key namespace with the
                 // song sections above; their ids come from another table.
                 items(playlists, key = { "playlist:${it.id}" }) { playlist ->
-                    HomePlaylistRow(playlist, onOpenPlaylist)
+                    HomePlaylistRow(
+                        playlist, onOpenPlaylist,
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
         }
@@ -338,6 +362,7 @@ private fun HomeSongRow(
     song: Song,
     section: List<Song>,
     onOpenSongDetails: (Long) -> Unit,
+    modifier: Modifier = Modifier,
     onDeleteSong: (Song) -> Unit,
 ) {
     SongRow(
@@ -351,7 +376,7 @@ private fun HomeSongRow(
         onPlayNext = { viewModel.addToQueue(song, playNext = true) },
         onOpenDetails = { onOpenSongDetails(song.id) },
         onDeleteSong = onDeleteSong,
-        modifier = Modifier.padding(horizontal = AvaTokens.space8),
+        modifier = modifier,
     )
 }
 
@@ -360,10 +385,14 @@ private fun HomeSongRow(
  * placeholder. Stage 6 closes the "playlists show no cover art" P3.
  */
 @Composable
-private fun HomePlaylistRow(playlist: Playlist, onOpenPlaylist: (Long) -> Unit) {
+private fun HomePlaylistRow(
+    playlist: Playlist,
+    onOpenPlaylist: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var artFailed by remember(playlist.coverArtUri) { mutableStateOf(false) }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onOpenPlaylist(playlist.id) }
             .padding(

@@ -113,11 +113,44 @@ fun shouldRecordPlay(
  * — a seek backwards never yields negative time, and a scrub forward
  * never credits more than the song's length. Songs with an unknown
  * duration (<= 0) keep the raw non-negative stretch.
+ *
+ * This alone does NOT make scrubbing honest: a forward scrub inside
+ * one stretch would credit the whole jumped distance (the position
+ * moved from 0:08 to 4:00 without 3:52 of listening). The player
+ * listener therefore ends the stretch on every seek — see
+ * [seekSegment]: only the time up to the old position is credited
+ * and the segment restarts at the new position.
  */
 fun segmentListenedMs(startPositionMs: Long, currentPositionMs: Long, durationMs: Long): Long {
     val raw = (currentPositionMs - startPositionMs).coerceAtLeast(0L)
     return if (durationMs > 0L) raw.coerceAtMost(durationMs) else raw
 }
+
+/** Result of ending an open listening stretch on a seek. */
+data class SeekSegment(
+    /** Time actually listened before the seek (up to the old position only). */
+    val creditedMs: Long,
+    /** Where the next stretch starts (the seek's new position). */
+    val newSegmentStartMs: Long,
+)
+
+/**
+ * Ends an open listening stretch at a seek: the stretch ran from
+ * [segmentStartMs] to [oldPositionMs] and the player jumped to
+ * [newPositionMs]. Only the pre-seek stretch is credited — the jumped
+ * distance is never listened time, however far the scrub went.
+ * A seek backwards credits the time up to the old position and
+ * restarts there; a seek to a negative position restarts at 0.
+ */
+fun seekSegment(
+    segmentStartMs: Long,
+    oldPositionMs: Long,
+    newPositionMs: Long,
+    durationMs: Long,
+): SeekSegment = SeekSegment(
+    creditedMs = segmentListenedMs(segmentStartMs, oldPositionMs, durationMs),
+    newSegmentStartMs = newPositionMs.coerceAtLeast(0L),
+)
 
 /** Start of the calendar day (local time) that contains [timeMs]. */
 fun startOfDayMs(timeMs: Long): Long {

@@ -428,7 +428,7 @@ private fun SongList(
                 onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                 onOpenDetails = { onOpenSongDetails(song.id) },
                 onDeleteSong = { songToDelete = it },
-                modifier = Modifier.padding(horizontal = AvaTokens.space8),
+                modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
             )
         }
         item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

@@ -70,7 +70,13 @@ import com.harper.ava.ui.theme.AvaTokens
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
+fun QueueScreen(
+    app: AvaApplication,
+    onBack: () -> Unit,
+    // 0.1: the now-playing row used to be a dead tap — it now opens
+    // Now Playing, like every other now-playing surface in the app.
+    onOpenNowPlaying: () -> Unit = {},
+) {
     val viewModel: QueueViewModel = viewModel(
         factory = QueueViewModel.factory(app.container.playerRepository),
     )
@@ -143,7 +149,7 @@ fun QueueScreen(app: AvaApplication, onBack: () -> Unit) {
         QueueRow(
             song = currentSong,
             isCurrent = true,
-            onClick = {},
+            onClick = onOpenNowPlaying,
             onRemove = null,
             modifier = Modifier.padding(horizontal = AvaTokens.space8),
         )

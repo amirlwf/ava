@@ -61,7 +61,7 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 /**
- * Appearance (0.7.0): nine full themes + theme mode + custom colour.
+ * Appearance (0.7.0): ten full themes + theme mode + custom colour.
  *
  * - The theme picker is the main choice: each theme is a complete design
  *   system (palette, hero gradient, corner radii) and applies app-wide

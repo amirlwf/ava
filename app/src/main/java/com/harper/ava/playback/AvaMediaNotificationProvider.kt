@@ -315,7 +315,11 @@ class AvaMediaNotificationProvider(
      * [getNotificationContentTitle] above.
      */
     override fun getNotificationContentText(metadata: MediaMetadata): CharSequence? =
-        metadata.artist?.takeIf { it.isNotBlank() } ?: metadata.albumTitle
+        metadata.artist?.takeIf { it.isNotBlank() }
+            // 0.1: a blank album used to pass through as the second line
+            // (an empty line under the title); blank now falls through
+            // to null, and the notification shows no second line at all.
+            ?: metadata.albumTitle?.takeIf { it.isNotBlank() }
 }
 
 /**

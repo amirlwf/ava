@@ -14,6 +14,7 @@ import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.needsPlayerRebuild
 import com.harper.ava.core.util.songToMediaItem
 import com.harper.ava.core.util.segmentListenedMs
+import com.harper.ava.core.util.seekSegment
 import com.harper.ava.core.util.shouldRecordPlay
 import com.harper.ava.data.local.db.AppDatabase
 import com.harper.ava.data.repository.MusicRepository
@@ -151,6 +152,34 @@ class PlayerRepository(
                 // re-attach with the persisted settings.
                 refreshEqualizer()
             }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                // Improve loop, run 5: a scrub ends the current listening
+                // stretch. Without this, the next bank credited the whole
+                // jumped distance as listened time (seek 0:08 -> 4:00,
+                // pause, and Insights recorded ~3:52 never heard).
+                // Only the stretch up to the old position is banked;
+                // the segment restarts at the new position. Other
+                // reasons (track change, internal) are owned by
+                // onMediaItemTransition and are left alone.
+                if (reason != Player.DISCONTINUITY_REASON_SEEK &&
+                    reason != Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+                ) return
+                val song = listenSong ?: return
+                val segment = seekSegment(
+                    listenSegmentStartMs,
+                    oldPosition.positionMs,
+                    newPosition.positionMs,
+                    song.durationMs,
+                )
+                listenAccumulatedMs += segment.creditedMs
+                listenSegmentStartMs = segment.newSegmentStartMs
+                flushListenTotal()
+            }
         })
     }
 
@@ -230,6 +259,11 @@ class PlayerRepository(
             )
         }
         listenSegmentStartMs = player.currentPosition.coerceAtLeast(0L)
+        flushListenTotal()
+    }
+
+    /** Writes the banked total into the open history row (no-op before its id exists). */
+    private fun flushListenTotal() {
         val id = listenHistoryId
         val total = listenAccumulatedMs
         if (id <= 0L) return

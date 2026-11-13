@@ -30,12 +30,16 @@ enum class ThemeMode { SYSTEM, DARK, LIGHT, AMOLED }
 enum class Accent { VIOLET, ELECTRIC_BLUE, EMERALD, CRIMSON, AMBER, ROSE, MONOCHROME }
 
 /**
- * 0.7.0: the nine full Ava themes (see `ui/theme/AppTheme.kt` for the
+ * 0.7.0: the ten full Ava themes (see `ui/theme/AppTheme.kt` for the
  * spec behind each one). A theme replaces the old [Accent] preset as the
  * colour source; the stored [Accent] value is kept for compatibility but
  * no longer drives any colour. Default VIOLET keeps the exact 0.6.0 look.
+ *
+ * 0.1: IPHONE joins the set — Apple's design language as a full theme:
+ * frosted-glass surfaces, airy light surfaces, pure-black dark
+ * background, large continuous corners. See [ThemeSpec.isGlass].
  */
-enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SUNSET, GALAXY }
+enum class AppTheme { SPRING, SUMMER, AUTUMN, WINTER, EMERALD, VIOLET, OCEAN, SUNSET, GALAXY, IPHONE }
 
 enum class AppLanguage { SYSTEM, FA, EN }
 

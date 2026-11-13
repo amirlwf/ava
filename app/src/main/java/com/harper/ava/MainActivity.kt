@@ -57,6 +57,7 @@ import com.harper.ava.ui.navigation.OnboardingRoute
 import com.harper.ava.ui.navigation.QueueRoute
 import com.harper.ava.ui.splash.SplashScreen
 import com.harper.ava.ui.theme.AvaTheme
+import com.harper.ava.ui.theme.LocalAppThemeSpec
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -259,7 +260,17 @@ class MainActivity : ComponentActivity() {
                                             },
                                         )
                                     }
-                                    NavigationBar {
+                                    NavigationBar(
+                                        // 0.1: on the glass theme the
+                                        // bottom bar is translucent, like
+                                        // iOS's tab bar; on every other
+                                        // theme it keeps its default colour.
+                                        containerColor = if (LocalAppThemeSpec.current.isGlass) {
+                                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainer
+                                        },
+                                    ) {
                                         Destination.bottomBar.forEach { destination ->
                                             NavigationBarItem(
                                                 selected = currentRoute == destination.route,

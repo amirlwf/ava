@@ -6,8 +6,8 @@ import kotlin.random.Random
 
 /**
  * Pure, Android-free library logic. Everything here is unit-tested with
- * plain JUnit (no Robolectric, no device) — see QueueLogicTest and
- * ScanNormalizeTest.
+ * plain JUnit (no Robolectric, no device) — see QueueLogicTest,
+ * ScanNormalizeTest, ListKeyTest and LibraryLogicTest.
  */
 
 // ---------------------------------------------------------------------------
@@ -34,10 +34,18 @@ data class RawScannedSong(
     val fileName: String? = null,
 )
 
-/** File name (no directories, no extension) from a content/file URI string. */
+/**
+ * File name (no directories, no extension) from a content/file URI string.
+ * Surrounding whitespace is trimmed (run 7): a whitespace-only
+ * DISPLAY_NAME must not become a whitespace title — both call sites
+ * ([normalizeScannedSong] and `notificationTitle` in MediaItemLogic)
+ * treat a blank result as "no name" and fall through to the next title
+ * source. A real file name never starts or ends with a space that the
+ * UI should keep.
+ */
 fun filenameFromUri(uri: String): String {
     val lastSegment = uri.substringAfterLast('/').substringBefore('?')
-    return lastSegment.substringBeforeLast('.', lastSegment)
+    return lastSegment.substringBeforeLast('.', lastSegment).trim()
 }
 
 /**

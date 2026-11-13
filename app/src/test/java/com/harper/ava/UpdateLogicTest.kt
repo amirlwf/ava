@@ -98,4 +98,18 @@ class UpdateLogicTest {
     fun `field with spaces around the colon still parses`() {
         assertEquals("v0.7.2", parseJsonStringField("{ \"tag_name\" : \"v0.7.2\" }", "tag_name"))
     }
+
+    @Test
+    fun `version reset 0_1 is not newer than 0_7_6 by plain semver`() {
+        // 0.1 replaces the 0.7.x line by Harper's choice — the version
+        // number went backwards on purpose. The comparator stays plain
+        // semver (no special-casing), so a 0.7.6 install will NOT be
+        // offered 0.1 by the in-app updater: Harper installs 0.1 from
+        // the release link, and later versions compare normally
+        // against 0.1 (0.2 > 0.1). This test pins that honest behaviour
+        // so nobody "fixes" it into a hidden special case later.
+        assertFalse(isNewerVersion("v0.1", "0.7.6"))
+        assertTrue(isNewerVersion("v0.2", "0.1"))
+        assertFalse(isNewerVersion("v0.1", "0.1"))
+    }
 }

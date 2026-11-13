@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -183,15 +185,24 @@ fun SearchScreen(
                 if (isSearching) {
                     SkeletonList()
                 } else {
-                    Box(
+                    // Run 6 (UX): a no-results page used to be a dead end
+                    // — the only way out was deleting the query by hand.
+                    Column(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         EmptyState(
                             title = stringResource(R.string.search_no_results_title),
                             body = stringResource(R.string.search_no_results_body, query.trim()),
                             icon = Icons.Filled.Search,
                         )
+                        Spacer(modifier = Modifier.height(AvaTokens.space16))
+                        Button(onClick = { viewModel.onQueryChange("") }) {
+                            Icon(Icons.Filled.Close, contentDescription = null)
+                            Spacer(modifier = Modifier.width(AvaTokens.space8))
+                            Text(stringResource(R.string.search_clear_query))
+                        }
                     }
                 }
             }
@@ -213,7 +224,7 @@ fun SearchScreen(
                             onPlayNext = { viewModel.addToQueue(song, playNext = true) },
                             onOpenDetails = { onOpenSongDetails(song.id) },
                             onDeleteSong = { songToDelete = it },
-                            modifier = Modifier.padding(horizontal = AvaTokens.space8),
+                            modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(),
                         )
                     }
                     item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }

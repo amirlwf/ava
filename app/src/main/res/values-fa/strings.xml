@@ -73,6 +73,7 @@
     <string name="search_empty_body">در عنوان آهنگ، نام خواننده و نام آلبوم جستجو می‌شود.</string>
     <string name="search_no_results_title">نتیجه‌ای پیدا نشد</string>
     <string name="search_no_results_body">برای «%1$s» چیزی در کتابخانه پیدا نشد.</string>
+    <string name="search_clear_query">پاک کردن جستجو</string>
     <string name="search_history_title">جستجوهای اخیر</string>
     <string name="search_history_clear">پاک کردن تاریخچه</string>
 
@@ -121,6 +122,7 @@
     <string name="player_speed">سرعت</string>
     <string name="player_queue">صف</string>
     <string name="player_notification_channel">پخش موسیقی</string>
+    <string name="player_notification_channel_desc">آهنگ در حال پخش را با دکمه‌های کنترل نشان می‌دهد.</string>
 
 
     <!-- Now Playing -->

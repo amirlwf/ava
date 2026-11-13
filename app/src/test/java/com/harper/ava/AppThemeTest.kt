@@ -29,10 +29,10 @@ import org.junit.Test
 class AppThemeTest {
 
     @Test
-    fun `all nine themes exist`() {
-        assertEquals(9, AppTheme.entries.size)
+    fun `all ten themes exist`() {
+        assertEquals(10, AppTheme.entries.size)
         assertEquals(
-            setOf("SPRING", "SUMMER", "AUTUMN", "WINTER", "EMERALD", "VIOLET", "OCEAN", "SUNSET", "GALAXY"),
+            setOf("SPRING", "SUMMER", "AUTUMN", "WINTER", "EMERALD", "VIOLET", "OCEAN", "SUNSET", "GALAXY", "IPHONE"),
             AppTheme.entries.map { it.name }.toSet(),
         )
     }
@@ -46,14 +46,14 @@ class AppThemeTest {
             assertTrue(theme.name, spec.moodFa.isNotBlank())
             assertTrue(theme.name, spec.moodEn.isNotBlank())
         }
-        assertEquals(9, AppTheme.entries.map { it.spec.nameFa }.toSet().size)
-        assertEquals(9, AppTheme.entries.map { it.spec.nameEn }.toSet().size)
+        assertEquals(10, AppTheme.entries.map { it.spec.nameFa }.toSet().size)
+        assertEquals(10, AppTheme.entries.map { it.spec.nameEn }.toSet().size)
     }
 
     @Test
     fun `dark primaries are distinct per theme`() {
         val primaries = AppTheme.entries.map { it.spec.primaryDark }
-        assertEquals(9, primaries.toSet().size)
+        assertEquals(10, primaries.toSet().size)
     }
 
     @Test
@@ -168,5 +168,17 @@ class AppThemeTest {
         assertEquals(1.0, contrastRatio(0xFF888888, 0xFF888888), 0.01)
         assertEquals(0.0, argbLuminance(0xFF000000), 0.001)
         assertEquals(1.0, argbLuminance(0xFFFFFFFF), 0.001)
+    }
+
+    @Test
+    fun `exactly one glass theme, and it is iPhone`() {
+        // 0.1: glass is a deliberate design language, not a decoration
+        // sprinkled across themes — only IPHONE renders frosted glass.
+        val glass = AppTheme.entries.filter { it.spec.isGlass }
+        assertEquals(listOf(AppTheme.IPHONE), glass)
+        // The glass theme is still a full theme: its contrast, radii
+        // and hero checks above already cover it.
+        assertEquals("آیفون", AppTheme.IPHONE.spec.nameFa)
+        assertEquals("iPhone", AppTheme.IPHONE.spec.nameEn)
     }
 }

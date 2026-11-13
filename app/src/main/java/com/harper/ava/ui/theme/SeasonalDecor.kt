@@ -52,7 +52,7 @@ import kotlin.math.sin
  * churn and nothing to remember across recompositions. Galaxy
  * particle counts stay small per layer (36 far + 26 mid + 10 bright
  * stars, 34 Milky Way dust grains, 6 nebula clouds, 2 constellations)
- * and alphas low (0.03–0.16 for dust, nebula ≤ 0.07, brightest
+ * and alphas low (0.04–0.18 for dust, nebula ≤ 0.10, brightest
  * sparkles ≤ 0.45, only a meteor head briefly reaches 0.35) —
  * decoration, not noise.
  *
@@ -112,6 +112,9 @@ fun seasonalDecorKind(theme: AppTheme, effectsEnabled: Boolean): SeasonalDecorKi
         AppTheme.VIOLET,
         AppTheme.OCEAN,
         AppTheme.SUNSET,
+        // 0.1: the iPhone theme is minimal by design — no seasonal
+        // decor; the frosted glass itself is its identity.
+        AppTheme.IPHONE,
         -> SeasonalDecorKind.NONE
     }
 }
@@ -183,8 +186,8 @@ private fun wrap01(v: Float): Float = ((v % 1f) + 1f) % 1f
 // extra animation loop — the single 36 s loop drives everything.
 // ---------------------------------------------------------------------------
 
-/** Number of shooting stars in the galaxy sky (0.7.4: was 3). */
-const val GALAXY_METEOR_COUNT = 4
+/** Number of shooting stars in the galaxy sky (0.1: was 4). */
+const val GALAXY_METEOR_COUNT = 5
 
 /** Number of planets orbiting the galaxy sun (0.7.4: was 3 in 0.7.3). */
 const val GALAXY_PLANET_COUNT = 5
@@ -200,8 +203,8 @@ const val GALAXY_FAR_STAR_COUNT = 36
 const val GALAXY_MID_STAR_COUNT = 26
 const val GALAXY_BRIGHT_STAR_COUNT = 10
 
-/** Dust grains packed along the Milky Way band. */
-const val GALAXY_MILKY_WAY_DUST_COUNT = 34
+/** Dust grains packed along the Milky Way band (0.1: was 34). */
+const val GALAXY_MILKY_WAY_DUST_COUNT = 44
 
 // ---------------------------------------------------------------------------
 // Per-frame allocations removed (improve run 3, 2026-11-12). The Canvas
@@ -431,12 +434,12 @@ fun milkyWayDustPosition(index: Int): Pair<Float, Float> {
     return along to (milkyWayBandCenterY(along) + across)
 }
 
-/** Twinkling alpha of dust grain [index] at [progress] (0.03–0.16). */
+/** Twinkling alpha of dust grain [index] at [progress] (0.04–0.18). */
 fun milkyWayDustAlpha(index: Int, progress: Float): Float {
     val (x, y) = milkyWayDustPosition(index)
     val speed = 0.4f + hash01(index, 43)
     val twinkle = 0.5f + 0.5f * sin(progress * 2f * PI.toFloat() * speed + index * 1.1f)
-    return 0.03f + 0.13f * milkyWayDensity(x, y) * twinkle
+    return 0.04f + 0.14f * milkyWayDensity(x, y) * twinkle
 }
 
 /** One soft nebula cloud: [colorIndex] 0 violet, 1 pink, 2 blue, 3 indigo. */
@@ -448,14 +451,23 @@ data class NebulaBlob(
     val alpha: Float,
 )
 
-/** The six nebula clouds, back to front. Alphas stay ≤ 0.07. */
+/** The eight nebula clouds, back to front. Alphas stay ≤ 0.10.
+ * Improve run 4 (2026-11-12): raised from ≤ 0.07 — the first lever the
+ * 0.7.4 redesign left behind (nebula 0.07→0.10, dust 0.16→0.18): the sky
+ * read too faint against the dark background. Still faint by design, so
+ * the song list and album art stay readable; the visual call is
+ * Harper's on his phone, not this number.
+ * 0.1: two more clouds (a rose one low-right, a violet one upper-left)
+ * so the sky has depth in every corner, still ≤ 0.10. */
 val GALAXY_NEBULA_BLOBS: List<NebulaBlob> = listOf(
-    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.07f),
-    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.05f),
-    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.05f),
-    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.06f),
-    NebulaBlob(0.55f, 0.45f, 0.24f, 1, 0.04f),
-    NebulaBlob(0.38f, 0.85f, 0.26f, 0, 0.05f),
+    NebulaBlob(0.12f, 0.10f, 0.42f, 0, 0.10f),
+    NebulaBlob(0.92f, 0.88f, 0.36f, 1, 0.06f),
+    NebulaBlob(0.85f, 0.18f, 0.30f, 2, 0.06f),
+    NebulaBlob(0.18f, 0.62f, 0.30f, 3, 0.07f),
+    NebulaBlob(0.55f, 0.45f, 0.24f, 1, 0.05f),
+    NebulaBlob(0.38f, 0.85f, 0.26f, 0, 0.06f),
+    NebulaBlob(0.68f, 0.72f, 0.28f, 2, 0.06f),
+    NebulaBlob(0.30f, 0.25f, 0.26f, 1, 0.05f),
 )
 
 /** A constellation: normalised star points + the edges joining them. */
@@ -464,7 +476,8 @@ data class Constellation(
     val edges: List<Pair<Int, Int>>,
 )
 
-/** Two constellations: a small kite (upper left) and a W (lower left). */
+/** Three constellations: a small kite (upper left), a W (lower left),
+ * and a tight Pleiades-like cluster (upper right, 0.1). */
 val GALAXY_CONSTELLATIONS: List<Constellation> = listOf(
     Constellation(
         points = listOf(
@@ -485,6 +498,17 @@ val GALAXY_CONSTELLATIONS: List<Constellation> = listOf(
             0.40f to 0.66f,
         ),
         edges = listOf(0 to 1, 1 to 2, 2 to 3, 3 to 4),
+    ),
+    Constellation(
+        points = listOf(
+            0.78f to 0.22f,
+            0.83f to 0.18f,
+            0.88f to 0.22f,
+            0.83f to 0.27f,
+            0.80f to 0.30f,
+            0.86f to 0.30f,
+        ),
+        edges = listOf(0 to 1, 1 to 2, 2 to 3, 1 to 4, 1 to 5),
     ),
 )
 
@@ -658,7 +682,7 @@ private fun DrawScope.drawSnowflake(center: Offset, radius: Float, color: Color)
  *    it never drifts with the parallax.
  * 8. [drawMeteors] — 4 shooting stars with long five-segment tails.
  *
- * Every layer is faint (nebula ≤ 0.07, dust ≤ 0.16) and sits behind
+ * Every layer is faint (nebula ≤ 0.10, dust ≤ 0.18) and sits behind
  * the content, so the song list and album art stay readable.
  */
 private fun DrawScope.drawGalaxy(

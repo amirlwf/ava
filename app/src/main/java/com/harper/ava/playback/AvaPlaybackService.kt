@@ -258,13 +258,18 @@ class AvaPlaybackService : MediaSessionService() {
      */
     private fun startForegroundNow() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.player_notification_channel),
-                NotificationManager.IMPORTANCE_LOW,
-            ),
-        )
+        // 0.1: the channel now carries a description (shown in system
+        // Settings > Notifications), so the channel explains itself.
+        // Like the name (see the KDoc above), the description only
+        // appears on a fresh install, or after the user clears data.
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.player_notification_channel),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = getString(R.string.player_notification_channel_desc)
+        }
+        manager.createNotificationChannel(channel)
         val openApp = PendingIntent.getActivity(
             this,
             0,
