@@ -27,6 +27,7 @@
     <string name="scan_found">%1$d songs found</string>
     <string name="scan_found_removed">%1$d songs found · %2$d removed</string>
     <string name="scan_error">Scan failed. Try again.</string>
+    <string name="scan_retry">Try again</string>
     <string name="scan_permission_title">Let Ava find your music</string>
     <string name="scan_permission_body">Ava scans only audio files on this device. Nothing leaves your phone.</string>
     <string name="scan_permission_grant">Allow music access</string>
@@ -363,6 +364,7 @@
     <string name="eq_unsupported_title">Equalizer unavailable</string>
     <string name="eq_reason_no_session">Play a song first — the equalizer attaches to the active playback session.</string>
     <string name="eq_reason_unsupported">This device does not provide an equalizer effect, so there is nothing to adjust here.</string>
+    <string name="eq_play_song">Play the song</string>
 
     <!-- Lyrics -->
     <string name="lyrics_title">Lyrics</string>

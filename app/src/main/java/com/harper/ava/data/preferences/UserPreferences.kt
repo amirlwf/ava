@@ -21,6 +21,7 @@ import com.harper.ava.core.util.decodeRecentSearches
 import com.harper.ava.core.util.encodeQueueIds
 import com.harper.ava.core.util.encodeRecentSearches
 import com.harper.ava.core.util.recordSearch
+import com.harper.ava.core.util.removeSearch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -199,13 +200,6 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { it[Keys.SEASONAL_EFFECTS_ENABLED] = enabled }
     }
 
-    suspend fun setAccent(accent: Accent) {
-        context.dataStore.edit {
-            it[Keys.ACCENT] = accent.name
-            it.remove(Keys.CUSTOM_ACCENT_ARGB)
-        }
-    }
-
     /** Persists a user-picked accent color; it overrides the palette until a preset is chosen. */
     suspend fun setCustomAccent(argb: Int) {
         context.dataStore.edit { it[Keys.CUSTOM_ACCENT_ARGB] = argb.toLong() }
@@ -326,9 +320,7 @@ class UserPreferences(private val context: Context) {
     suspend fun removeSearchQuery(query: String) {
         context.dataStore.edit { prefs ->
             val current = decodeRecentSearches(prefs[Keys.RECENT_SEARCHES])
-            prefs[Keys.RECENT_SEARCHES] = encodeRecentSearches(
-                current.filter { it.trim().lowercase() != query.trim().lowercase() },
-            )
+            prefs[Keys.RECENT_SEARCHES] = encodeRecentSearches(removeSearch(current, query))
         }
     }
 

@@ -1,6 +1,5 @@
 package com.harper.ava.core.util
 
-import com.harper.ava.data.preferences.AppLanguage
 import kotlin.math.roundToInt
 
 /**
@@ -36,17 +35,6 @@ fun formatFileSize(bytes: Long): String {
     val mb = kb / 1_024.0
     if (mb < 1_024.0) return "%.1f MB".format(mb)
     return "%.1f GB".format(mb / 1_024.0)
-}
-
-// ---------------------------------------------------------------------------
-// Language
-// ---------------------------------------------------------------------------
-
-/** BCP-47 tag for a language choice, or null when the system language applies. */
-fun localeTagFor(language: AppLanguage): String? = when (language) {
-    AppLanguage.FA -> "fa"
-    AppLanguage.EN -> "en"
-    AppLanguage.SYSTEM -> null
 }
 
 // ---------------------------------------------------------------------------

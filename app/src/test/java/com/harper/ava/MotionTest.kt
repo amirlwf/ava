@@ -57,6 +57,20 @@ class MotionTest {
     }
 
     @Test
+    fun `theme radii glide on the same tween as the theme colours`() {
+        // Improve loop run 14: the shape scale morphs with the palette
+        // on a theme change — radii must never snap while colours glide,
+        // so the radius tween shares the colour tween's duration and
+        // the family easing (FastOutSlowIn, like the cross-fade).
+        assertEquals(350, AvaMotion.themeRadiusTween.durationMillis)
+        assertEquals(FastOutSlowInEasing, AvaMotion.themeRadiusTween.easing)
+        assertEquals(
+            AvaMotion.themeColorTween.durationMillis,
+            AvaMotion.themeRadiusTween.durationMillis,
+        )
+    }
+
+    @Test
     fun `list placement spring is soft`() {
         assertEquals(0.85f, AvaMotion.listItemPlacement.dampingRatio)
         assertEquals(250f, AvaMotion.listItemPlacement.stiffness)

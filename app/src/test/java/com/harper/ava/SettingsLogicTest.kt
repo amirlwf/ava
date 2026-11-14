@@ -9,12 +9,9 @@ import com.harper.ava.core.util.formatFileSize
 import com.harper.ava.core.util.hsvToArgb
 import com.harper.ava.core.util.isLightColor
 import com.harper.ava.core.util.lightenArgb
-import com.harper.ava.core.util.localeTagFor
 import com.harper.ava.core.util.luminanceArgb
-import com.harper.ava.data.preferences.AppLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
@@ -53,15 +50,6 @@ class SettingsLogicTest {
     @Test
     fun `negative file size clamps to zero`() {
         assertEquals("0 B", formatFileSize(-100L))
-    }
-
-    // -- language ------------------------------------------------------------
-
-    @Test
-    fun `locale tags map fa en and system null`() {
-        assertEquals("fa", localeTagFor(AppLanguage.FA))
-        assertEquals("en", localeTagFor(AppLanguage.EN))
-        assertNull(localeTagFor(AppLanguage.SYSTEM))
     }
 
     // -- custom accent -------------------------------------------------------

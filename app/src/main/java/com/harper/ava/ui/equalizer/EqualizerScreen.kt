@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -63,6 +64,7 @@ fun EqualizerScreen(app: AvaApplication, onBack: () -> Unit) {
         factory = EqualizerViewModel.factory(app.container.playerRepository),
     )
     val eq by viewModel.equalizer.collectAsState()
+    val playback by viewModel.playback.collectAsState()
 
     Scaffold(
         // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
@@ -88,21 +90,44 @@ fun EqualizerScreen(app: AvaApplication, onBack: () -> Unit) {
         },
     ) { padding ->
         if (!eq.supported) {
+            // Improve loop, run 21 (UX): the no-session state used to be
+            // a dead end — it says "play a song first" but offered no way
+            // to do it. The song IS already loaded (this screen is only
+            // reachable from Now Playing, which hides its menu when
+            // nothing is loaded), so the Play button starts it right
+            // here; the new audio session refreshes the equalizer and
+            // this screen goes live on its own. A device with no
+            // equalizer effect has no in-app action, so it keeps the
+            // bare empty state.
+            val canPlay = eq.reasonKey == "eq_reason_no_session" &&
+                playback.currentSong != null
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                EmptyState(
-                    title = stringResource(R.string.eq_unsupported_title),
-                    body = stringResource(
-                        when (eq.reasonKey) {
-                            "eq_reason_no_session" -> R.string.eq_reason_no_session
-                            else -> R.string.eq_reason_unsupported
-                        },
-                    ),
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    EmptyState(
+                        title = stringResource(R.string.eq_unsupported_title),
+                        body = stringResource(
+                            when (eq.reasonKey) {
+                                "eq_reason_no_session" -> R.string.eq_reason_no_session
+                                else -> R.string.eq_reason_unsupported
+                            },
+                        ),
+                    )
+                    if (canPlay) {
+                        Spacer(modifier = Modifier.height(AvaTokens.space16))
+                        Button(onClick = { viewModel.playCurrentSong() }) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(AvaTokens.space8))
+                            Text(stringResource(R.string.eq_play_song))
+                        }
+                    }
+                }
             }
             return@Scaffold
         }

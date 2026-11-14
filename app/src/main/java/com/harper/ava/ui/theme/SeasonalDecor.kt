@@ -74,7 +74,10 @@ import kotlin.math.sin
  * frozen, nothing subscribes to the ticking clock, so no frame is
  * recomposed; the 36 s clock itself keeps running while hidden (one
  * float per frame — cheap) so the sky resumes mid-loop with no visual
- * jump when the user navigates back. Per-frame allocations are also
+ * jump when the user navigates back. Reduced motion (improve run 19)
+ * uses the same frozen frame: `reducedMotion = true` (from
+ * [rememberReducedMotion]) freezes the sky on its last frame for the
+ * life of the process, because the user asked the system for stillness. Per-frame allocations are also
  * gone: sparkle/leaf [Path]s are cached by radius (they were rebuilt
  * ~35× per frame) and the small constant lists (meteor tail segments,
  * Milky Way glow stops) are hoisted to file-level vals instead of
@@ -137,6 +140,11 @@ fun seasonalDecorKind(theme: AppTheme, effectsEnabled: Boolean): SeasonalDecorKi
  * [rememberIsResumed]); the Canvas then keeps its last frame frozen
  * instead of disappearing, so navigation never flashes the background
  * away. Defaults to true.
+ * @param reducedMotion true when the user asked the system for no
+ * animation (improve run 19: [rememberReducedMotion]); the Canvas
+ * then draws one still frame — the same frozen-frame contract as
+ * [active] = false, only the cause is the user's accessibility
+ * choice instead of navigation. Defaults to false.
  */
 @Composable
 fun SeasonalDecor(
@@ -144,14 +152,15 @@ fun SeasonalDecor(
     effectsEnabled: Boolean,
     modifier: Modifier = Modifier,
     active: Boolean = true,
+    reducedMotion: Boolean = false,
 ) {
     val kind = seasonalDecorKind(theme, effectsEnabled)
     if (kind == SeasonalDecorKind.NONE) return
-    SeasonalDecorCanvas(kind = kind, modifier = modifier, active = active)
+    SeasonalDecorCanvas(kind = kind, modifier = modifier, active = active, reducedMotion = reducedMotion)
 }
 
 @Composable
-private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Modifier, active: Boolean) {
+private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Modifier, active: Boolean, reducedMotion: Boolean) {
     // One slow loop for every particle: 36 s, linear, restarts seamlessly.
     // The transition is created BEFORE the visibility gate on purpose:
     // while this screen is hidden its clock keeps ticking (one float per
@@ -182,7 +191,14 @@ private fun SeasonalDecorCanvas(kind: SeasonalDecorKind, modifier: Modifier = Mo
     // `SideEffect` cannot be used here (they fail to inline there).
     val scheme = MaterialTheme.colorScheme
     Canvas(modifier = modifier.fillMaxSize()) {
-        val drawProgress = if (active) {
+        // Reduced motion (improve run 19): the sky draws one still
+        // frame — `progress` is never read, so the ticking clock
+        // schedules no redraws, exactly like the frozen frame while
+        // inactive. The 36 s transition itself is still created (a
+        // hook cannot be conditional), but an unread clock is one
+        // cheap float per frame, the same trade the hidden-screen
+        // freeze already makes.
+        val drawProgress = if (active && !reducedMotion) {
             lastDecorProgress = progress
             progress
         } else {

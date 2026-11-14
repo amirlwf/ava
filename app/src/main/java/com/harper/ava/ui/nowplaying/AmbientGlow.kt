@@ -42,6 +42,13 @@ import kotlin.math.sin
  * and only while the screen is the current destination (`active`,
  * the same [com.harper.ava.ui.theme.rememberIsResumed] gate the
  * seasonal decor uses). A hidden Now Playing screen costs nothing.
+ *
+ * Reduced motion (improve run 19): with `reducedMotion` (from
+ * [com.harper.ava.ui.theme.rememberReducedMotion]) the orbs and the
+ * breathing halo hold one still frame — the two loop progresses are
+ * never read inside the draw block. The play/pause aliveness ease
+ * is left alone on purpose: it answers a user action, a 2 s fade,
+ * not motion.
  */
 
 /** Which theme colour an ambient orb is drawn from. */
@@ -104,6 +111,7 @@ fun AmbientGlow(
     isPlaying: Boolean,
     active: Boolean,
     modifier: Modifier = Modifier,
+    reducedMotion: Boolean = false,
 ) {
     // The decor-pause contract: a hidden screen draws no frames.
     if (!active) return
@@ -139,9 +147,17 @@ fun AmbientGlow(
     val secondary = MaterialTheme.colorScheme.secondary
     val tertiary = MaterialTheme.colorScheme.tertiary
     Canvas(modifier = modifier) {
+        // Reduced motion (improve run 19): the orbs and the halo hold
+        // one still frame — neither loop progress is read, so the
+        // ticking clocks schedule no redraws. The play/pause aliveness
+        // ease above is deliberately left alone: it answers a user
+        // action (a 2 s fade, not motion), and freezing it would make
+        // the glow snap instead of settling.
+        val drawProgressA = if (reducedMotion) 0f else progressA
+        val drawProgressB = if (reducedMotion) 0f else progressB
         val canvasSize = IntSize(size.width.toInt(), size.height.toInt())
         // Breathing halo behind the cover (upper-middle of the screen).
-        val breath = ambientBreathScale(progressA, aliveness)
+        val breath = ambientBreathScale(drawProgressA, aliveness)
         val haloCenter = Offset(size.width * 0.5f, size.height * 0.34f)
         val haloRadius = size.minDimension * 0.42f * breath
         drawCircle(
@@ -158,7 +174,7 @@ fun AmbientGlow(
         )
         // The three drifting orbs.
         for ((index, orb) in AMBIENT_ORBS.withIndex()) {
-            val progress = if (index % 2 == 0) progressA else progressB
+            val progress = if (index % 2 == 0) drawProgressA else drawProgressB
             val center = ambientOrbCenter(orb, progress, canvasSize)
             val radius = size.minDimension * orb.radiusFraction
             val color = when (orb.role) {

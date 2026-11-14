@@ -5,6 +5,7 @@ import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.artworkUriFor
 import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.core.util.isBrokenAlbumArtUri
+import com.harper.ava.core.util.notificationSubText
 import com.harper.ava.core.util.notificationTitle
 import com.harper.ava.core.util.songMediaMetadata
 import com.harper.ava.domain.model.Song
@@ -30,6 +31,9 @@ class MediaItemLogicTest {
         album: String = "Night Sessions",
         albumArtUri: String? = "content://media/external/audio/albumart/7",
         fileName: String? = null,
+        genre: String? = null,
+        year: Int? = null,
+        trackNumber: Int? = null,
     ) = Song(
         id = 1000201063L,
         title = title,
@@ -39,6 +43,9 @@ class MediaItemLogicTest {
         uri = "content://media/external/audio/media/1000201063",
         albumArtUri = albumArtUri,
         fileName = fileName,
+        genre = genre,
+        year = year,
+        trackNumber = trackNumber,
     )
 
     @Test
@@ -196,5 +203,72 @@ class MediaItemLogicTest {
         // The working albumart form must NOT be treated as broken.
         assertFalse(isBrokenAlbumArtUri("content://media/external/audio/albumart/7"))
         assertFalse(isBrokenAlbumArtUri("android.resource://com.harper.ava/drawable/ava_default_artwork"))
+    }
+
+    // --- Frontend + notification round (2026-11-14): richer metadata ---
+    // The notification / lock screen / Android Auto already consume
+    // duration, genre, track number and release year — Ava never
+    // sent them. Both Auxio and Metro set them; the metadata builder
+    // now does too (album artist deliberately NOT set — the scanner
+    // stores no separate album artist).
+
+    @Test
+    fun `metadata carries duration`() {
+        assertEquals(214_000L, songMediaMetadata(song()).durationMs)
+    }
+
+    @Test
+    fun `metadata carries genre when present`() {
+        assertEquals("Jazz", songMediaMetadata(song(genre = "Jazz")).genre)
+    }
+
+    @Test
+    fun `metadata has no genre when blank or absent`() {
+        assertNull(songMediaMetadata(song(genre = null)).genre)
+        assertNull(songMediaMetadata(song(genre = "")).genre)
+        assertNull(songMediaMetadata(song(genre = "   ")).genre)
+    }
+
+    @Test
+    fun `metadata carries track number and release year when present`() {
+        val metadata = songMediaMetadata(song(trackNumber = 3, year = 2024))
+        assertEquals(3, metadata.trackNumber)
+        assertEquals(2024, metadata.releaseYear)
+    }
+
+    @Test
+    fun `metadata has no track number or release year when absent`() {
+        val metadata = songMediaMetadata(song())
+        assertNull(metadata.trackNumber)
+        assertNull(metadata.releaseYear)
+    }
+
+    // --- Frontend + notification round (2026-11-14): notification subText ---
+    // The album rides as the notification's third line — but only
+    // when the artist is non-blank, so it never duplicates the
+    // second line's album fallback (see notificationSubText KDoc).
+
+    @Test
+    fun `notification subText is the album when artist and album are present`() {
+        val metadata = songMediaMetadata(song())
+        assertEquals("Night Sessions", notificationSubText(metadata))
+    }
+
+    @Test
+    fun `notification subText is null when the artist is blank`() {
+        val metadata = songMediaMetadata(song(artist = ""))
+        assertNull(notificationSubText(metadata))
+    }
+
+    @Test
+    fun `notification subText is null when the album is blank`() {
+        val metadata = songMediaMetadata(song(album = ""))
+        assertNull(notificationSubText(metadata))
+    }
+
+    @Test
+    fun `notification subText is null when both artist and album are blank`() {
+        val metadata = songMediaMetadata(song(artist = "", album = ""))
+        assertNull(notificationSubText(metadata))
     }
 }

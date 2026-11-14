@@ -114,11 +114,26 @@ fun RingtoneEditorScreen(
         previewing = false
         val restore = previewRestore
         previewRestore = null
-        if (playerRepository.player.isPlaying) playerRepository.togglePlayPause()
         if (restore != null && restore.queue.isNotEmpty()) {
-            playerRepository.playSongs(restore.queue, restore.index)
-            playerRepository.seekTo(restore.positionMs)
-            if (playerRepository.player.isPlaying) playerRepository.togglePlayPause()
+            // Improve loop, run 20: the restore must land PAUSED.
+            // playSongs() + seekTo() + "pause if playing" used to live
+            // here, but ExoPlayer's isPlaying only turns true once
+            // playback actually starts, so the check ran before the
+            // player was ready and the restored queue kept playing.
+            // prepareQueue() prepares paused by construction (the same
+            // call MainActivity's resume-restore uses), and pauseNow()
+            // stops the preview synchronously first — togglePlayPause's
+            // fade-out pauses 400 ms later, after the queue is swapped
+            // while playWhenReady is still true. The checkpoint is
+            // re-saved after the restore, so a kill here resumes the
+            // original song, not the preview.
+            playerRepository.pauseNow()
+            playerRepository.prepareQueue(restore.queue, restore.index, restore.positionMs)
+            playerRepository.saveCheckpointNow()
+        } else if (playerRepository.player.isPlaying) {
+            // Same song: nothing to restore — just stop the preview,
+            // with the usual fade-out.
+            playerRepository.togglePlayPause()
         }
     }
 

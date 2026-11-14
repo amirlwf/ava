@@ -114,7 +114,14 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         verticalArrangement = Arrangement.Top,
     ) {
-    item {
+    // Run 13 (perf): contentType on every item — this list mixes a
+    // greeting header, permission card, empty state, section headers,
+    // song rows, playlist rows and a spacer, and without a type
+    // Compose reuses one composition pool for all of them, so a
+    // header slot recycled for a song row recomposes from scratch
+    // while scrolling. (Android docs: always specify contentType
+    // for heterogeneous lists.)
+    item(contentType = "header") {
         Column(modifier = Modifier.padding(horizontal = AvaTokens.space20)) {
             Spacer(modifier = Modifier.height(AvaTokens.space16))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -198,7 +205,7 @@ fun HomeScreen(
     }
 
     if (!hasPermission) {
-        item {
+        item(contentType = "permission") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -239,7 +246,7 @@ fun HomeScreen(
     }
 
     if (isEmpty) {
-        item {
+        item(contentType = "empty") {
             // 0.7.0: while the first MediaStore scan is still running
             // the library is genuinely loading — shimmer rows, not a
             // "no songs" state that would flash away a second later.
@@ -271,13 +278,13 @@ fun HomeScreen(
         }
     } else {
         if (recentlyPlayed.isNotEmpty()) {
-            item {
+            item(contentType = "section-header") {
                 SectionTitle(stringResource(R.string.home_recently_played))
             }
             // 0.5.6: keys are section-prefixed — the same song is in
             // recentlyPlayed AND recentlyAdded as soon as it is played
             // once, and a bare id key crashed 0.5.5 (duplicate key).
-            items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }) { song ->
+            items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, recentlyPlayed, onOpenSongDetails, onOpenRingtoneEditor,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
@@ -285,10 +292,10 @@ fun HomeScreen(
             }
         }
         if (recentlyAdded.isNotEmpty()) {
-            item {
+            item(contentType = "section-header") {
                 SectionTitle(stringResource(R.string.home_recently_added))
             }
-            items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }) { song ->
+            items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, recentlyAdded, onOpenSongDetails, onOpenRingtoneEditor,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
@@ -296,7 +303,7 @@ fun HomeScreen(
             }
         }
         if (favorites.isNotEmpty()) {
-            item {
+            item(contentType = "favorites-header") {
                 // Stage 6: the section header opens the full Favorites
                 // screen (Play All / Shuffle All) instead of being dead text.
                 Row(
@@ -329,7 +336,7 @@ fun HomeScreen(
                     )
                 }
             }
-            items(favorites, key = { homeSectionSongKey("fav", it.id) }) { song ->
+            items(favorites, key = { homeSectionSongKey("fav", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, favorites, onOpenSongDetails, onOpenRingtoneEditor,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
@@ -337,12 +344,12 @@ fun HomeScreen(
             }
         }
         if (playlists.isNotEmpty()) {
-            item {
+            item(contentType = "section-header") {
                 SectionTitle(stringResource(R.string.home_your_playlists))
             }
             // Playlists share this LazyColumn's key namespace with the
             // song sections above; their ids come from another table.
-            items(playlists, key = { "playlist:${it.id}" }) { playlist ->
+            items(playlists, key = { "playlist:${it.id}" }, contentType = { "playlist" }) { playlist ->
                 HomePlaylistRow(
                     playlist, onOpenPlaylist,
                     modifier = Modifier.animateItem(placementSpec = AvaMotion.listItemPlacement),
@@ -351,7 +358,7 @@ fun HomeScreen(
         }
     }
 
-    item { Spacer(modifier = Modifier.height(AvaTokens.space24)) }
+    item(contentType = "spacer") { Spacer(modifier = Modifier.height(AvaTokens.space24)) }
     }
 }
 

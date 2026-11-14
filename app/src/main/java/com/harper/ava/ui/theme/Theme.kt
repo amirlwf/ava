@@ -1,5 +1,6 @@
 package com.harper.ava.ui.theme
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,34 +12,47 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.data.preferences.ThemeMode
+import com.harper.ava.ui.common.AvaMotion
 
 /**
  * The active theme spec for screens that need more than the Material3
- * colours — e.g. the Now Playing hero gradient
- * ([heroGradientColors]) or a theme-tinted custom surface. Provided by
+ * colours — e.g. the hero gradient stops ([ThemeSpec.heroDark] /
+ * [ThemeSpec.heroLight]) or a theme-tinted custom surface. Provided by
  * [AvaTheme]; defaults to the VIOLET spec so previews still work.
  */
 val LocalAppThemeSpec = staticCompositionLocalOf { AppTheme.VIOLET.spec }
 
-/** Hero gradient colours for the current mode (3 stops, top → bottom). */
-fun heroGradientColors(spec: ThemeSpec, dark: Boolean): List<Color> =
-    (if (dark) spec.heroDark else spec.heroLight).map { Color(it) }
-
 /** Material3 shapes from a theme's corner radii. */
-fun themeShapes(spec: ThemeSpec): Shapes = Shapes(
-    extraSmall = RoundedCornerShape(spec.radiusSmallDp.dp / 2),
-    small = RoundedCornerShape(spec.radiusSmallDp.dp),
-    medium = RoundedCornerShape(spec.radiusMediumDp.dp),
-    large = RoundedCornerShape(spec.radiusLargeDp.dp),
-    extraLarge = RoundedCornerShape(spec.radiusExtraLargeDp.dp),
+fun themeShapes(spec: ThemeSpec): Shapes = themeShapes(
+    small = spec.radiusSmallDp.dp,
+    medium = spec.radiusMediumDp.dp,
+    large = spec.radiusLargeDp.dp,
+    extraLarge = spec.radiusExtraLargeDp.dp,
+)
+
+/**
+ * Material3 shapes from corner radii — the animated-radii form
+ * (improve loop run 14): [AvaTheme] passes the radii gliding on
+ * [AvaMotion.themeRadiusTween], so a theme change morphs the shape
+ * scale instead of snapping it. `extraSmall` stays half of `small`,
+ * exactly as the spec form above.
+ */
+fun themeShapes(small: Dp, medium: Dp, large: Dp, extraLarge: Dp): Shapes = Shapes(
+    extraSmall = RoundedCornerShape(small / 2),
+    small = RoundedCornerShape(small),
+    medium = RoundedCornerShape(medium),
+    large = RoundedCornerShape(large),
+    extraLarge = RoundedCornerShape(extraLarge),
 )
 
 /**
@@ -279,6 +293,33 @@ fun AvaTheme(
     // MainActivity re-provides the ANIMATED onSurface so icons glide
     // with the rest of the scheme on a theme change instead of
     // snapping ahead of it.
+    // Improve loop run 14 — the radii glide with the colours: each
+    // theme's corner radii animate to their new values on the same
+    // 350 ms theme tween ([AvaMotion.themeRadiusTween]), so switching
+    // themes morphs cards, buttons and dialogs instead of snapping
+    // their corners while the palette glides (the 0.7.0 cosmetic gap
+    // "theme radii snap while colors glide"). First composition starts
+    // at the target — no animation from zero on launch.
+    val radiusSmall by animateDpAsState(
+        targetValue = spec.radiusSmallDp.dp,
+        animationSpec = AvaMotion.themeRadiusTween,
+        label = "theme-radius-small",
+    )
+    val radiusMedium by animateDpAsState(
+        targetValue = spec.radiusMediumDp.dp,
+        animationSpec = AvaMotion.themeRadiusTween,
+        label = "theme-radius-medium",
+    )
+    val radiusLarge by animateDpAsState(
+        targetValue = spec.radiusLargeDp.dp,
+        animationSpec = AvaMotion.themeRadiusTween,
+        label = "theme-radius-large",
+    )
+    val radiusExtraLarge by animateDpAsState(
+        targetValue = spec.radiusExtraLargeDp.dp,
+        animationSpec = AvaMotion.themeRadiusTween,
+        label = "theme-radius-extra-large",
+    )
     CompositionLocalProvider(
         LocalAppThemeSpec provides spec,
         LocalContentColor provides schemeWithCustom.onSurface,
@@ -286,7 +327,7 @@ fun AvaTheme(
         MaterialTheme(
             colorScheme = schemeWithCustom,
             typography = AvaTypography,
-            shapes = themeShapes(spec),
+            shapes = themeShapes(radiusSmall, radiusMedium, radiusLarge, radiusExtraLarge),
             content = content,
         )
     }

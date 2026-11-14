@@ -46,9 +46,16 @@ import kotlin.math.sin
  * This file is NOT in verify.sh's test-compile list (it uses the
  * Compose plugin's inline-free composables only in the full build);
  * the pure strength rules live in AppTheme.kt and are pinned there.
+ *
+ * Reduced motion (improve run 19): with [reducedMotion] the aurora
+ * draws one still frame — `progress` is never read inside the draw
+ * block, so the ticking 48 s clock schedules no redraws. The blobs
+ * sit at their base positions with the phase sway baked in at
+ * progress 0, so the glass still has a coloured sky to blur over,
+ * only a still one.
  */
 @Composable
-fun GlassAurora(amoled: Boolean, modifier: Modifier = Modifier) {
+fun GlassAurora(amoled: Boolean, modifier: Modifier = Modifier, reducedMotion: Boolean = false) {
     val transition = rememberInfiniteTransition(label = "glass-aurora")
     val progress by transition.animateFloat(
         initialValue = 0f,
@@ -65,6 +72,10 @@ fun GlassAurora(amoled: Boolean, modifier: Modifier = Modifier) {
         amoled,
     )
     Canvas(modifier = modifier.fillMaxSize()) {
+        // Reduced motion: a still sky (see the KDoc above). The
+        // transition still exists — a hook cannot be conditional —
+        // but an unread clock is one cheap float per frame.
+        val drawProgress = if (reducedMotion) 0f else progress
         val maxDim = maxOf(size.width, size.height)
         for (i in AURORA_BLOBS.indices) {
             val blob = AURORA_BLOBS[i]
@@ -72,8 +83,8 @@ fun GlassAurora(amoled: Boolean, modifier: Modifier = Modifier) {
             // phase, ±4% of the canvas, so the sky feels alive without
             // ever moving fast enough to distract.
             val phase = i * 2.1f
-            val driftX = sin(progress * 2f * PI.toFloat() + phase) * size.width * 0.04f
-            val driftY = cos(progress * 2f * PI.toFloat() + phase) * size.height * 0.04f
+            val driftX = sin(drawProgress * 2f * PI.toFloat() + phase) * size.width * 0.04f
+            val driftY = cos(drawProgress * 2f * PI.toFloat() + phase) * size.height * 0.04f
             val center = Offset(
                 blob.centerX * size.width + driftX,
                 blob.centerY * size.height + driftY,

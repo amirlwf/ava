@@ -64,7 +64,6 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/SearchHistoryLogic.kt \
   app/src/main/java/com/harper/ava/data/preferences/UserPreferences.kt \
   app/src/main/java/com/harper/ava/core/util/InsightsLogic.kt \
-  app/src/main/java/com/harper/ava/core/util/DeleteSongLogic.kt \
   app/src/main/java/com/harper/ava/core/util/UpdateLogic.kt \
   app/src/main/java/com/harper/ava/core/util/PlaylistLogic.kt \
   app/src/main/java/com/harper/ava/ui/nowplaying/AmbientGlow.kt \
@@ -73,6 +72,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/NavResetLogic.kt \
   app/src/main/java/com/harper/ava/core/util/RingtoneLogic.kt \
   app/src/main/java/com/harper/ava/core/util/MediaItemLogic.kt \
+  app/src/main/java/com/harper/ava/core/util/LocaleHelper.kt \
+  app/src/main/java/com/harper/ava/core/util/ReducedMotionLogic.kt \
   app/src/main/java/com/harper/ava/ui/theme/SeasonalDecor.kt \
   app/src/main/java/com/harper/ava/data/local/db/Database.kt \
   app/src/main/java/com/harper/ava/data/local/db/AppDatabase.kt \
@@ -98,7 +99,6 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/MediaItemLogicTest.kt \
   app/src/test/java/com/harper/ava/AppThemeTest.kt \
   app/src/test/java/com/harper/ava/InsightsLogicTest.kt \
-  app/src/test/java/com/harper/ava/DeleteSongLogicTest.kt \
   app/src/test/java/com/harper/ava/UpdateLogicTest.kt \
   app/src/test/java/com/harper/ava/SeasonalDecorTest.kt \
   app/src/test/java/com/harper/ava/CustomNotificationLogicTest.kt \
@@ -114,6 +114,8 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/SplashDedicationStyleTest.kt \
   app/src/test/java/com/harper/ava/NotificationRepeatShuffleTest.kt \
   app/src/test/java/com/harper/ava/EdgeToEdgeLogicTest.kt \
+  app/src/test/java/com/harper/ava/ReducedMotionLogicTest.kt \
+  app/src/test/java/com/harper/ava/LocaleHelperTest.kt \
   "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
 java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
@@ -133,7 +135,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.MediaItemLogicTest \
   com.harper.ava.AppThemeTest \
   com.harper.ava.InsightsLogicTest \
-  com.harper.ava.DeleteSongLogicTest \
   com.harper.ava.UpdateLogicTest \
   com.harper.ava.SeasonalDecorTest \
   com.harper.ava.CustomNotificationLogicTest \
@@ -148,4 +149,6 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.RingtoneLogicTest \
   com.harper.ava.SplashDedicationStyleTest \
   com.harper.ava.NotificationRepeatShuffleTest \
-  com.harper.ava.EdgeToEdgeLogicTest 2>&1 | tail -5
+  com.harper.ava.EdgeToEdgeLogicTest \
+  com.harper.ava.ReducedMotionLogicTest \
+  com.harper.ava.LocaleHelperTest 2>&1 | tail -5

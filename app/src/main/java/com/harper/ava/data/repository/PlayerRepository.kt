@@ -12,6 +12,9 @@ import com.harper.ava.core.util.SLEEP_TIMER_FADE_MS
 import com.harper.ava.core.util.SleepTimerState
 import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.needsPlayerRebuild
+import com.harper.ava.core.util.planReorderMoves
+import com.harper.ava.core.util.queueIndexAfterMove
+import com.harper.ava.core.util.queueIndexAfterRemoval
 import com.harper.ava.core.util.songToMediaItem
 import com.harper.ava.core.util.segmentListenedMs
 import com.harper.ava.core.util.seekSegment
@@ -23,6 +26,7 @@ import com.harper.ava.core.util.insertPlayNext
 import com.harper.ava.core.util.moveItem
 import com.harper.ava.core.util.removeItemAt
 import com.harper.ava.core.util.shuffleKeepingFirst
+import com.harper.ava.core.util.isSleepTimerExpired
 import com.harper.ava.core.util.sleepTimerRemainingMs
 import com.harper.ava.data.audio.EqualizerController
 import com.harper.ava.data.preferences.UserPreferences
@@ -122,10 +126,20 @@ class PlayerRepository(
                 val song = mediaItem?.mediaId?.toLongOrNull()?.let { id ->
                     _state.value.queue.firstOrNull { it.id == id }
                 }
+                // Improve loop, run 15: the player's own index is the
+                // only exact one. A queue may hold the same song twice
+                // (add-to-queue / play-next / restored checkpoint), and
+                // Song is a data class, so queue.indexOf(song) always
+                // returns the FIRST copy even when the second copy is
+                // the one playing — the Queue screen would then split
+                // current/upcoming at the wrong row and the checkpoint
+                // would save the wrong index. currentMediaItemIndex is
+                // already the new item's index when this callback fires.
+                val newIndex = if (song == null) -1 else player.currentMediaItemIndex
                 _state.update {
                     it.copy(
                         currentSong = song,
-                        queueIndex = song?.let { s -> it.queue.indexOf(s) } ?: -1,
+                        queueIndex = newIndex,
                         durationMs = safeDuration(),
                         positionMs = player.currentPosition.coerceAtLeast(0L),
                     )
@@ -344,7 +358,7 @@ class PlayerRepository(
     fun restoreSleepTimer(endsAtMs: Long?) {
         if (endsAtMs == null) return
         val now = System.currentTimeMillis()
-        if (endsAtMs <= now) {
+        if (isSleepTimerExpired(endsAtMs, now)) {
             scope.launch { userPreferences?.setSleepTimerEndsAt(null) }
             return
         }
@@ -372,12 +386,12 @@ class PlayerRepository(
                 delay(1_000L)
                 val remaining = sleepTimerRemainingMs(endsAtMs, System.currentTimeMillis())
                 _sleepTimer.update { it.copy(remainingMs = remaining) }
-                if (remaining <= 0L) break
+                if (isSleepTimerExpired(endsAtMs, System.currentTimeMillis())) break
             }
         }
         sleepJob = scope.launch {
             val total = endsAtMs - System.currentTimeMillis()
-            if (total <= 0L) {
+            if (isSleepTimerExpired(endsAtMs, System.currentTimeMillis())) {
                 finishSleepTimer()
                 return@launch
             }
@@ -731,7 +745,11 @@ class PlayerRepository(
                 // If the playing song was removed, ExoPlayer transitions to
                 // the next item and onMediaItemTransition fixes currentSong.
                 currentSong = if (removedCurrent) null else it.currentSong,
-                queueIndex = if (removedCurrent) -1 else newQueue.indexOf(it.currentSong),
+                // Improve loop, run 15: position arithmetic, not
+                // newQueue.indexOf(currentSong) — with the same song
+                // twice in the queue, indexOf returns the first copy
+                // even when the second copy is the one playing.
+                queueIndex = if (removedCurrent) -1 else queueIndexAfterRemoval(current.queueIndex, index),
             )
         }
         saveCheckpoint()
@@ -747,7 +765,11 @@ class PlayerRepository(
         _state.update {
             it.copy(
                 queue = newQueue,
-                queueIndex = newQueue.indexOf(it.currentSong),
+                // Improve loop, run 15: position arithmetic, not
+                // newQueue.indexOf(currentSong) — with the same song
+                // twice in the queue, indexOf returns the first copy
+                // even when the second copy is the one playing.
+                queueIndex = queueIndexAfterMove(current.queueIndex, fromIndex, toIndex),
             )
         }
         saveCheckpoint()
@@ -766,18 +788,18 @@ class PlayerRepository(
             listOf(current.queue[current.queueIndex]) + current.queue.drop(current.queueIndex + 1),
         ).drop(1)
         val targetOrder = head + shuffledTail
-        // Apply the target order with moves, tracking a working copy that
-        // mirrors the player's playlist order.
-        val working = current.queue.toMutableList()
-        for (position in current.queueIndex + 1 until targetOrder.size) {
-            val wanted = targetOrder[position]
-            val from = working.indexOf(wanted)
-            if (from != position) {
-                player.moveMediaItem(from, position)
-                working.add(position, working.removeAt(from))
-            }
+        // Improve loop, run 15: the moves are planned by the pure helper
+        // — it only ever moves items at or after the playing song, so a
+        // duplicate song in the head can never be dragged into the tail
+        // (a bare indexOf used to find the FIRST equal item, which could
+        // be the playing song itself). Applying the moves to the player
+        // yields exactly targetOrder, and the playing index stays valid
+        // because the head is untouched.
+        val moves = planReorderMoves(current.queue, targetOrder, current.queueIndex + 1)
+        for (move in moves) {
+            player.moveMediaItem(move.fromIndex, move.toIndex)
         }
-        _state.update { it.copy(queue = working) }
+        _state.update { it.copy(queue = targetOrder) }
         saveCheckpoint()
     }
 
@@ -840,6 +862,22 @@ class PlayerRepository(
                 player.play()
             }
         }
+    }
+
+    /**
+     * Pauses playback immediately, cancelling any in-flight volume
+     * fade. The ringtone editor's preview stop needs this instead of
+     * [togglePlayPause]: the fade-out pauses 400 ms later, and a
+     * queue prepared in between ([prepareQueue]) would start playing
+     * while playWhenReady is still true — the restored song would
+     * play instead of landing paused.
+     */
+    fun pauseNow() {
+        fadeJob?.cancel()
+        fadeJob = null
+        player.pause()
+        player.volume = 1f
+        saveCheckpoint()
     }
 
     fun playNext() {

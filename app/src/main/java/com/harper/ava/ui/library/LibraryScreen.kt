@@ -77,10 +77,6 @@ fun LibraryScreen(
         factory = LibraryViewModel.factory(app.container.musicRepository, app.container.playerRepository),
     )
     val songs by viewModel.songs.collectAsState()
-    val artists by viewModel.artists.collectAsState()
-    val albums by viewModel.albums.collectAsState()
-    val folders by viewModel.folders.collectAsState()
-    val genres by viewModel.genres.collectAsState()
     val groupSongs by viewModel.groupSongs.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     val sort by viewModel.sort.collectAsState()
@@ -252,6 +248,12 @@ fun LibraryScreen(
             )
         }
 
+        // Run 23 (performance): the four group lists are collected only
+        // inside their own tab branch, not up front — each is a GROUP BY
+        // over the whole songs table, and every songs-table write (each
+        // track start marks a song played) re-ran all four. The StateFlows
+        // keep their last value, so revisiting a tab shows the cached
+        // list instantly and Room re-queries in the background.
         when (tab) {
             LibraryTab.SONGS -> {
                 if (songs.isEmpty()) {
@@ -273,6 +275,7 @@ fun LibraryScreen(
                 }
             }
             LibraryTab.ARTISTS -> {
+                val artists by viewModel.artists.collectAsState()
                 if (artists.isEmpty()) {
                     if (isScanning) SkeletonList() else LibraryEmpty()
                 } else {
@@ -296,6 +299,7 @@ fun LibraryScreen(
                 }
             }
             LibraryTab.ALBUMS -> {
+                val albums by viewModel.albums.collectAsState()
                 if (albums.isEmpty()) {
                     if (isScanning) SkeletonList() else LibraryEmpty()
                 } else {
@@ -321,6 +325,7 @@ fun LibraryScreen(
                 }
             }
             LibraryTab.FOLDERS -> {
+                val folders by viewModel.folders.collectAsState()
                 if (folders.isEmpty()) {
                     if (isScanning) {
                         SkeletonList()
@@ -355,6 +360,7 @@ fun LibraryScreen(
                 }
             }
             LibraryTab.GENRES -> {
+                val genres by viewModel.genres.collectAsState()
                 if (genres.isEmpty()) {
                     if (isScanning) {
                         SkeletonList()

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,6 +74,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -84,6 +86,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.effectiveAlbumArtUri
@@ -93,6 +96,7 @@ import com.harper.ava.core.util.shouldDismissOnRelease
 import com.harper.ava.core.util.swipeDismissThresholdPx
 import com.harper.ava.data.repository.RepeatMode
 import com.harper.ava.ui.theme.rememberIsResumed
+import com.harper.ava.ui.theme.rememberReducedMotion
 import com.harper.ava.ui.theme.LocalAppThemeSpec
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.common.rememberPressScale
@@ -174,6 +178,18 @@ fun NowPlayingScreen(
     // through to the gradient / MusicNote instead of loading a uri
     // that can never resolve.
     val coverArtUri = effectiveAlbumArtUri(song.albumArtUri)
+    // Run 18 (performance): the backdrop is the same art blurred at
+    // 64dp (96dp on glass) over the whole screen — the blur destroys
+    // all detail, so decoding the embedded art at screen size wastes
+    // memory and makes the blur itself far more expensive. A 160px
+    // decode is visually identical under that blur at a fraction of
+    // the cost; the big cover below still loads at its own size.
+    val backdropContext = LocalContext.current
+    val backdropRequest = remember(coverArtUri) {
+        coverArtUri?.let {
+            ImageRequest.Builder(backdropContext).data(it).size(160).build()
+        }
+    }
     val haptics = rememberAvaHaptics()
 
     // 0.7.0 motion: the big cover is the other end of the shared element
@@ -228,9 +244,9 @@ fun NowPlayingScreen(
         )
         // Adaptive background: the cover, heavily blurred, under a scrim.
         // Falls back to a plain accent-tinted gradient when there is no art.
-        if (coverArtUri != null && !coverFailed) {
+        if (backdropRequest != null && !coverFailed) {
             AsyncImage(
-                model = coverArtUri,
+                model = backdropRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onError = { coverFailed = true },
@@ -283,6 +299,7 @@ fun NowPlayingScreen(
             isPlaying = state.isPlaying,
             active = isResumed,
             modifier = Modifier.fillMaxSize(),
+            reducedMotion = rememberReducedMotion(),
         )
 
         // 0.1-fix1 (Track F): swipe down to dismiss. The content Column
@@ -347,8 +364,29 @@ fun NowPlayingScreen(
                 .padding(horizontal = AvaTokens.space24),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            TopAppBar(
-                title = { Text(stringResource(R.string.now_playing_title)) },
+            // Frontend + notification round (2026-11-14): the
+            // swipe-down dismiss exists since 0.1 but nothing on
+            // screen showed it — the gesture was invisible. The
+            // generic "Now Playing" label is gone (the screen says
+            // that already); a centered drag handle takes its place,
+            // the way Apple Music / Spotify / Auxio panels show a
+            // handle or chevron instead of a label. The bar sits
+            // inside the draggable Column above, so dragging from
+            // the handle itself dismisses, as the gesture promises.
+            // Static on purpose (reduced-motion safe); the empty
+            // branch below keeps its own TopAppBar — no swipe there.
+            CenterAlignedTopAppBar(
+                title = {
+                    Box(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            ),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

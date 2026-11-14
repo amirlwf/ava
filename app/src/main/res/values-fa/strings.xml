@@ -27,6 +27,7 @@
     <string name="scan_found">%1$d آهنگ پیدا شد</string>
     <string name="scan_found_removed">%1$d آهنگ پیدا شد · %2$d حذف شد</string>
     <string name="scan_error">اسکن ناموفق بود. دوباره تلاش کنید.</string>
+    <string name="scan_retry">تلاش دوباره</string>
     <string name="scan_permission_title">بگذار آوا موسیقی‌هایت را پیدا کند</string>
     <string name="scan_permission_body">آوا فقط فایل‌های صوتی همین گوشی را اسکن می‌کند. چیزی از گوشی خارج نمی‌شود.</string>
     <string name="scan_permission_grant">اجازه دسترسی به موسیقی</string>
@@ -363,6 +364,7 @@
     <string name="eq_unsupported_title">اکولایزر در دسترس نیست</string>
     <string name="eq_reason_no_session">اول یک آهنگ پخش کن — اکولایزر به جلسه پخش فعال وصل می‌شود.</string>
     <string name="eq_reason_unsupported">این دستگاه افکت اکولایزر ندارد، پس چیزی برای تنظیم نیست.</string>
+    <string name="eq_play_song">پخش آهنگ</string>
 
     <!-- Lyrics -->
     <string name="lyrics_title">متن آهنگ</string>

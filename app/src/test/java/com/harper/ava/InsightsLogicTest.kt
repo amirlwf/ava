@@ -152,6 +152,36 @@ class InsightsLogicTest {
         assertEquals(10, hourOfDay(dayStart + 10L * 60L * 60L * 1000L))
     }
 
+    // -- startOfDayMs -------------------------------------------------------
+    // Improve loop, run 17 — until now startOfDayMs was exercised only
+    // as a helper inside the computeInsights tests below, so a
+    // regression in the day boundary (e.g. reading Calendar.HOUR
+    // instead of HOUR_OF_DAY) would have shifted every Insights
+    // window silently. These tests pin the boundary directly: the
+    // fixed "now" is 2026-11-12 15:30 local time.
+
+    @Test
+    fun `startOfDayMs is midnight of the same local day`() {
+        val dayStart = startOfDayMs(fixedNowMs())
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = dayStart
+        assertEquals(2026, cal.get(Calendar.YEAR))
+        assertEquals(Calendar.NOVEMBER, cal.get(Calendar.MONTH))
+        assertEquals(12, cal.get(Calendar.DAY_OF_MONTH))
+        assertEquals(0, cal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, cal.get(Calendar.MINUTE))
+        assertEquals(0, cal.get(Calendar.SECOND))
+        assertEquals(0, cal.get(Calendar.MILLISECOND))
+    }
+
+    @Test
+    fun `startOfDayMs is the same for any time within one day`() {
+        val dayStart = startOfDayMs(fixedNowMs())
+        assertEquals(dayStart, startOfDayMs(dayStart))
+        assertEquals(dayStart, startOfDayMs(dayStart + 23L * 60L * 60L * 1000L + 59L * 60L * 1000L))
+        assertEquals(dayStart + 24L * 60L * 60L * 1000L, startOfDayMs(dayStart + 24L * 60L * 60L * 1000L + 60L * 1000L))
+    }
+
     // -- computeInsights: empty ------------------------------------------------
 
     @Test

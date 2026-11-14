@@ -11,6 +11,7 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.harper.ava.R
 import com.harper.ava.core.util.deriveAccentColors
+import com.harper.ava.core.util.notificationSubText
 import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppTheme
 import com.harper.ava.ui.theme.spec
@@ -257,6 +258,41 @@ import com.harper.ava.ui.theme.spec
  *   `MediaSessionService.onUpdateNotificationInternal`), so a theme
  *   change rebuilds it. Fixing the cover is what restores the
  *   theme; there is no separate colour bug.
+ *
+ * Frontend + notification round (2026-11-14) — Harper's "still not
+ * fixed" report; Auxio (OxygenCobalt/Auxio, dev branch) and Metro
+ * (MuntashirAkon/Metro, dev branch) studied for patterns only, never
+ * copied:
+ *
+ * - Richer metadata: `songMediaMetadata` now also sends duration,
+ *   genre, track number and release year — the fields both players
+ *   set and Ava omitted. They feed the lock screen / Android Auto /
+ *   system controllers, not the shade's two lines, so no visible
+ *   change is promised on Harper's phone.
+ * - Album as a third line: `addNotificationActions` now calls
+ *   `builder.setSubText(album)` (guarded by [notificationSubText]
+ *   in `MediaItemLogic`, so it never duplicates the second line).
+ *   Both studied players set subText on MediaStyle notifications;
+ *   the AOSP expanded template renders it as a third line. Honest
+ *   limit: whether HyperOS / Android 15's shade media player shows
+ *   it is UNPROVEN until Harper's device — the white HyperOS card
+ *   itself is still HyperOS's own style, not an app bug, and is
+ *   not chased.
+ * - Placeholder: the service's own `startForegroundNow`
+ *   notification now sets `setShowWhen(false)` (no timestamp on a
+ *   transient placeholder) and `setCategory(CATEGORY_TRANSPORT)`
+ *   (the media category every media notification carries; Auxio
+ *   sets it explicitly). The placeholder is the one notification
+ *   Ava builds entirely itself.
+ *
+ * What was audited and found already complete (not redone): PNG
+ * small icon in all five densities, custom transport drawables,
+ * live theme accent on every post, smart second line (artist else
+ * album), like + repeat + shuffle in the expanded view, guaranteed
+ * artwork, theme-change accent re-post, chronometer / progress
+ * (Media3 sets when + showWhen + chronometer from the playback
+ * start time — verified in the 1.11.1 bytecode), compact actions
+ * (three transport slots), channel description.
  */
 class AvaMediaNotificationProvider(
     context: Context,
@@ -343,7 +379,15 @@ class AvaMediaNotificationProvider(
      * `setColor` tints the small icon with Ava's accent (and, because
      * MediaStyle is colorized by default, tints the notification
      * wherever the system uses the notification colour — see the
-     * 0.7.6 `setColorized` note in the class KDoc).
+     * 0.7.6 `setColorized` note in the class KDoc). Frontend +
+     * notification round (2026-11-14): the album is also set as the
+     * notification's subText — the third line both Auxio and Metro
+     * set on their MediaStyle notifications and the stock provider
+     * never does ([notificationSubText] guards it: only when the
+     * artist is non-blank, so it never duplicates the second line's
+     * album fallback). Whether HyperOS / Android 15's shade media
+     * player renders the third line is unproven until Harper's
+     * device — the AOSP expanded template does.
      */
     override fun addNotificationActions(
         session: MediaSession,
@@ -354,6 +398,9 @@ class AvaMediaNotificationProvider(
         val compactViewIndices =
             super.addNotificationActions(session, mediaButtons, builder, actionFactory)
         builder.setColor(accentColorArgb)
+        session.player.currentMediaItem?.mediaMetadata?.let { metadata ->
+            notificationSubText(metadata)?.let { builder.setSubText(it) }
+        }
         return compactViewIndices
     }
 

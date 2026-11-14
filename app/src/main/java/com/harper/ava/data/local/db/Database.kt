@@ -165,6 +165,16 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY dateAddedMs DESC")
     fun observeAllByDateAdded(): Flow<List<SongEntity>>
 
+    /**
+     * Run 18 (performance): Home's "Recently added" shows 10 songs, but
+     * it used to load the whole library through [observeAllByDateAdded]
+     * and drop all but 10 in the ViewModel — Room mapped every row on
+     * every songs-table change (each play marks a song played, which
+     * re-emits the query). The LIMIT pushes the trim into SQLite.
+     */
+    @Query("SELECT * FROM songs ORDER BY dateAddedMs DESC LIMIT :limit")
+    fun observeRecentlyAdded(limit: Int = 10): Flow<List<SongEntity>>
+
     @Query("SELECT * FROM songs ORDER BY durationMs DESC")
     fun observeAllByDuration(): Flow<List<SongEntity>>
 
@@ -203,6 +213,20 @@ interface SongDao {
             "ON s.mediaStoreId = f.songId ORDER BY f.addedAtMs DESC",
     )
     fun observeFavorites(): Flow<List<SongEntity>>
+
+    /**
+     * Run 23 (performance): Home's "Favorites" shows 10 songs, but it
+     * used to load the whole favorites join through [observeFavorites]
+     * and drop all but 10 in the ViewModel — the full join + model
+     * mapping ran on every favorites-table write. The LIMIT pushes the
+     * trim into SQLite; the full list still lives in [observeFavorites]
+     * for the Favorites screen, the notification and Now Playing.
+     */
+    @Query(
+        "SELECT s.* FROM songs s INNER JOIN favorites f " +
+            "ON s.mediaStoreId = f.songId ORDER BY f.addedAtMs DESC LIMIT :limit",
+    )
+    fun observeRecentlyFavorited(limit: Int = 10): Flow<List<SongEntity>>
 
     @Query(
         "SELECT artist AS name, COUNT(*) AS songCount, MAX(albumArtUri) AS albumArtUri " +
@@ -308,9 +332,6 @@ interface ListeningHistoryDao {
 
     @Query("SELECT * FROM listening_history ORDER BY playedAtMs DESC")
     fun observeAll(): Flow<List<ListeningHistoryEntity>>
-
-    @Query("SELECT * FROM listening_history WHERE playedAtMs >= :sinceMs ORDER BY playedAtMs DESC")
-    fun observeSince(sinceMs: Long): Flow<List<ListeningHistoryEntity>>
 
     @Query("SELECT COUNT(*) FROM listening_history")
     suspend fun count(): Int

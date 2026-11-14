@@ -81,10 +81,6 @@ object CrashReporter {
         return runCatching { latest.readText() }.getOrNull()
     }
 
-    fun clearLogs(context: Context) {
-        listLogs(context).forEach { runCatching { it.delete() } }
-    }
-
     private fun writeLog(context: Context, thread: Thread, throwable: Throwable) {
         val dir = File(context.filesDir, DIR_NAME).apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())

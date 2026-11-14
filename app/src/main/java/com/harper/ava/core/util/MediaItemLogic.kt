@@ -21,6 +21,17 @@ import com.harper.ava.domain.model.Song
  * subclass path (no RemoteViews — that path crashed twice on Harper's
  * phone and is never repeated).
  *
+ * Frontend + notification round (2026-11-14): the metadata also
+ * carries the fields the system surfaces already consume but Ava
+ * never sent — duration (lock screen / controller total time),
+ * genre, track number and release year (Android Auto / system
+ * controllers; Auxio and Metro both set them). Album artist is
+ * deliberately NOT set: the scanner stores no separate album
+ * artist, and duplicating `artist` would be invented data. Display
+ * title / subtitle / description are likewise NOT set: they would
+ * duplicate title / artist / album, and Media3's provider does
+ * not use them.
+ *
  * [songMediaMetadata] is pure and runs in the offline JUnit suite
  * (no `Uri.parse` in it). [songToMediaItem] needs `android.net.Uri`
  * for the artwork uri and the media uri, so it cannot run on the JVM
@@ -32,6 +43,12 @@ fun songMediaMetadata(song: Song): MediaMetadata =
         .setTitle(notificationTitle(song))
         .setArtist(song.artist)
         .setAlbumTitle(song.album)
+        .setDurationMs(song.durationMs)
+        .apply {
+            song.genre?.takeIf { it.isNotBlank() }?.let { setGenre(it) }
+            song.trackNumber?.let { setTrackNumber(it) }
+            song.year?.let { setReleaseYear(it) }
+        }
         .build()
 
 /**
@@ -48,6 +65,30 @@ fun notificationTitle(song: Song): String =
         song.fileName?.let { filenameFromUri(it) }.orEmpty()
             .ifEmpty { "track-${song.id}" }
     }
+
+/**
+ * Album line for the notification's third line (`setSubText` in
+ * `AvaMediaNotificationProvider.addNotificationActions`).
+ *
+ * Frontend + notification round (2026-11-14): both Auxio and Metro
+ * set `setSubText(album)` on their MediaStyle notifications, and the
+ * stock Media3 provider never does — so Ava's notification never
+ * showed the album anywhere. The AOSP expanded template renders
+ * subText as a third line under title + artist; whether HyperOS /
+ * Android 15's shade media player shows it is UNPROVEN until
+ * Harper's device — see the provider KDoc.
+ *
+ * Guarded on purpose: when the artist is blank, the second line
+ * ([AvaMediaNotificationProvider.getNotificationContentText]) already
+ * IS the album, so a subText album would print the album twice.
+ * When the album is blank there is nothing to show. Pure, so the
+ * offline JUnit suite pins it.
+ */
+fun notificationSubText(metadata: MediaMetadata): CharSequence? {
+    val artist = metadata.artist
+    val album = metadata.albumTitle
+    return if (!artist.isNullOrBlank() && !album.isNullOrBlank()) album else null
+}
 
 /**
  * The artwork URI for a [Song]: the song's own album art when it has

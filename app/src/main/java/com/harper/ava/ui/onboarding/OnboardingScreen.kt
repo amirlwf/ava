@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.ui.scan.ScanUiState
+import com.harper.ava.ui.scan.openAppSettings
 import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.scan.toUiState
 import com.harper.ava.ui.theme.AvaTokens
@@ -56,7 +58,9 @@ import kotlinx.coroutines.launch
  * how it can look, and the music-access permission with a real scan.
  * Skippable on every page; nothing here is a dead button. When the user
  * grants access, the first scan runs and the app opens on Home once it
- * finishes; when access is denied, the Home permission card remains.
+ * finishes; when access is denied, the page itself offers a retry and an
+ * "Open settings" button (same actions as Home's permission card), so
+ * the user is never stuck on a bare message.
  */
 @Composable
 fun OnboardingScreen(app: AvaApplication, onFinished: () -> Unit) {
@@ -65,6 +69,7 @@ fun OnboardingScreen(app: AvaApplication, onFinished: () -> Unit) {
     )
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var scanState by remember { mutableStateOf<ScanUiState>(ScanUiState.Idle) }
     val finish: () -> Unit = { viewModel.finish(onFinished) }
 
@@ -129,20 +134,49 @@ fun OnboardingScreen(app: AvaApplication, onFinished: () -> Unit) {
                                 )
                             }
                             ScanUiState.PermissionDenied -> {
+                                // Improve run 16: this used to be a bare
+                                // message — the grant button was gone, so
+                                // the only way out was the bottom "Start"
+                                // button and then re-granting from Home.
+                                // Same two actions as Home's permission card:
+                                // retry the request, or open Settings when
+                                // the denial is permanent.
                                 Text(
                                     text = stringResource(R.string.scan_permission_denied),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                 )
+                                Spacer(modifier = Modifier.height(AvaTokens.space12))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        AvaTokens.space8,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Button(onClick = requestScan) {
+                                        Text(stringResource(R.string.scan_permission_grant))
+                                    }
+                                    OutlinedButton(onClick = { openAppSettings(context) }) {
+                                        Text(stringResource(R.string.scan_permission_settings))
+                                    }
+                                }
                             }
                             ScanUiState.Error -> {
+                                // Improve run 16: same dead end as the
+                                // denied case — a bare message with no
+                                // retry. The button re-runs the scan.
                                 Text(
                                     text = stringResource(R.string.scan_error),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
                                     textAlign = TextAlign.Center,
                                 )
+                                Spacer(modifier = Modifier.height(AvaTokens.space12))
+                                Button(onClick = requestScan) {
+                                    Text(stringResource(R.string.scan_retry))
+                                }
                             }
                             else -> {
                                 Button(

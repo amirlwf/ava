@@ -40,7 +40,7 @@ import com.harper.ava.R
  *    and the session's [AvaSessionCallback.onCustomCommand] toggles
  *    the current song's favourite state.
  *
- * That availability check is why [availableSessionCommandsWithLike]
+ * That availability check is why [availableSessionCommandsWithNotificationActions]
  * exists: without the like command in the available commands, the
  * tap is dropped silently AND the button is disabled and filtered
  * out of the notification (absent, not broken). The failure modes
@@ -50,7 +50,7 @@ import com.harper.ava.R
  *
  * Test boundary (honest, not a gap to paper over): the Media3-typed
  * assembly in this file — [likeSessionCommand], [likeButton] and
- * [availableSessionCommandsWithLike] — CANNOT run in the offline
+ * [availableSessionCommandsWithNotificationActions] — CANNOT run in the offline
  * JUnit suite. Building a `SessionCommand` / `CommandButton`
  * constructs an `android.os.Bundle`, whose stub constructor throws
  * on this JVM, and reading the `DEFAULT_SESSION_COMMANDS` statics
@@ -91,10 +91,9 @@ fun likeSessionCommand(): SessionCommand = SessionCommand(LIKE_COMMAND_ACTION, B
  * and shuffle grants ride the same builder call).
  *
  * 0.2-fix (Track 1): the grant used to cover only the like command
- * ([availableSessionCommandsWithLike], renamed here) — Harper's 0.2
- * report asked for repeat and shuffle in the notification, and a tap
- * is dropped silently without its command in the available set, so
- * both ride this grant now.
+ * — Harper's 0.2 report asked for repeat and shuffle in the
+ * notification, and a tap is dropped silently without its command in
+ * the available set, so both ride this grant now.
  */
 fun availableSessionCommandsWithNotificationActions(isTrusted: Boolean): SessionCommands {
     val base = if (isTrusted) {
@@ -109,14 +108,6 @@ fun availableSessionCommandsWithNotificationActions(isTrusted: Boolean): Session
         .add(shuffleSessionCommand())
         .build()
 }
-
-/**
- * The like-only grant, kept as a thin alias: older call sites and
- * the like test pin this name. New code grants the full notification
- * set through [availableSessionCommandsWithNotificationActions].
- */
-fun availableSessionCommandsWithLike(isTrusted: Boolean): SessionCommands =
-    availableSessionCommandsWithNotificationActions(isTrusted)
 
 /**
  * The like button for the current song.

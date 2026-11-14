@@ -581,10 +581,11 @@ class MainActivity : ComponentActivity() {
  * custom accent colour), and it deliberately only re-provides the
  * colours: typography and shapes keep coming from [AvaTheme] untouched.
  *
- * Corner radii are NOT animated: they come from the theme spec's
- * [Shapes] ([themeShapes]), and animating them would need the theme
- * spec to expose animatable values — shapes snap on a theme change
- * while the colours glide. The navigation state is untouched: the
+ * Corner radii glide too, but from the other side: [AvaTheme] animates
+ * the theme spec's radii on [AvaMotion.themeRadiusTween] — the same
+ * 350 ms as the colours — so the shape scale morphs while the palette
+ * glides (improve loop run 14 fixed the 0.7.0 gap where radii snapped
+ * while colours glided). The navigation state is untouched: the
  * [androidx.navigation.NavHostController] lives inside this wrapper's
  * content, so a theme change never resets the back stack.
  */

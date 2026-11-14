@@ -43,6 +43,7 @@ fun AppBackdrop(
     amoled: Boolean = false,
 ) {
     val appResumed = rememberIsResumed()
+    val reducedMotion = rememberReducedMotion()
     val spec = LocalAppThemeSpec.current
     Box(
         modifier = modifier
@@ -58,6 +59,7 @@ fun AppBackdrop(
             GlassAurora(
                 amoled = amoled,
                 modifier = Modifier.fillMaxSize(),
+                reducedMotion = reducedMotion,
             )
         }
         SeasonalDecor(
@@ -65,6 +67,7 @@ fun AppBackdrop(
             effectsEnabled = effectsEnabled,
             modifier = Modifier.fillMaxSize(),
             active = appResumed,
+            reducedMotion = reducedMotion,
         )
     }
 }

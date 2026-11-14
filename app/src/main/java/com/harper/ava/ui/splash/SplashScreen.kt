@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.harper.ava.R
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.theme.SplashDedicationStyle
+import com.harper.ava.ui.theme.rememberReducedMotion
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.delay
 
@@ -60,6 +61,11 @@ import kotlinx.coroutines.delay
  * square: the asset is a full-bleed black square (the squircle art
  * sits on it), so an unclipped draw would show a black tile on light
  * themes; the 30 dp radius follows the artwork's own squircle.
+ *
+ * Reduced motion (improve run 19): when the user asked the system
+ * for no animation ([rememberReducedMotion]), the dedication appears
+ * whole at once instead of typing itself out — the 400 ms hold
+ * before hand-over stays, so the line is still read, only not typed.
  */
 @Composable
 fun SplashScreen(
@@ -67,10 +73,17 @@ fun SplashScreen(
     onIntroFinished: () -> Unit,
 ) {
     val dedication = stringResource(R.string.splash_dedication)
+    val reducedMotion = rememberReducedMotion()
     var typedCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(ready) {
         if (!ready) return@LaunchedEffect
+        if (reducedMotion) {
+            typedCount = dedication.length
+            delay(400)
+            onIntroFinished()
+            return@LaunchedEffect
+        }
         val perCharMs = 1600L / dedication.length.coerceAtLeast(1)
         for (i in 1..dedication.length) {
             typedCount = i

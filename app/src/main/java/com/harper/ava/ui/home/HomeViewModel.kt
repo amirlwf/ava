@@ -7,7 +7,6 @@ import com.harper.ava.data.media.ScanResult
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
 import com.harper.ava.data.repository.SongDeleteCoordinator
-import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.scan.ScanUiState
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -29,9 +27,9 @@ class HomeViewModel(
     /** Time-of-day greeting bucket: 5–12 morning, 12–17 afternoon, 17–20 evening, else night. */
     val greetingHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
+    /** Run 18: the 10 newest songs, trimmed in SQLite — no longer the whole library. */
     val recentlyAdded: StateFlow<List<Song>> = musicRepository
-        .observeSongs(SongSort.DATE_ADDED)
-        .map { it.take(10) }
+        .observeRecentlyAdded()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Real recently-played list: songs with a recorded lastPlayedMs. */
@@ -39,9 +37,9 @@ class HomeViewModel(
         .observeRecentlyPlayed()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Run 23: the 10 most recently favorited songs, trimmed in SQLite (was: whole list + take(10)). */
     val favorites: StateFlow<List<Song>> = musicRepository
-        .observeFavorites()
-        .map { it.take(10) }
+        .observeRecentlyFavorited()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Playlists with their real song counts + cover art (stage 6 repository flow). */

@@ -3,6 +3,41 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.3] — 2026-11-14
+
+A small patch on 0.4.2, from Harper's request after testing 0.4.2:
+more frontend polish, and another pass on the notification, which still
+did not feel like the app's own. GitHub repos were studied for patterns
+only — nothing was copied.
+
+Version 0.4.3 (versionCode 27) — a patch release: frontend polish and
+notification detail, no new features.
+
+### Changed
+
+- **Now Playing drag handle** — the top bar of Now Playing now shows a
+  centered drag handle instead of the generic "Now Playing" title.
+  Dragging down from the handle dismisses the screen, as before.
+- **Notification: album as a third line** — the notification now carries
+  the album as a sub-text line, where the system shows it, and the
+  metadata is richer (duration, genre, track number, release year).
+  The placeholder notification no longer shows a timestamp.
+- **Dead menu item removed** — the disabled "Add to playlist" header in
+  the song menu is gone.
+
+### Fixed
+
+- **Fallback cover in Queue and Song details** — songs scanned before
+  0.3 with a broken album-art URI now fall back to the Galaxy default
+  cover there too, as they already did elsewhere.
+
+### Known limits
+
+- The media card in the notification shade stays white on HyperOS even
+  with artwork — that is the phone's own system media-player style.
+  Whether HyperOS shows the album third line (sub-text) is unproven
+  on the real device.
+
 ## [0.4.2] — 2026-11-13
 
 A small patch on 0.4.1, from Harper's request after testing 0.4.1: the

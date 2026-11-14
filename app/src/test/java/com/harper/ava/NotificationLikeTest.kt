@@ -25,7 +25,7 @@ import org.junit.Test
  * `android.util.SparseBooleanArray` (same stub problem); building a
  * button also reads the media3 R class, which the verify
  * environment does not generate. So `likeSessionCommand`,
- * `likeButton` and `availableSessionCommandsWithLike` are verified
+ * `likeButton` and `availableSessionCommandsWithNotificationActions` are verified
  * by the kotlinc type-check, by dex/javap inspection in the manual
  * build (the grant must call `addSessionCommands`, the button must
  * call `setCustomIconResId` with a heart drawable and `setSlots`

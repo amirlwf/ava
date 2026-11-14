@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
+import com.harper.ava.core.util.effectiveAlbumArtUri
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.formatFileSize
 import com.harper.ava.data.media.formatOf
@@ -114,7 +115,13 @@ fun SongDetailsScreen(app: AvaApplication, songId: Long, onBack: () -> Unit) {
                 val song = current.song
                 val info = current.fileInfo
                 val unknown = stringResource(R.string.details_unknown)
-                var artFailed by remember(song.albumArtUri) { mutableStateOf(false) }
+                // Frontend + notification round (2026-11-14): same
+                // 0.3-feedback fix as GroupRow — a stored broken
+                // albums/ uri reads as "no art"
+                // ([effectiveAlbumArtUri]) instead of attempting a
+                // load that cannot succeed.
+                val effectiveArtUri = effectiveAlbumArtUri(song.albumArtUri)
+                var artFailed by remember(effectiveArtUri) { mutableStateOf(false) }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -130,9 +137,9 @@ fun SongDetailsScreen(app: AvaApplication, songId: Long, onBack: () -> Unit) {
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (song.albumArtUri != null && !artFailed) {
+                        if (effectiveArtUri != null && !artFailed) {
                             AsyncImage(
-                                model = song.albumArtUri,
+                                model = effectiveArtUri,
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 onError = { artFailed = true },

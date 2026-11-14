@@ -25,6 +25,7 @@ import java.util.Locale
  */
 object LocaleHelper {
 
+    /** The single language mapping all three paths share — pinned by LocaleHelperTest. */
     fun localeFor(language: AppLanguage): Locale? = when (language) {
         AppLanguage.FA -> Locale("fa")
         AppLanguage.EN -> Locale.ENGLISH

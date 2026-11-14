@@ -276,11 +276,13 @@ fun SongRow(
                                 )
                             }
                         } else {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.song_add_to_playlist)) },
-                                onClick = { menuOpen = false },
-                                enabled = false,
-                            )
+                            // Frontend + notification round
+                            // (2026-11-14): the disabled "Add to
+                            // playlist" header was a dead menu item
+                            // (enabled = false, a label pretending to
+                            // be an action) — Harper's rule, no dead
+                            // buttons. The playlist names below are
+                            // self-evident.
                             playlists.forEach { playlist ->
                                 DropdownMenuItem(
                                     text = { Text(playlist.name) },

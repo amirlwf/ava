@@ -100,9 +100,29 @@ class MusicRepository(private val db: AppDatabase) {
             list.map { it.toModel(isFavorite = it.mediaStoreId in favSet) }
         }
 
+    /** Run 18: Home's "Recently added" — the 10 newest songs, trimmed in SQLite. */
+    fun observeRecentlyAdded(): Flow<List<Song>> =
+        combine(
+            db.songDao().observeRecentlyAdded(),
+            db.favoriteDao().observeFavoriteIds(),
+        ) { list, favIds ->
+            val favSet = favIds.toSet()
+            list.map { it.toModel(isFavorite = it.mediaStoreId in favSet) }
+        }
+
     fun observeFavorites(): Flow<List<Song>> =
         combine(
             db.songDao().observeFavorites(),
+            db.favoriteDao().observeFavoriteIds(),
+        ) { list, favIds ->
+            val favSet = favIds.toSet()
+            list.map { it.toModel(isFavorite = it.mediaStoreId in favSet) }
+        }
+
+    /** Run 23: Home's "Favorites" — the 10 most recently favorited songs, trimmed in SQLite. */
+    fun observeRecentlyFavorited(): Flow<List<Song>> =
+        combine(
+            db.songDao().observeRecentlyFavorited(),
             db.favoriteDao().observeFavoriteIds(),
         ) { list, favIds ->
             val favSet = favIds.toSet()
@@ -287,9 +307,6 @@ class MusicRepository(private val db: AppDatabase) {
             withSongs?.songs.orEmpty().map { it.toModel(isFavorite = it.mediaStoreId in favSet) }
         }
 
-    fun observePlaylistSongCount(playlistId: Long): Flow<Int> =
-        db.playlistDao().observeSongCount(playlistId)
-
     suspend fun createPlaylist(name: String): Long {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Playlist name must not be blank" }
@@ -377,9 +394,6 @@ class MusicRepository(private val db: AppDatabase) {
 
     fun observeListeningHistory(): Flow<List<com.harper.ava.core.util.ListenEvent>> =
         db.listeningHistoryDao().observeAll().map { rows -> rows.map { it.toEvent() } }
-
-    fun observeListeningHistorySince(sinceMs: Long): Flow<List<com.harper.ava.core.util.ListenEvent>> =
-        db.listeningHistoryDao().observeSince(sinceMs).map { rows -> rows.map { it.toEvent() } }
 }
 
 private fun com.harper.ava.data.local.db.ListeningHistoryEntity.toEvent(): com.harper.ava.core.util.ListenEvent =

@@ -128,6 +128,18 @@ object AvaMotion {
     val themeColorTween: TweenSpec<Color> = tween(durationMillis = 350)
 
     /**
+     * Animated theme switching (improve loop run 14): the corner radii
+     * glide to their new values on the same 350 ms as the colours, so
+     * a theme change morphs the whole shape scale instead of snapping
+     * the radii while the palette glides. Same duration as
+     * [themeColorTween] on purpose — one theme-change tween for colour
+     * and shape alike; same FastOutSlowIn easing as the rest of the
+     * family, like [crossFade].
+     */
+    val themeRadiusTween: TweenSpec<Dp> =
+        tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    /**
      * 0.1-fix1: the ONE cross-fade spec — song/cover/title changes and
      * play/pause icon swaps all use this 350 ms FastOutSlowIn fade, so
      * every swap in the app dissolves at the same speed. (The

@@ -174,6 +174,47 @@ fun <T> shuffleKeepingFirst(list: List<T>, random: Random = Random.Default): Lis
     return listOf(head) + tail
 }
 
+/** One (from, to) move that reorders a queue — remove at [fromIndex], insert at [toIndex]. */
+data class QueueMove(val fromIndex: Int, val toIndex: Int)
+
+/**
+ * Plans the moves that turn [current] into [targetOrder] (the same items,
+ * same multiset) by moving only items at or after [fromPosition] — the
+ * head (the playing song and everything before it) is never touched.
+ * Returns the moves in application order; applying them in order to
+ * [current] yields [targetOrder].
+ *
+ * Improve loop, run 15: the search for the item that belongs at each
+ * position starts AT that position, not at 0. A queue may hold the same
+ * song twice (add-to-queue / play-next / restored checkpoint), and Song
+ * is a data class, so a bare `indexOf` finds the FIRST equal item —
+ * which can be the playing song itself sitting in the untouched head.
+ * Searching only the not-yet-fixed suffix always finds the unfixed
+ * copy, so the playing song is never moved and the head order survives.
+ * A position that already holds the right item needs no move.
+ */
+fun <T> planReorderMoves(
+    current: List<T>,
+    targetOrder: List<T>,
+    fromPosition: Int,
+): List<QueueMove> {
+    if (current.size != targetOrder.size) return emptyList()
+    val working = current.toMutableList()
+    val moves = mutableListOf<QueueMove>()
+    for (position in fromPosition until targetOrder.size) {
+        val wanted = targetOrder[position]
+        if (working[position] == wanted) continue
+        // The suffix multisets still match (positions below `position`
+        // already hold their target items), so the wanted item is
+        // somewhere at or after `position` — never in the fixed head.
+        val from = (position until working.size).firstOrNull { working[it] == wanted }
+            ?: continue // unreachable when targetOrder is a permutation of current
+        moves += QueueMove(from, position)
+        working.add(position, working.removeAt(from))
+    }
+    return moves
+}
+
 /**
  * Where a long-press drag of [rowHeightPx]-tall rows should land.
  * [dragOffsetPx] is the total vertical drag distance (positive = down).

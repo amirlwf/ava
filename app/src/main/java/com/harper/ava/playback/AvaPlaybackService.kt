@@ -351,6 +351,14 @@ class AvaPlaybackService : MediaSessionService() {
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.now_playing_title))
             .setContentIntent(openApp)
+            // Frontend + notification round (2026-11-14): no timestamp
+            // on a transient placeholder, and the media category every
+            // media notification carries (Auxio sets it explicitly).
+            // The ongoing flag stays: the placeholder is the one
+            // notification Ava builds entirely itself, and it must not
+            // be swiped away before Media3's replaces it.
+            .setShowWhen(false)
+            .setCategory(Notification.CATEGORY_TRANSPORT)
             .setOngoing(true)
             .build()
         ServiceCompat.startForeground(

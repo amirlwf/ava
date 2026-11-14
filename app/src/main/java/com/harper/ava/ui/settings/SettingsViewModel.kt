@@ -10,7 +10,6 @@ import coil3.SingletonImageLoader
 import com.harper.ava.data.media.SafFolderInfo
 import com.harper.ava.data.media.SafFolderScanner
 import com.harper.ava.data.media.ScanResult
-import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppLanguage
 import com.harper.ava.data.preferences.SettingsState
 import com.harper.ava.data.preferences.ThemeMode
@@ -65,10 +64,6 @@ class SettingsViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { userPreferences.setThemeMode(mode) }
-    }
-
-    fun setAccent(accent: Accent) {
-        viewModelScope.launch { userPreferences.setAccent(accent) }
     }
 
     fun setCustomAccent(argb: Int) {

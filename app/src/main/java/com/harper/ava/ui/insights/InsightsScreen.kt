@@ -123,7 +123,11 @@ private fun InsightsContent(
         ),
         verticalArrangement = Arrangement.spacedBy(AvaTokens.space24),
     ) {
-        item(key = "header") {
+        // Run 13 (perf): contentType on every item — this list mixes
+        // a header, summary cards, a trend chart, habit rows, ranked
+        // song rows and ranked name rows, and without a type Compose
+        // reuses one composition pool for all of them while scrolling.
+        item(key = "header", contentType = "header") {
             Column {
                 Text(
                     text = stringResource(R.string.insights_title),
@@ -139,7 +143,7 @@ private fun InsightsContent(
             }
         }
 
-        item(key = "summary") {
+        item(key = "summary", contentType = "summary") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AvaTokens.space8),
@@ -166,13 +170,13 @@ private fun InsightsContent(
             }
         }
 
-        item(key = "trend") {
+        item(key = "trend", contentType = "trend") {
             InsightsSection(title = stringResource(R.string.insights_trend_title)) {
                 SevenDayTrend(days = data.last7Days)
             }
         }
 
-        item(key = "habits") {
+        item(key = "habits", contentType = "habits") {
             InsightsSection(title = stringResource(R.string.insights_habit_title)) {
                 HabitRow(
                     icon = Icons.Filled.Schedule,
@@ -194,53 +198,57 @@ private fun InsightsContent(
         }
 
         if (data.topSongs.isNotEmpty()) {
-            item(key = "top-songs-header") {
+            item(key = "top-songs-header", contentType = "section-header") {
                 Text(
                     text = stringResource(R.string.insights_top_songs),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            itemsIndexed(data.topSongs, key = { _, song -> "top-song-${song.songId}" }) { index, song ->
+            // Run 13: contentType here needs explicit `_, _` params —
+            // the bare `{ "top-song" }` form fails kotlinc overload
+            // resolution on itemsIndexed (T uninferable); items() is
+            // fine with the bare form, this one is not.
+            itemsIndexed(data.topSongs, key = { _, song -> "top-song-${song.songId}" }, contentType = { _, _ -> "top-song" }) { index, song ->
                 TopSongRow(rank = index + 1, song = song, onClick = { onPlaySong(song.songId) })
             }
         }
 
         if (data.topArtists.isNotEmpty()) {
-            item(key = "top-artists-header") {
+            item(key = "top-artists-header", contentType = "section-header") {
                 Text(
                     text = stringResource(R.string.insights_top_artists),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            items(data.topArtists, key = { "top-artist-${it.name}" }) { artist ->
+            items(data.topArtists, key = { "top-artist-${it.name}" }, contentType = { "top-named" }) { artist ->
                 TopNamedRow(item = artist)
             }
         }
 
         if (data.topAlbums.isNotEmpty()) {
-            item(key = "top-albums-header") {
+            item(key = "top-albums-header", contentType = "section-header") {
                 Text(
                     text = stringResource(R.string.insights_top_albums),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            items(data.topAlbums, key = { "top-album-${it.name}" }) { album ->
+            items(data.topAlbums, key = { "top-album-${it.name}" }, contentType = { "top-named" }) { album ->
                 TopNamedRow(item = album)
             }
         }
 
         if (data.topGenres.isNotEmpty()) {
-            item(key = "top-genres-header") {
+            item(key = "top-genres-header", contentType = "section-header") {
                 Text(
                     text = stringResource(R.string.insights_top_genres),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            items(data.topGenres, key = { "top-genre-${it.name}" }) { genre ->
+            items(data.topGenres, key = { "top-genre-${it.name}" }, contentType = { "top-named" }) { genre ->
                 TopNamedRow(item = genre)
             }
         }
