@@ -64,6 +64,13 @@ import com.harper.ava.ui.update.UpdateBanner
  * Home (recently played AND recently added) shares one key; the flight
  * may start from the other occurrence. It never crashes — the transition
  * just picks one visible element.
+ *
+ * Improve loop run 24 looked at plumbing the tapped section through:
+ * a row tap only plays (HomeSongRow → playInList), it never navigates
+ * to Now Playing — the flight starts later, from the MiniPlayer — so
+ * there is no section to carry, and the origin is cosmetic-only (a
+ * 52dp cover). Left as-is deliberately; revisiting it needs a tap
+ * that opens Now Playing directly, which is a UX change, not a fix.
  */
 val LocalAvaSharedTransitionScope =
     compositionLocalOf<SharedTransitionScope?> { null }
@@ -81,6 +88,12 @@ fun AvaNavGraph(
     modifier: Modifier = Modifier,
     startDestination: String = Destination.Home.route,
 ) {
+    // 2026-11-16: the Now Playing route reads the reduced-motion
+    // setting once, here, and the transition lambdas below branch on
+    // the plain boolean (the lambdas themselves are not @Composable,
+    // so they cannot read it). Reduced motion gets a short calm fade
+    // with no slide and no cover flight (run 19 rule).
+    val reducedMotion = com.harper.ava.ui.theme.rememberReducedMotion()
     SharedTransitionLayout {
         val sharedScope = this
         // 0.7.2: the update banner sits above the NavHost, so it is
@@ -237,33 +250,59 @@ fun AvaNavGraph(
                 // moving, and the screen itself dissolves in around
                 // it (420 ms in / 320 ms out) instead of snapping.
                 // Vertical only, so it reads identically in RTL/LTR.
+                // 2026-11-16 (Harper: stiff, late, laggy): the 420 ms
+                // LINEAR fade barely moved in the first ~150 ms and
+                // the ~16dp rise was invisible, so the sheet read as
+                // a slow dissolve; the exit did the same in reverse
+                // while the cover's slow spring outlived it. Now a
+                // real sheet: 300 ms FastOutSlowIn fade + a ~140dp
+                // rise in, 260 ms fade + a full-height fall out (the
+                // sheet drops away exactly like the drag-dismiss
+                // slide-off, so back and drag feel like one motion).
+                // Reduced motion: a 100 ms calm fade, no slide.
                 enterTransition = {
-                    fadeIn(AvaMotion.nowPlayingEnterFade) +
-                        slideInVertically(
-                            initialOffsetY = { it / 60 },
-                            animationSpec = AvaMotion.nowPlayingEnterSlide,
-                        )
+                    if (reducedMotion) {
+                        fadeIn(AvaMotion.nowPlayingReducedFade)
+                    } else {
+                        fadeIn(AvaMotion.nowPlayingEnterFade) +
+                            slideInVertically(
+                                initialOffsetY = { AvaMotion.nowPlayingEnterOffsetY(it) },
+                                animationSpec = AvaMotion.nowPlayingEnterSlide,
+                            )
+                    }
                 },
                 exitTransition = {
-                    fadeOut(AvaMotion.nowPlayingExitFade) +
-                        slideOutVertically(
-                            targetOffsetY = { it / 80 },
-                            animationSpec = AvaMotion.nowPlayingExitSlide,
-                        )
+                    if (reducedMotion) {
+                        fadeOut(AvaMotion.nowPlayingReducedFade)
+                    } else {
+                        fadeOut(AvaMotion.nowPlayingExitFade) +
+                            slideOutVertically(
+                                targetOffsetY = { AvaMotion.nowPlayingExitOffsetY(it) },
+                                animationSpec = AvaMotion.nowPlayingExitSlide,
+                            )
+                    }
                 },
                 popEnterTransition = {
-                    fadeIn(AvaMotion.nowPlayingEnterFade) +
-                        slideInVertically(
-                            initialOffsetY = { it / 60 },
-                            animationSpec = AvaMotion.nowPlayingEnterSlide,
-                        )
+                    if (reducedMotion) {
+                        fadeIn(AvaMotion.nowPlayingReducedFade)
+                    } else {
+                        fadeIn(AvaMotion.nowPlayingEnterFade) +
+                            slideInVertically(
+                                initialOffsetY = { AvaMotion.nowPlayingEnterOffsetY(it) },
+                                animationSpec = AvaMotion.nowPlayingEnterSlide,
+                            )
+                    }
                 },
                 popExitTransition = {
-                    fadeOut(AvaMotion.nowPlayingExitFade) +
-                        slideOutVertically(
-                            targetOffsetY = { it / 80 },
-                            animationSpec = AvaMotion.nowPlayingExitSlide,
-                        )
+                    if (reducedMotion) {
+                        fadeOut(AvaMotion.nowPlayingReducedFade)
+                    } else {
+                        fadeOut(AvaMotion.nowPlayingExitFade) +
+                            slideOutVertically(
+                                targetOffsetY = { AvaMotion.nowPlayingExitOffsetY(it) },
+                                animationSpec = AvaMotion.nowPlayingExitSlide,
+                            )
+                    }
                 },
             ) {
                 CompositionLocalProvider(

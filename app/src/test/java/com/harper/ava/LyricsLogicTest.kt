@@ -65,6 +65,28 @@ class LyricsLogicTest {
     }
 
     @Test
+    fun `lyric text ending in brackets is kept`() {
+        val parsed = parseLrc("[00:12.00]Hello [world]\n")
+        assertEquals(1, parsed.lines.size)
+        assertEquals("Hello [world]", parsed.lines[0].text)
+    }
+
+    @Test
+    fun `bracketed text survives multiple time tags`() {
+        val parsed = parseLrc("[00:01.00][00:03.00]Chorus [x2]\n")
+        assertEquals(2, parsed.lines.size)
+        assertEquals("Chorus [x2]", parsed.lines[0].text)
+        assertEquals("Chorus [x2]", parsed.lines[1].text)
+    }
+
+    @Test
+    fun `bracket-only annotation line is kept as lyrics`() {
+        val parsed = parseLrc("[00:12.00] [Chorus]\n")
+        assertEquals(1, parsed.lines.size)
+        assertEquals("[Chorus]", parsed.lines[0].text)
+    }
+
+    @Test
     fun `lyricIndexAt picks the last line at or before the position`() {
         val parsed = parseLrc("[00:01.00]A\n[00:05.00]B\n[00:09.00]C\n")
         assertEquals(-1, lyricIndexAt(parsed.lines, 999L))

@@ -7,6 +7,7 @@ import com.harper.ava.data.local.db.AlbumSummary
 import com.harper.ava.data.local.db.ArtistSummary
 import com.harper.ava.data.local.db.FolderSummary
 import com.harper.ava.data.local.db.GenreSummary
+import com.harper.ava.data.media.MediaStoreScanner
 import com.harper.ava.data.media.ScanResult
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
@@ -40,7 +41,19 @@ sealed interface LibraryGroup {
 class LibraryViewModel(
     private val musicRepository: MusicRepository,
     private val playerRepository: PlayerRepository,
+    private val mediaStoreScanner: MediaStoreScanner,
 ) : ViewModel() {
+
+    init {
+        // 2026-11-16 (Harper: songs not recognised on entry): mirror
+        // the scanner's shared state — same reason as HomeViewModel:
+        // the entry scan (and any scan started elsewhere) shows here
+        // too, so Library never flashes the empty scan prompt while
+        // a scan is running.
+        viewModelScope.launch {
+            mediaStoreScanner.scanState.collect { _scanState.value = it }
+        }
+    }
 
     private val _sort = MutableStateFlow(SongSort.TITLE)
     val sort: StateFlow<SongSort> = _sort
@@ -154,11 +167,15 @@ class LibraryViewModel(
     }
 
     companion object {
-        fun factory(music: MusicRepository, player: PlayerRepository): ViewModelProvider.Factory =
+        fun factory(
+            music: MusicRepository,
+            player: PlayerRepository,
+            scanner: MediaStoreScanner,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    LibraryViewModel(music, player) as T
+                    LibraryViewModel(music, player, scanner) as T
             }
     }
 }

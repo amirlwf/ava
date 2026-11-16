@@ -62,6 +62,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/main/java/com/harper/ava/core/util/LyricsLogic.kt \
   app/src/main/java/com/harper/ava/core/util/SleepTimerLogic.kt \
   app/src/main/java/com/harper/ava/core/util/SearchHistoryLogic.kt \
+  app/src/main/java/com/harper/ava/core/util/SearchLogic.kt \
   app/src/main/java/com/harper/ava/data/preferences/UserPreferences.kt \
   app/src/main/java/com/harper/ava/core/util/InsightsLogic.kt \
   app/src/main/java/com/harper/ava/core/util/UpdateLogic.kt \
@@ -94,6 +95,7 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/PlaybackServiceTest.kt \
   app/src/test/java/com/harper/ava/SleepTimerLogicTest.kt \
   app/src/test/java/com/harper/ava/SearchHistoryLogicTest.kt \
+  app/src/test/java/com/harper/ava/SearchLogicTest.kt \
   app/src/test/java/com/harper/ava/ToggleFavoriteTest.kt \
   app/src/test/java/com/harper/ava/PlaybackRecoveryTest.kt \
   app/src/test/java/com/harper/ava/MediaItemLogicTest.kt \
@@ -130,6 +132,7 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.PlaybackServiceTest \
   com.harper.ava.SleepTimerLogicTest \
   com.harper.ava.SearchHistoryLogicTest \
+  com.harper.ava.SearchLogicTest \
   com.harper.ava.ToggleFavoriteTest \
   com.harper.ava.PlaybackRecoveryTest \
   com.harper.ava.MediaItemLogicTest \

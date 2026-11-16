@@ -109,7 +109,7 @@ class AvaPlaybackService : MediaSessionService() {
     private var accentColorArgb: Int = notificationAccentArgb(Accent.VIOLET, null)
 
     /**
-     * 0.1-fix1 (Track A): the media-button preferences last pushed to
+     * 0.2 (Track A): the media-button preferences last pushed to
      * the session (the notification buttons — like, repeat, shuffle —
      * or empty when no song is loaded). Kept so the accent collector
      * can re-push them after a theme change: re-pushing forces Media3
@@ -172,6 +172,12 @@ class AvaPlaybackService : MediaSessionService() {
                     onToggleShuffle = {
                         serviceScope.launch { playerRepository.toggleShuffle() }
                     },
+                    // Improve loop, run 40: the notification/headset play
+                    // button routes through playOrResume, not the bare
+                    // player.play() — see AvaSessionCallback.onPlay.
+                    onPlay = {
+                        serviceScope.launch { playerRepository.playOrResume() }
+                    },
                 ),
             )
             .build()
@@ -189,7 +195,7 @@ class AvaPlaybackService : MediaSessionService() {
         // collector is cancelled with serviceScope in onDestroy.
         // Deliberately only the local `provider` is captured — no
         // field, nothing to release.
-        // 0.1-fix1 (Track A): a theme change alone now ALSO re-posts
+        // 0.2 (Track A): a theme change alone now ALSO re-posts
         // the notification — the 0.7.5 "updates on the next refresh"
         // limit is gone. Re-pushing the current media-button
         // preferences forces the rebuild: verified firsthand in the
@@ -249,7 +255,7 @@ class AvaPlaybackService : MediaSessionService() {
                 .collect { (songAndFavorite, repeatMode, shuffleEnabled) ->
                     val session = mediaSession ?: return@collect
                     val (songId, isFavorite) = songAndFavorite
-                    // 0.1-fix1 (Track A): remember the preferences so
+                    // 0.2 (Track A): remember the preferences so
                     // the accent collector can re-push them after a
                     // theme change and force a notification rebuild.
                     lastMediaButtonPreferences = if (songId == null) {

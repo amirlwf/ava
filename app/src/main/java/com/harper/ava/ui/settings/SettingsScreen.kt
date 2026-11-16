@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
-import com.harper.ava.data.preferences.Accent
 import com.harper.ava.data.preferences.AppLanguage
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.update.ManualUpdateCheckState
@@ -56,19 +55,6 @@ fun themeModeLabel(mode: ThemeMode): String = stringResource(
         ThemeMode.DARK -> R.string.theme_dark
         ThemeMode.LIGHT -> R.string.theme_light
         ThemeMode.AMOLED -> R.string.theme_amoled
-    },
-)
-
-@Composable
-fun accentLabel(accent: Accent): String = stringResource(
-    when (accent) {
-        Accent.VIOLET -> R.string.accent_violet
-        Accent.ELECTRIC_BLUE -> R.string.accent_electric_blue
-        Accent.EMERALD -> R.string.accent_emerald
-        Accent.CRIMSON -> R.string.accent_crimson
-        Accent.AMBER -> R.string.accent_amber
-        Accent.ROSE -> R.string.accent_rose
-        Accent.MONOCHROME -> R.string.accent_monochrome
     },
 )
 

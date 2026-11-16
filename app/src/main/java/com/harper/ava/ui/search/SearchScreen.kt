@@ -67,6 +67,9 @@ fun SearchScreen(
     val results by viewModel.results.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     val recentSearches by viewModel.recentSearches.collectAsState()
+    // Run 29 (design): the playing row highlights — the id alone, so
+    // this list recomposes only on a track change, not on play/pause.
+    val currentSongId by app.container.playerRepository.currentSongId.collectAsState()
 
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -216,6 +219,7 @@ fun SearchScreen(
                     items(results, key = { it.id }) { song ->
                         SongRow(
                             song = song,
+                            isCurrent = song.id == currentSongId,
                             onClick = { viewModel.play(song, results) },
                             onToggleFavorite = { viewModel.toggleFavorite(song) },
                             playlists = playlists,

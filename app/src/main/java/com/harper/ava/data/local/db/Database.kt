@@ -178,10 +178,18 @@ interface SongDao {
     @Query("SELECT * FROM songs ORDER BY durationMs DESC")
     fun observeAllByDuration(): Flow<List<SongEntity>>
 
+    /**
+     * Run 30 (bug-hunting): the query is a LIKE pattern, so `%` and `_`
+     * typed by the user used to act as wildcards — "%" matched the whole
+     * library and a song literally called "100%" could never be found
+     * precisely. [com.harper.ava.data.repository.MusicRepository.search]
+     * escapes the term with `escapeLikeQuery` first, and the `ESCAPE '\'`
+     * here makes SQLite read those backslashes as escapes.
+     */
     @Query(
-        "SELECT * FROM songs WHERE title LIKE '%' || :query || '%' " +
-            "OR artist LIKE '%' || :query || '%' " +
-            "OR album LIKE '%' || :query || '%' ORDER BY title COLLATE NOCASE ASC",
+        "SELECT * FROM songs WHERE title LIKE '%' || :query || '%' ESCAPE '\\' " +
+            "OR artist LIKE '%' || :query || '%' ESCAPE '\\' " +
+            "OR album LIKE '%' || :query || '%' ESCAPE '\\' ORDER BY title COLLATE NOCASE ASC",
     )
     fun search(query: String): Flow<List<SongEntity>>
 
@@ -202,8 +210,13 @@ interface SongDao {
     @Query("SELECT COALESCE(SUM(durationMs), 0) FROM songs")
     suspend fun totalDurationMs(): Long
 
-    @Query("SELECT mediaStoreId FROM songs")
-    suspend fun allIds(): List<Long>
+    /**
+     * Every stored song (improve loop, run 33): the rescan diff reads
+     * the full rows once — one SELECT replaces the old allIds +
+     * playStates pair, and the diff carries the counters over itself.
+     */
+    @Query("SELECT * FROM songs")
+    suspend fun allSongs(): List<SongEntity>
 
     @Query("SELECT * FROM songs WHERE lastPlayedMs IS NOT NULL ORDER BY lastPlayedMs DESC LIMIT 10")
     fun observeRecentlyPlayed(): Flow<List<SongEntity>>
@@ -269,9 +282,6 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE folderPath = :folderPath ORDER BY title COLLATE NOCASE ASC")
     fun observeSongsByFolder(folderPath: String): Flow<List<SongEntity>>
 
-    @Query("DELETE FROM songs")
-    suspend fun deleteAllSongs()
-
     /**
      * Deletes one song from the library (0.7.2 song delete). Playlist
      * memberships cascade away via the PlaylistSongCrossRef FK; the
@@ -285,12 +295,14 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(songs: List<SongEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(song: SongEntity)
-
-    /** Removes every song whose id is not in [keepIds] (stale files after a rescan). */
-    @Query("DELETE FROM songs WHERE mediaStoreId NOT IN (:keepIds)")
-    suspend fun deleteNotIn(keepIds: List<Long>)
+    /**
+     * Deletes exactly the given ids (improve loop, run 33): the rescan
+     * diff already knows which songs are stale, so it deletes only
+     * those — the old deleteNotIn issued a DELETE on every rescan even
+     * when nothing was stale. Callers must not pass an empty list.
+     */
+    @Query("DELETE FROM songs WHERE mediaStoreId IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
 
     @Query("UPDATE songs SET lastPlayedMs = :atMs, playCount = playCount + 1 WHERE mediaStoreId = :id")
     suspend fun markPlayed(id: Long, atMs: Long)
@@ -304,22 +316,7 @@ interface SongDao {
      */
     @Query("UPDATE songs SET lastPlayedMs = :atMs WHERE mediaStoreId = :id")
     suspend fun updateLastPlayed(id: Long, atMs: Long)
-
-    /**
-     * The play counters of every stored song, so a library rescan can
-     * carry them over to the freshly scanned rows instead of wiping
-     * them (upsertAll REPLACE used to reset every song to 0 plays).
-     */
-    @Query("SELECT mediaStoreId, playCount, lastPlayedMs FROM songs")
-    suspend fun playStates(): List<SongPlayState>
 }
-
-/** Play counters of one stored song (rescan preservation, 0.7.0). */
-data class SongPlayState(
-    val mediaStoreId: Long,
-    val playCount: Int,
-    val lastPlayedMs: Long?,
-)
 
 @Dao
 interface ListeningHistoryDao {

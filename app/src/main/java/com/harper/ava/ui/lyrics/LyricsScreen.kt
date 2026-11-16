@@ -196,8 +196,15 @@ private fun LyricsList(lyrics: ParsedLyrics, positionMs: Long) {
     LaunchedEffect(currentIndex, followEnabled) {
         if (followEnabled && currentIndex >= 0) {
             programmaticScroll = true
-            listState.animateScrollToItem((currentIndex - 2).coerceAtLeast(0))
-            programmaticScroll = false
+            try {
+                listState.animateScrollToItem((currentIndex - 2).coerceAtLeast(0))
+            } finally {
+                // The animation is cancelled when the effect restarts
+                // (track change / seek while it runs) or the user drags
+                // mid-flight — without the finally the flag stays true
+                // and manual scrolling never pauses follow again.
+                programmaticScroll = false
+            }
         }
     }
     LaunchedEffect(listState) {

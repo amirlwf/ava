@@ -26,6 +26,7 @@ import com.harper.ava.data.preferences.AppTheme
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -62,7 +63,7 @@ import kotlin.math.sin
  * sparkles ≤ 0.55, the big meteor head briefly reaches 0.55) —
  * decoration, not noise.
  *
- * Battery (improve run 3, 2026-11-12; frozen-frame fix in 0.1-fix1):
+ * Battery (improve run 3, 2026-11-12; frozen-frame fix in 0.2):
  * the Canvas FREEZES while its screen is not the current destination
  * — each screen passes `active = rememberIsResumed()` (see
  * DecorVisibility.kt), which reads the destination's NavBackStackEntry
@@ -81,7 +82,11 @@ import kotlin.math.sin
  * gone: sparkle/leaf [Path]s are cached by radius (they were rebuilt
  * ~35× per frame) and the small constant lists (meteor tail segments,
  * Milky Way glow stops) are hoisted to file-level vals instead of
- * being rebuilt per frame.
+ * being rebuilt per frame. Density (improve run 44, 2026-11-16): the
+ * star counts below are the 390×844 reference canvas; [galaxyScaledCount]
+ * scales them with canvas area, so the sky keeps the same perceived
+ * density from 320dp to 390dp wide instead of crowding the narrow
+ * phones (the "too crowded" Harper flagged in 0.1).
  *
  * NOTE: this file must not read a CompositionLocal directly
  * (`LocalLifecycleOwner.current` and friends): the unit-test compile
@@ -251,13 +256,58 @@ const val GALAXY_METEOR_MAX_ALPHA = 0.30f
 /** Starfield layers: 0 = far (tiny, dim, slow), 1 = mid, 2 = near/bright.
  * 0.3-feedback: denser and brighter — 64 / 42 / 14 (was 24 / 18 / 6).
  * Many small bright RANDOM stars, as Harper asked: positions are
- * hash-seeded, never a grid. */
+ * hash-seeded, never a grid. These are the counts at the 390×844
+ * reference canvas; [galaxyScaledCount] scales them with canvas area
+ * (improve run 44), so a 320dp phone draws fewer stars instead of a
+ * denser sky. */
 const val GALAXY_FAR_STAR_COUNT = 64
 const val GALAXY_MID_STAR_COUNT = 42
 const val GALAXY_BRIGHT_STAR_COUNT = 14
 
-/** Dust grains packed along the Milky Way band (0.3-feedback: was 18). */
+/** Dust grains packed along the Milky Way band (0.3-feedback: was 18).
+ * Same reference-canvas rule as the star counts — scaled by
+ * [galaxyScaledCount] (improve run 44). */
 const val GALAXY_MILKY_WAY_DUST_COUNT = 36
+
+/**
+ * Reference canvas the Galaxy counts were tuned at — a tall phone,
+ * 390×844 dp. [galaxyScaledCount] measures every canvas against it.
+ */
+const val GALAXY_REFERENCE_WIDTH_DP = 390f
+const val GALAXY_REFERENCE_HEIGHT_DP = 844f
+
+/** Density-scale clamps for [galaxyScaledCount]: a tiny screen still
+ * gets 60% of the reference sky (never a bare sky), a tablet never
+ * more than 1.5× (never a star soup). */
+const val GALAXY_DENSITY_SCALE_MIN = 0.6f
+const val GALAXY_DENSITY_SCALE_MAX = 1.5f
+
+/**
+ * How many of a [baseCount] Galaxy objects (stars of one layer, Milky
+ * Way dust) to draw on a canvas of [widthDp]×[heightDp] dp (improve
+ * run 44, 2026-11-16) — pure + deterministic, unit tested in
+ * SeasonalDecorTest.
+ *
+ * The counts were tuned at the 390×844 reference canvas, but the
+ * decor is drawn full-screen, so the same fixed counts on a 320dp
+ * phone pack ~1.5× as many stars per dp² as on a 390dp phone — the
+ * "too crowded" Harper flagged in 0.1, worst exactly on the narrow
+ * screens the responsive range (320–390dp) must serve. Scaling
+ * linearly with area keeps the perceived density constant: a 320×700
+ * canvas draws ~68% of the reference stars, a tablet clamps at 1.5×.
+ *
+ * Positions are hash-seeded by index, so a smaller count draws the
+ * first N stars of the same sequence — the sky keeps its layout, just
+ * fewer stars; nothing reshuffles when the count changes. The focal
+ * elements (solar system, meteors, nebula clouds) are singular
+ * objects, not density, so they are NOT scaled — only the three star
+ * layers and the dust are.
+ */
+fun galaxyScaledCount(baseCount: Int, widthDp: Float, heightDp: Float): Int {
+    val scale = ((widthDp * heightDp) / (GALAXY_REFERENCE_WIDTH_DP * GALAXY_REFERENCE_HEIGHT_DP))
+        .coerceIn(GALAXY_DENSITY_SCALE_MIN, GALAXY_DENSITY_SCALE_MAX)
+    return maxOf(1, (baseCount * scale).roundToInt())
+}
 
 // ---------------------------------------------------------------------------
 // Per-frame allocations removed (improve run 3, 2026-11-12). The Canvas
@@ -705,11 +755,22 @@ private fun DrawScope.drawGalaxy(
     white: Color,
 ) {
     val indigo = Color(0xFF6366F1)
+    // Area-scaled counts (improve run 44): the canvas is the whole
+    // screen, so a 320dp phone gets fewer stars than a 390dp phone
+    // and the sky keeps one density everywhere. Computed once here —
+    // the focal elements (nebula, solar system, meteors) are singular
+    // and stay fixed.
+    val widthDp = size.width / drawContext.density.density
+    val heightDp = size.height / drawContext.density.density
+    val farCount = galaxyScaledCount(GALAXY_FAR_STAR_COUNT, widthDp, heightDp)
+    val midCount = galaxyScaledCount(GALAXY_MID_STAR_COUNT, widthDp, heightDp)
+    val brightCount = galaxyScaledCount(GALAXY_BRIGHT_STAR_COUNT, widthDp, heightDp)
+    val dustCount = galaxyScaledCount(GALAXY_MILKY_WAY_DUST_COUNT, widthDp, heightDp)
     drawNebula(progress, violet, pink, blue, indigo)
-    drawMilkyWay(progress, violet, pink, white)
-    drawStarLayer(progress, layer = 0, violet, pink, blue, white)
-    drawStarLayer(progress, layer = 1, violet, pink, blue, white)
-    drawBrightStars(progress, white, pink)
+    drawMilkyWay(progress, violet, pink, white, dustCount)
+    drawStarLayer(progress, layer = 0, violet, pink, blue, white, farCount)
+    drawStarLayer(progress, layer = 1, violet, pink, blue, white, midCount)
+    drawBrightStars(progress, white, pink, brightCount)
     drawSolarSystem(progress)
     drawMeteors(progress)
 }
@@ -804,7 +865,7 @@ private fun DrawScope.drawNebula(progress: Float, violet: Color, pink: Color, bl
 }
 
 /** The Milky Way: three overlapping glows along the band + dust grains packed inside it. */
-private fun DrawScope.drawMilkyWay(progress: Float, violet: Color, pink: Color, white: Color) {
+private fun DrawScope.drawMilkyWay(progress: Float, violet: Color, pink: Color, white: Color, dustCount: Int) {
     val drift = galaxyParallaxDrift(0, progress) * size.width
     for ((index, t) in MILKY_WAY_GLOW_STOPS.withIndex()) {
         // Stops are violet, pink, violet (was a per-frame list of pairs).
@@ -812,7 +873,7 @@ private fun DrawScope.drawMilkyWay(progress: Float, violet: Color, pink: Color, 
         val center = Offset(t * size.width + drift, milkyWayBandCenterY(t) * size.height)
         drawCircle(color = color.copy(alpha = 0.05f), radius = size.width * 0.20f, center = center)
     }
-    for (i in 0 until GALAXY_MILKY_WAY_DUST_COUNT) {
+    for (i in 0 until dustCount) {
         val (nx, ny) = milkyWayDustPosition(i)
         val center = Offset(nx * size.width + drift, ny * size.height)
         val radius = (0.8f + 1.2f * hash01(i, 44)).dp.toPx()
@@ -826,6 +887,8 @@ private fun DrawScope.drawMilkyWay(progress: Float, violet: Color, pink: Color, 
  * One starfield layer: far (tiny dots) or mid (dots + four-point
  * sparkles, the 0.7.3 sky). Positions, sizes and twinkle come from the
  * pure helpers, so each layer has its own depth, speed and brightness.
+ * [count] is the area-scaled count from [galaxyScaledCount] — the
+ * first N stars of the layer's hash-seeded sequence.
  */
 private fun DrawScope.drawStarLayer(
     progress: Float,
@@ -834,8 +897,8 @@ private fun DrawScope.drawStarLayer(
     pink: Color,
     blue: Color,
     white: Color,
+    count: Int,
 ) {
-    val count = if (layer == 0) GALAXY_FAR_STAR_COUNT else GALAXY_MID_STAR_COUNT
     for (i in 0 until count) {
         val (nx, ny) = galaxyStarPosition(i, layer, progress)
         val center = Offset(nx * size.width, ny * size.height)
@@ -858,9 +921,10 @@ private fun DrawScope.drawStarLayer(
     }
 }
 
-/** Near layer: the brightest stars — big four-point sparkles with a cross flare. */
-private fun DrawScope.drawBrightStars(progress: Float, white: Color, pink: Color) {
-    for (i in 0 until GALAXY_BRIGHT_STAR_COUNT) {
+/** Near layer: the brightest stars — big four-point sparkles with a cross flare.
+ * [count] is the area-scaled count from [galaxyScaledCount]. */
+private fun DrawScope.drawBrightStars(progress: Float, white: Color, pink: Color, count: Int) {
+    for (i in 0 until count) {
         val (nx, ny) = galaxyStarPosition(i, 2, progress)
         val center = Offset(nx * size.width, ny * size.height)
         val radius = galaxyStarRadiusDp(i, 2).dp.toPx()

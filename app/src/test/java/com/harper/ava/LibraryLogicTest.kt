@@ -2,12 +2,15 @@ package com.harper.ava
 
 import com.harper.ava.core.util.RawScannedSong
 import com.harper.ava.core.util.decodeQueueIds
+import com.harper.ava.core.util.diffLibrarySync
 import com.harper.ava.core.util.encodeQueueIds
 import com.harper.ava.core.util.filenameFromUri
 import com.harper.ava.core.util.folderDisplayName
 import com.harper.ava.core.util.normalizeScannedSong
+import com.harper.ava.data.local.db.SongEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -129,5 +132,108 @@ class LibraryLogicTest {
         assertEquals("Rock", kept?.genre)
         assertEquals("Music/Rock/", kept?.folderPath)
         assertEquals("song.mp3", kept?.fileName)
+    }
+
+    // -- diffLibrarySync (improve loop, run 33) ------------------------
+
+    /** A stored row (with counters) or a fresh scanned row (counters 0/null). */
+    private fun song(
+        id: Long,
+        title: String = "Song",
+        genre: String? = null,
+        albumArtUri: String? = null,
+        playCount: Int = 0,
+        lastPlayedMs: Long? = null,
+    ) = SongEntity(
+        mediaStoreId = id,
+        title = title,
+        artist = "Artist",
+        album = "Album",
+        durationMs = 180_000L,
+        uri = "content://media/external/audio/media/$id",
+        albumArtUri = albumArtUri,
+        dateAddedMs = 1_700_000_000_000L,
+        genre = genre,
+        playCount = playCount,
+        lastPlayedMs = lastPlayedMs,
+    )
+
+    @Test
+    fun `a rescan with no changes writes nothing`() {
+        // The stored row has real counters; the scanned row is fresh
+        // (0/null) — counters alone must not count as a change.
+        val stored = song(id = 1L, playCount = 5, lastPlayedMs = 1_700_000_100_000L)
+        val diff = diffLibrarySync(listOf(stored), listOf(song(id = 1L)))
+        assertTrue(diff.upserts.isEmpty())
+        assertTrue(diff.staleIds.isEmpty())
+    }
+
+    @Test
+    fun `a new song is upserted as-is`() {
+        val diff = diffLibrarySync(listOf(song(id = 1L)), listOf(song(id = 1L), song(id = 2L)))
+        assertEquals(listOf(song(id = 2L)), diff.upserts)
+        assertTrue(diff.staleIds.isEmpty())
+    }
+
+    @Test
+    fun `a changed title is upserted with the stored counters carried over`() {
+        val stored = song(id = 1L, title = "Old", playCount = 3, lastPlayedMs = 42L)
+        val diff = diffLibrarySync(listOf(stored), listOf(song(id = 1L, title = "New")))
+        assertEquals(
+            listOf(song(id = 1L, title = "New", playCount = 3, lastPlayedMs = 42L)),
+            diff.upserts,
+        )
+        assertTrue(diff.staleIds.isEmpty())
+    }
+
+    @Test
+    fun `changed art and genre are upserts too`() {
+        val stored = song(id = 1L, playCount = 2)
+        val scanned = song(id = 1L, genre = "Rock", albumArtUri = "content://art/1")
+        val diff = diffLibrarySync(listOf(stored), listOf(scanned))
+        assertEquals(
+            listOf(scanned.copy(playCount = 2)),
+            diff.upserts,
+        )
+    }
+
+    @Test
+    fun `a missing song is stale and nothing else is written`() {
+        val diff = diffLibrarySync(
+            listOf(song(id = 1L), song(id = 2L)),
+            listOf(song(id = 1L)),
+        )
+        assertTrue(diff.upserts.isEmpty())
+        assertEquals(listOf(2L), diff.staleIds)
+    }
+
+    @Test
+    fun `an empty scan marks the whole library stale`() {
+        val diff = diffLibrarySync(listOf(song(id = 1L), song(id = 2L)), emptyList())
+        assertTrue(diff.upserts.isEmpty())
+        assertEquals(listOf(1L, 2L), diff.staleIds)
+    }
+
+    @Test
+    fun `a mixed rescan diffs each row independently`() {
+        val stored = listOf(
+            song(id = 1L, playCount = 7, lastPlayedMs = 9L), // unchanged
+            song(id = 2L, title = "Old", playCount = 1), // changed
+            song(id = 3L), // gone
+        )
+        val scanned = listOf(
+            song(id = 1L),
+            song(id = 2L, title = "New"),
+            song(id = 4L), // new
+        )
+        val diff = diffLibrarySync(stored, scanned)
+        assertEquals(
+            listOf(
+                song(id = 2L, title = "New", playCount = 1),
+                song(id = 4L),
+            ),
+            diff.upserts,
+        )
+        assertEquals(listOf(3L), diff.staleIds)
     }
 }

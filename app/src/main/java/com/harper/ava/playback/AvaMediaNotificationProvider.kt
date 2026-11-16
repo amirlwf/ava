@@ -54,7 +54,7 @@ import com.harper.ava.ui.theme.spec
  *   creation (the 0.6.0 flaw). [updateAccentColor] lets the service
  *   push the current theme's accent whenever the settings change, and
  *   `createNotification()` is called by Media3 on every notification
- *   refresh, so later notifications take the new colour. 0.1-fix1
+ *   refresh, so later notifications take the new colour. 0.2
  *   (Track A) removed the old honest limit: a theme change alone now
  *   DOES re-post the notification — the service re-pushes the current
  *   media-button preferences after `updateAccentColor`, which Media3
@@ -203,7 +203,7 @@ import com.harper.ava.ui.theme.spec
  * shade's media player additionally derives its own colours from
  * the artwork, which the app cannot override.
  *
- * 0.1-fix1 (Track A) — the two remaining gaps from Harper's third
+ * 0.2 (Track A) — the two remaining gaps from Harper's third
  * "still ugly" report, both closed inside this safe path:
  *
  * - Accent re-post: the service re-pushes the media-button
@@ -319,7 +319,7 @@ class AvaMediaNotificationProvider(
      * `AvaPlaybackService`); Media3 calls `createNotification()` on
      * every notification refresh, so the next notification posted
      * after this call uses the new colour via `setColor` in
-     * [addNotificationActions]. 0.1-fix1: the service re-pushes the
+     * [addNotificationActions]. 0.2: the service re-pushes the
      * media-button preferences right after this call, so the
      * notification is rebuilt (and re-posted) immediately on a theme
      * change instead of waiting for the next play / pause / track

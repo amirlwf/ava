@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +51,8 @@ import com.harper.ava.core.util.defaultTrimRange
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.ringtoneFileName
 import com.harper.ava.core.util.sanitizeTrimRange
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import com.harper.ava.domain.model.Song
 import com.harper.ava.playback.SetRingtoneResult
 import com.harper.ava.playback.TrimResult
@@ -57,10 +60,11 @@ import com.harper.ava.playback.setAsRingtone
 import com.harper.ava.playback.trimSongForRingtone
 import com.harper.ava.ui.theme.AvaTokens
 import java.io.File
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Ringtone editor (0.1-fix1, Track G).
+ * Ringtone editor (0.2, Track G).
  *
  * Trim a segment of a song (RangeSlider, 1–60 s, default the first
  * 30 s), preview the segment through the shared player, then set it
@@ -185,8 +189,24 @@ fun RingtoneEditorScreen(
                     }
                 }
             }
-            when (setAsRingtone(context, file, ringtoneFileName(currentSong.title))) {
-                is SetRingtoneResult.Success -> success = true
+            // Improve loop, run 25: reuse Ava's own MediaStore row for
+            // this song when there is one — a repeat "Set as ringtone"
+            // overwrites that row instead of inserting a duplicate
+            // entry into the system Ringtones folder. A row the user
+            // deleted falls back to a fresh insert inside the setter,
+            // and the Uri stored on success replaces the stale one.
+            val storedUri = app.container.userPreferences.settings.first()
+                .ringtoneUris[currentSong.id]?.let { Uri.parse(it) }
+            when (val result = setAsRingtone(
+                context,
+                file,
+                ringtoneFileName(currentSong.title),
+                storedUri,
+            )) {
+                is SetRingtoneResult.Success -> {
+                    app.container.userPreferences.setRingtoneUri(currentSong.id, result.uri.toString())
+                    success = true
+                }
                 is SetRingtoneResult.NeedsWriteSettings -> needsPermission = true
                 is SetRingtoneResult.Failure -> error = true
             }
@@ -201,6 +221,10 @@ fun RingtoneEditorScreen(
         // contentWindowInsets (system bars) added a second navigation-bar
         // height of dead space at the bottom of this screen's content.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        // 2026-11-16: frosted on glass like the other sub-screens —
+        // the default opaque surface hid the aurora here while every
+        // sibling screen let it through.
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.ringtone_editor_title)) },
@@ -212,6 +236,9 @@ fun RingtoneEditorScreen(
                         )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = glassAwareTopBarContainerColor(),
+                ),
             )
         },
     ) { padding ->

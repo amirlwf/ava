@@ -72,7 +72,7 @@ fun HomeScreen(
     onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.factory(app.container.musicRepository, app.container.playerRepository),
+        factory = HomeViewModel.factory(app.container.musicRepository, app.container.playerRepository, app.container.mediaStoreScanner),
     )
     val recentlyAdded by viewModel.recentlyAdded.collectAsState()
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
@@ -80,6 +80,9 @@ fun HomeScreen(
     val playlists by viewModel.playlists.collectAsState()
     val songCount by viewModel.songCount.collectAsState()
     val scanState by viewModel.scanState.collectAsState()
+    // Run 29 (design): the playing row highlights — the id alone, so
+    // this list recomposes only on a track change, not on play/pause.
+    val currentSongId by app.container.playerRepository.currentSongId.collectAsState()
 
     val context = LocalContext.current
     val hasPermission = AudioPermission.isGranted(context)
@@ -287,6 +290,7 @@ fun HomeScreen(
             items(recentlyPlayed, key = { homeSectionSongKey("played", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, recentlyPlayed, onOpenSongDetails, onOpenRingtoneEditor,
+                    currentSongId = currentSongId,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                 ) { songToDelete = it }
             }
@@ -298,6 +302,7 @@ fun HomeScreen(
             items(recentlyAdded, key = { homeSectionSongKey("added", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, recentlyAdded, onOpenSongDetails, onOpenRingtoneEditor,
+                    currentSongId = currentSongId,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                 ) { songToDelete = it }
             }
@@ -339,6 +344,7 @@ fun HomeScreen(
             items(favorites, key = { homeSectionSongKey("fav", it.id) }, contentType = { "song" }) { song ->
                 HomeSongRow(
                     viewModel, playlists, song, favorites, onOpenSongDetails, onOpenRingtoneEditor,
+                    currentSongId = currentSongId,
                     modifier = Modifier.padding(horizontal = AvaTokens.space8).animateItem(placementSpec = AvaMotion.listItemPlacement),
                 ) { songToDelete = it }
             }
@@ -370,11 +376,13 @@ private fun HomeSongRow(
     section: List<Song>,
     onOpenSongDetails: (Long) -> Unit,
     onOpenRingtoneEditor: (Long) -> Unit,
+    currentSongId: Long? = null,
     modifier: Modifier = Modifier,
     onDeleteSong: (Song) -> Unit,
 ) {
     SongRow(
         song = song,
+        isCurrent = song.id == currentSongId,
         onClick = { viewModel.playInList(song, section) },
         onToggleFavorite = { viewModel.toggleFavorite(song) },
         playlists = playlists,

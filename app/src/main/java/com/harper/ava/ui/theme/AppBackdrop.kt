@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import com.harper.ava.data.preferences.AppTheme
 
 /**
- * The app's ONE persistent backdrop (0.1-fix1) — the theme background
+ * The app's ONE persistent backdrop (0.2) — the theme background
  * colour plus the seasonal decor (Galaxy sky, leaves, snow, sun) plus,
  * on the glass theme, the aurora. It lives in MainActivity behind the
  * NavHost and outside every nav transition, so navigation never

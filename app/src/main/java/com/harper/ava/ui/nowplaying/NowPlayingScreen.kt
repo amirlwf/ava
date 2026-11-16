@@ -3,6 +3,7 @@ package com.harper.ava.ui.nowplaying
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -97,6 +98,7 @@ import com.harper.ava.core.util.swipeDismissThresholdPx
 import com.harper.ava.data.repository.RepeatMode
 import com.harper.ava.ui.theme.rememberIsResumed
 import com.harper.ava.ui.theme.rememberReducedMotion
+import com.harper.ava.ui.theme.LocalAppThemeDark
 import com.harper.ava.ui.theme.LocalAppThemeSpec
 import com.harper.ava.ui.common.AvaMotion
 import com.harper.ava.ui.common.rememberPressScale
@@ -147,6 +149,12 @@ fun NowPlayingScreen(
                         )
                     }
                 },
+                // 2026-11-16: frosted on glass like every other
+                // sub-screen's bar — the default opaque surface cut
+                // the aurora/sky at the top of this transparent screen.
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = com.harper.ava.ui.theme.glassAwareTopBarContainerColor(),
+                ),
             )
             // Run 11 (UX): the only way out used to be the back arrow —
             // the action is now right here, next to the words that ask
@@ -196,6 +204,12 @@ fun NowPlayingScreen(
     // that starts in the list row ([songCoverSharedKey]) — the same key,
     // so a tapped row's cover flies here and back. The AnimatedContent
     // itself carries the modifier (its bounds ARE the cover bounds).
+    // 2026-11-16: the flight spring retuned in AvaMotion (0.85/550,
+    // lands with the 300 ms sheet instead of gliding ~700 ms after
+    // it); with reduced motion the flight is near-instant on both
+    // ends (SongRow reads the same flag), so the cover never travels
+    // for users who asked for stillness (run 19 rule).
+    val reducedMotion = rememberReducedMotion()
     val sharedScope = LocalAvaSharedTransitionScope.current
     val visibilityScope = LocalAvaAnimatedVisibilityScope.current
     val coverModifier = if (sharedScope != null && visibilityScope != null) {
@@ -203,7 +217,11 @@ fun NowPlayingScreen(
             Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = songCoverSharedKey(song.id)),
                 animatedVisibilityScope = visibilityScope,
-                boundsTransform = AvaMotion.coverBoundsTransform,
+                boundsTransform = if (reducedMotion) {
+                    AvaMotion.coverBoundsTransformReducedMotion
+                } else {
+                    AvaMotion.coverBoundsTransform
+                },
             )
         }
     } else {
@@ -223,6 +241,20 @@ fun NowPlayingScreen(
             heartScale.animateTo(1f, AvaMotion.pressSpring)
         }
     }
+    // Improve loop run 39 (design): the cover breathes with play
+    // state — full size while playing, a gentle settle to
+    // [AvaMotion.coverPausedScale] while paused, on the same soft
+    // spring as the cover entrance. The pattern both studied players
+    // use (Apple Music's art "breathes"; the Marrow reference
+    // shrinks its art while paused), kept subtle here because the
+    // screen is already alive with AmbientGlow. With reduced motion
+    // it holds still at 1f (run 19 rule). The same flag feeds
+    // AmbientGlow below, so the setting is read once per screen.
+    val coverBreathScale by animateFloatAsState(
+        targetValue = if (!state.isPlaying && !reducedMotion) AvaMotion.coverPausedScale else 1f,
+        animationSpec = AvaMotion.coverScaleSpring,
+        label = "cover-breath-scale",
+    )
     val speed = state.playbackSpeed
     val speedLabel = if (speed % 1f == 0f) "${speed.toInt()}×" else "$speed×"
     val artist = song.artist.ifBlank { stringResource(R.string.unknown_artist) }
@@ -256,15 +288,19 @@ fun NowPlayingScreen(
                     .graphicsLayer { alpha = 0.55f },
             )
         } else {
+            // Improve loop run 24 (design): an untagged song has no
+            // art to blur, so the backdrop is the theme's own hero
+            // gradient — the saturated stops in dark/AMOLED, the
+            // pastel stops in light — instead of the generic token
+            // wash. The scrims below sit on top of it, unchanged.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.background,
-                            ),
+                            colors = LocalAppThemeSpec.current
+                                .heroStops(LocalAppThemeDark.current)
+                                .map { Color(it) },
                         ),
                     ),
             )
@@ -299,10 +335,10 @@ fun NowPlayingScreen(
             isPlaying = state.isPlaying,
             active = isResumed,
             modifier = Modifier.fillMaxSize(),
-            reducedMotion = rememberReducedMotion(),
+            reducedMotion = reducedMotion,
         )
 
-        // 0.1-fix1 (Track F): swipe down to dismiss. The content Column
+        // 0.2 (Track F): swipe down to dismiss. The content Column
         // follows the finger (a vertical `draggable`); past a quarter
         // of the screen height — or on a fast downward fling — it
         // slides off and pops the back stack (playback keeps going,
@@ -460,9 +496,19 @@ fun NowPlayingScreen(
             Spacer(modifier = Modifier.height(AvaTokens.space20))
 
             // Cover + titles animate softly when the track changes.
+            // 2026-11-16: with reduced motion the cover only fades —
+            // no scale-in, so nothing travels for users who asked for
+            // stillness (run 19 rule); the scale itself rides the
+            // retuned cover spring (0.85/500, lands with the sheet).
             AnimatedContent(
                 targetState = song,
-                transitionSpec = { (fadeIn(AvaMotion.crossFade) + scaleIn(initialScale = 0.96f, animationSpec = AvaMotion.coverScaleSpring)) togetherWith fadeOut(AvaMotion.crossFade) },
+                transitionSpec = {
+                    if (reducedMotion) {
+                        fadeIn(AvaMotion.crossFade) togetherWith fadeOut(AvaMotion.crossFade)
+                    } else {
+                        (fadeIn(AvaMotion.crossFade) + scaleIn(initialScale = 0.96f, animationSpec = AvaMotion.coverScaleSpring)) togetherWith fadeOut(AvaMotion.crossFade)
+                    }
+                },
                 label = "now-playing-cover",
                 modifier = coverModifier,
             ) { current ->
@@ -475,7 +521,15 @@ fun NowPlayingScreen(
                         .size(coverSize)
                         .shadow(AvaTokens.elevationLifted, RoundedCornerShape(AvaTokens.radiusExtraLarge))
                         .clip(RoundedCornerShape(AvaTokens.radiusExtraLarge))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        // Run 39: the breath scale wraps the whole
+                        // cover (art + shadow) so it settles as one
+                        // piece; it multiplies with the AnimatedContent
+                        // entrance scale above, never replaces it.
+                        .graphicsLayer {
+                            scaleX = coverBreathScale
+                            scaleY = coverBreathScale
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (effectiveAlbumArtUri(current.albumArtUri) != null && !coverFailed) {

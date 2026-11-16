@@ -1,6 +1,8 @@
 package com.harper.ava.data.repository
 
 import androidx.room.withTransaction
+import com.harper.ava.core.util.diffLibrarySync
+import com.harper.ava.core.util.escapeLikeQuery
 import com.harper.ava.data.local.db.AlbumSummary
 import com.harper.ava.data.local.db.AppDatabase
 import com.harper.ava.data.local.db.ArtistSummary
@@ -176,43 +178,42 @@ class MusicRepository(private val db: AppDatabase) {
         }
 
     /**
-     * Replaces the library with the latest scan, atomically: upserts every
-     * scanned song, then deletes songs the device no longer has. Favorites
-     * and playlist memberships of surviving songs are untouched (they live
-     * in their own tables); cross-refs of deleted songs cascade away.
+     * Syncs one MediaStore scan into Room, atomically, writing only
+     * what actually changed (improve loop, run 33 — see
+     * [diffLibrarySync]): new songs are inserted, rows whose scanned
+     * fields changed are upserted with their play counters intact, and
+     * songs the device no longer has are deleted. A rescan with no
+     * changes writes nothing at all — before this fix every rescan
+     * upserted the whole library (REPLACE rewrites even identical
+     * rows), which fired Room's table triggers and re-emitted every
+     * songs flow, re-mapping every list for nothing.
      *
-     * 0.7.0: the scanned rows are fresh (playCount 0, lastPlayedMs null),
-     * so the stored counters are carried over first — before this fix a
-     * rescan silently reset every song to 0 plays.
+     * Favorites and playlist memberships of surviving songs are
+     * untouched (they live in their own tables); cross-refs of deleted
+     * songs cascade away. The 0.7.0 counter rule still holds: the
+     * scanned rows are fresh (playCount 0, lastPlayedMs null), so the
+     * stored counters are carried over first — a rescan never resets
+     * a song to 0 plays.
      */
     suspend fun syncLibrary(entities: List<SongEntity>): SyncResult {
-        val beforeIds = db.songDao().allIds()
-        val keepIds = entities.map { it.mediaStoreId }.toSet()
-        val removedStale = beforeIds.count { it !in keepIds }
+        val diff = diffLibrarySync(db.songDao().allSongs(), entities)
         db.withTransaction {
-            val playStates = db.songDao().playStates().associateBy { it.mediaStoreId }
-            val withCounters = entities.map { entity ->
-                val saved = playStates[entity.mediaStoreId]
-                if (saved == null) entity else entity.copy(
-                    playCount = saved.playCount,
-                    lastPlayedMs = saved.lastPlayedMs,
-                )
-            }
-            db.songDao().upsertAll(withCounters)
-            if (keepIds.isEmpty()) {
-                db.songDao().deleteAllSongs()
-            } else {
-                db.songDao().deleteNotIn(keepIds.toList())
-            }
+            if (diff.upserts.isNotEmpty()) db.songDao().upsertAll(diff.upserts)
+            if (diff.staleIds.isNotEmpty()) db.songDao().deleteByIds(diff.staleIds)
         }
-        return SyncResult(stored = entities.size, removedStale = removedStale)
+        return SyncResult(stored = entities.size, removedStale = diff.staleIds.size)
     }
 
+    /**
+     * Run 30: the DAO search is a LIKE pattern, so the term is escaped
+     * first — an unescaped "%" or "_" typed by the user used to act as
+     * a wildcard ("%" matched the whole library). See [escapeLikeQuery].
+     */
     fun search(query: String): Flow<List<Song>> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return flowOf(emptyList())
         return combine(
-            db.songDao().search(trimmed),
+            db.songDao().search(escapeLikeQuery(trimmed)),
             db.favoriteDao().observeFavoriteIds(),
         ) { list, favIds ->
             val favSet = favIds.toSet()

@@ -59,7 +59,10 @@ fun parseLrc(text: String): ParsedLyrics {
             plain.add(line)
             continue
         }
-        val lyricText = line.substringAfterLast("]").trim()
+        // Text after the LAST time tag — not after the last "]": a lyric
+        // may itself end in brackets ("Hello [world]", "[Chorus] [x2]"),
+        // and substringAfterLast("]") dropped those lines entirely.
+        val lyricText = line.substring(tags.last().range.last + 1).trim()
         if (lyricText.isEmpty()) continue
         for (tag in tags) {
             val minutes = tag.groupValues[1].toLongOrNull() ?: continue

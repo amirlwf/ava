@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 0.1-fix1 (Track F) — swipe-down-to-dismiss decisions for Now Playing.
+ * 0.2 (Track F) — swipe-down-to-dismiss decisions for Now Playing.
  */
 class SwipeDismissLogicTest {
 

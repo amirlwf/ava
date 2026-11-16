@@ -32,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +53,7 @@ import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.formatListeningTime
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,6 +88,12 @@ fun InsightsScreen(
                     )
                 }
             },
+            // 2026-11-16: frosted on glass (0.72 surface) like
+            // the other bars — the default opaque surface cut a flat
+            // strip across the aurora/sky at the top of this screen.
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = glassAwareTopBarContainerColor(),
+            ),
         )
         when (val state = uiState) {
             InsightsUiState.Loading -> Box(modifier = Modifier.fillMaxSize())

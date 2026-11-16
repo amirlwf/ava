@@ -37,7 +37,7 @@ DIRECT = [
     ("androidx.media3", "media3-exoplayer", "1.11.1"),
     ("androidx.media3", "media3-session", "1.11.1"),
     ("androidx.media3", "media3-common", "1.11.1"),
-    # 0.1-fix1 (Track G, ringtone trim): Transformer re-encodes a song
+    # 0.2 (Track G, ringtone trim): Transformer re-encodes a song
     # segment to AAC/MP4. Transitive: media3-effect, media3-muxer,
     # kotlinx-coroutines-guava (resolved by the BFS below).
     ("androidx.media3", "media3-transformer", "1.11.1"),

@@ -74,7 +74,7 @@ object OnboardingRoute {
     const val ROUTE = "onboarding"
 }
 
-/** Ringtone editor (0.1-fix1, Track G): trim a song, set it as ringtone. */
+/** Ringtone editor (0.2, Track G): trim a song, set it as ringtone. */
 object RingtoneEditorRoute {
     const val ROUTE = "ringtone_editor/{songId}"
     const val ARG_ID = "songId"

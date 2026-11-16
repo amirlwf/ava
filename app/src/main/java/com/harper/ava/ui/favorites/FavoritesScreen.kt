@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +46,7 @@ import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
 import com.harper.ava.ui.theme.AvaTokens
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +62,9 @@ fun FavoritesScreen(
     )
     val favorites by viewModel.favorites.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
+    // Run 29 (design): the playing row highlights — the id alone, so
+    // this list recomposes only on a track change, not on play/pause.
+    val currentSongId by app.container.playerRepository.currentSongId.collectAsState()
 
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -96,6 +101,12 @@ fun FavoritesScreen(
                     )
                 }
             },
+            // 2026-11-16: frosted on glass (0.72 surface) like
+            // the other bars — the default opaque surface cut a flat
+            // strip across the aurora/sky at the top of this screen.
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = glassAwareTopBarContainerColor(),
+            ),
         )
         if (favorites.isEmpty()) {
             if (showEntrySkeleton) {
@@ -138,6 +149,7 @@ fun FavoritesScreen(
                 items(favorites, key = { it.id }) { song ->
                     SongRow(
                         song = song,
+                        isCurrent = song.id == currentSongId,
                         onClick = { viewModel.play(song, favorites) },
                         onToggleFavorite = { viewModel.toggleFavorite(song) },
                         playlists = playlists,

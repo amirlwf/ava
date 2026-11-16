@@ -94,7 +94,7 @@ fun notificationSubText(metadata: MediaMetadata): CharSequence? {
  * The artwork URI for a [Song]: the song's own album art when it has
  * one, otherwise Ava's branded default cover
  * (`res/drawable/ava_default_artwork.png` — Galaxy hero gradient +
- * white note). 0.1-fix1 (Track A): songs without album art used to
+ * white note). 0.2 (Track A): songs without album art used to
  * post a notification (and lock screen) with NO artwork at all, so
  * the shade's media player showed a blank grey tile — the single
  * biggest reason the notification "doesn't feel like the app's".

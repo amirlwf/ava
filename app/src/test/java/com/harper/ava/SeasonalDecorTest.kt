@@ -20,6 +20,7 @@ import com.harper.ava.ui.theme.SeasonalDecorKind
 import com.harper.ava.ui.theme.argbLuminance
 import com.harper.ava.ui.theme.contrastRatio
 import com.harper.ava.ui.theme.galaxyParallaxDrift
+import com.harper.ava.ui.theme.galaxyScaledCount
 import com.harper.ava.ui.theme.galaxyStarAlpha
 import com.harper.ava.ui.theme.galaxyStarPosition
 import com.harper.ava.ui.theme.galaxyStarRadiusDp
@@ -57,7 +58,7 @@ import kotlin.math.sqrt
  * - Galaxy spec: deep-space identity, distinct from AMOLED and from the
  *   other eight themes, with a nebula hero gradient. Readability in both
  *   modes is covered by the AppThemeTest loop over all ten themes.
- * - 0.1-fix1: the calm redesign — one rare meteor, sparse stars, four
+ * - 0.2: the calm redesign — one rare meteor, sparse stars, four
  *   faint nebula clouds; the solar system, constellations, planets and
  *   moons are gone (Harper: "not too crowded, just beautiful and real").
  */
@@ -247,7 +248,7 @@ class SeasonalDecorTest {
     }
 
     // --- 0.7.4 galaxy deep redesign: starfield layers, Milky Way, nebula ---
-    // 0.1-fix1: fewer, sparser, fainter — a believable night sky.
+    // 0.2: fewer, sparser, fainter — a believable night sky.
 
     @Test
     fun `starfield has three depth layers with distinct sizes`() {
@@ -268,6 +269,46 @@ class SeasonalDecorTest {
         }
         // Far stars are always smaller than bright stars: depth reads.
         assertTrue(0.8f + 1.1f < 3.5f)
+    }
+
+    @Test
+    fun `galaxy star counts scale with canvas area keeping one density`() {
+        // Improve run 44: the 64 / 42 / 14 / 36 counts are the 390×844
+        // reference canvas — at that size the scaled count IS the base
+        // count, so the tuned sky is unchanged on the reference phone.
+        assertEquals(64, galaxyScaledCount(GALAXY_FAR_STAR_COUNT, 390f, 844f))
+        assertEquals(42, galaxyScaledCount(GALAXY_MID_STAR_COUNT, 390f, 844f))
+        assertEquals(14, galaxyScaledCount(GALAXY_BRIGHT_STAR_COUNT, 390f, 844f))
+        assertEquals(36, galaxyScaledCount(GALAXY_MILKY_WAY_DUST_COUNT, 390f, 844f))
+        // A narrow 320×700 phone: area ratio 224000/329160 ≈ 0.68, so
+        // the sky draws ~68% of the stars instead of packing the same
+        // 156 objects into a smaller sky (the "too crowded" fix).
+        assertEquals(44, galaxyScaledCount(GALAXY_FAR_STAR_COUNT, 320f, 700f))
+        assertEquals(29, galaxyScaledCount(GALAXY_MID_STAR_COUNT, 320f, 700f))
+        assertEquals(10, galaxyScaledCount(GALAXY_BRIGHT_STAR_COUNT, 320f, 700f))
+        assertEquals(24, galaxyScaledCount(GALAXY_MILKY_WAY_DUST_COUNT, 320f, 700f))
+        // A tablet clamps at 1.5× — never a star soup.
+        assertEquals(96, galaxyScaledCount(GALAXY_FAR_STAR_COUNT, 800f, 1280f))
+        assertEquals(63, galaxyScaledCount(GALAXY_MID_STAR_COUNT, 800f, 1280f))
+        assertEquals(21, galaxyScaledCount(GALAXY_BRIGHT_STAR_COUNT, 800f, 1280f))
+        assertEquals(54, galaxyScaledCount(GALAXY_MILKY_WAY_DUST_COUNT, 800f, 1280f))
+        // A tiny screen clamps at 0.6× — still a real sky.
+        assertEquals(38, galaxyScaledCount(GALAXY_FAR_STAR_COUNT, 240f, 400f))
+        assertEquals(25, galaxyScaledCount(GALAXY_MID_STAR_COUNT, 240f, 400f))
+        assertEquals(8, galaxyScaledCount(GALAXY_BRIGHT_STAR_COUNT, 240f, 400f))
+        assertEquals(22, galaxyScaledCount(GALAXY_MILKY_WAY_DUST_COUNT, 240f, 400f))
+        // Monotonic in area and bounded everywhere; a base of 1 never
+        // vanishes; same inputs give the same count.
+        var prev = 0
+        for (w in listOf(240f, 320f, 360f, 390f, 480f, 800f)) {
+            val c = galaxyScaledCount(GALAXY_FAR_STAR_COUNT, w, 844f)
+            assertTrue("far count $c at width $w", c in 38..96)
+            assertTrue("not monotonic at width $w", c >= prev)
+            assertEquals(c, galaxyScaledCount(GALAXY_FAR_STAR_COUNT, w, 844f))
+            prev = c
+        }
+        assertEquals(1, galaxyScaledCount(1, 240f, 400f))
+        assertEquals(2, galaxyScaledCount(1, 800f, 1280f))
     }
 
     @Test

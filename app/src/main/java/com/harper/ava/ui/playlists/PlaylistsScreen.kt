@@ -56,6 +56,7 @@ import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.ui.components.EmptyState
+import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
 import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
@@ -72,12 +73,22 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
     // 0.7.4: add songs straight from a playlist row — the picker needs
-    // the library and the ids already in that playlist.
-    val allSongs by viewModel.allSongs.collectAsState()
+    // the library and the ids already in that playlist. Run 43 (perf):
+    // the library flow is collected inside the picker branch below,
+    // not here — collecting it at the top re-mapped the whole library
+    // on every songs-table write while the picker was closed.
     var addSongsTarget by remember { mutableStateOf<Playlist?>(null) }
     var addSongsExisting by remember { mutableStateOf<Set<Long>>(emptySet()) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Run 31 (UX): the add-songs picker can scan from inside the
+    // dialog when the library is empty — same launcher as Home/Library.
+    val scanState by viewModel.scanState.collectAsState()
+    val requestScan = rememberScanLauncher(
+        app = app,
+        onScanStarted = viewModel::onScanStarted,
+        onScanResult = viewModel::onScanResult,
+    )
 
     Scaffold(
         // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
@@ -196,11 +207,20 @@ fun PlaylistsScreen(app: AvaApplication, onOpenPlaylist: (Long) -> Unit) {
 
     val addTarget = addSongsTarget
     if (addTarget != null) {
+        // Run 43 (perf): the library flow starts only while the
+        // picker is open; null until the first Room emission, so the
+        // dialog shows a loading line instead of the empty-library
+        // state on its first frame. The flow is remembered so a
+        // recomposition never restarts the collection.
+        val allSongsFlow = remember { viewModel.observeAllSongs() }
+        val allSongs by allSongsFlow.collectAsState(initial = null)
         AddSongsToPlaylistDialog(
             playlistName = addTarget.name,
             allSongs = allSongs,
             alreadyAddedIds = addSongsExisting,
             onDismiss = { addSongsTarget = null },
+            scanState = scanState,
+            onScanLibrary = requestScan,
             onConfirm = { songIds ->
                 scope.launch {
                     val added = viewModel.addSongsToPlaylist(addTarget.id, songIds)

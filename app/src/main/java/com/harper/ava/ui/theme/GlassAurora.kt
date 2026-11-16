@@ -21,7 +21,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Glass aurora (0.1-fix1, Track C) — the one bold, unmistakable element
+ * Glass aurora (0.2, Track C) — the one bold, unmistakable element
  * of the IPHONE theme.
  *
  * Why it exists: in 0.1 the glass theme was a translucent panel over a

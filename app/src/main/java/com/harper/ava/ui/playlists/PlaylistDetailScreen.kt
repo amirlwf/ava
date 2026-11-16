@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,9 +43,11 @@ import com.harper.ava.ui.components.DeleteSongOutcomeToasts
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.components.SongDeleteConfirmDialog
 import com.harper.ava.ui.components.SongRow
+import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
 import kotlinx.coroutines.launch
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,13 +69,26 @@ fun PlaylistDetailScreen(
     val songs by viewModel.songs.collectAsState()
     // 0.7.2 playlist-add fix: rows inside a playlist can now be added to other playlists.
     val playlists by viewModel.playlists.collectAsState()
-    // 0.7.4: library source for the add-songs picker.
-    val allSongs by viewModel.allSongs.collectAsState()
+    // Run 43 (perf): the library flow for the add-songs picker is
+    // collected inside the picker branch below, not here — the old
+    // top-of-screen collection re-mapped the whole library on every
+    // songs-table write while the picker was closed.
+    // Run 29 (design): the playing row highlights — the id alone, so
+    // this list recomposes only on a track change, not on play/pause.
+    val currentSongId by app.container.playerRepository.currentSongId.collectAsState()
 
     // 0.7.4: add songs from inside the playlist (picker dialog + Toast feedback).
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showAddSongs by remember { mutableStateOf(false) }
+    // Run 31 (UX): the picker can scan from inside the dialog when
+    // the library is empty — same launcher as Home/Library.
+    val scanState by viewModel.scanState.collectAsState()
+    val requestScan = rememberScanLauncher(
+        app = app,
+        onScanStarted = viewModel::onScanStarted,
+        onScanResult = viewModel::onScanResult,
+    )
 
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
     var songToDelete by remember { mutableStateOf<Song?>(null) }
@@ -94,6 +110,12 @@ fun PlaylistDetailScreen(
                     )
                 }
             },
+            // 2026-11-16: frosted on glass (0.72 surface) like
+            // the other bars — the default opaque surface cut a flat
+            // strip across the aurora/sky at the top of this screen.
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = glassAwareTopBarContainerColor(),
+            ),
             actions = {
                 // 0.7.4: add songs from inside the playlist — always
                 // visible, not only when the playlist already has songs.
@@ -144,6 +166,7 @@ fun PlaylistDetailScreen(
                 items(songs, key = { it.id }) { song ->
                     SongRow(
                         song = song,
+                        isCurrent = song.id == currentSongId,
                         onClick = { viewModel.playAll(songs.dropWhile { it.id != song.id }) },
                         onToggleFavorite = { viewModel.toggleFavorite(song) },
                         onRemoveFromPlaylist = { viewModel.removeSong(song) },
@@ -162,11 +185,20 @@ fun PlaylistDetailScreen(
     }
 
     if (showAddSongs) {
+        // Run 43 (perf): the library flow starts only while the
+        // picker is open; null until the first Room emission, so the
+        // dialog shows a loading line instead of the empty-library
+        // state on its first frame. The flow is remembered so a
+        // recomposition never restarts the collection.
+        val allSongsFlow = remember { viewModel.observeAllSongs() }
+        val allSongs by allSongsFlow.collectAsState(initial = null)
         AddSongsToPlaylistDialog(
             playlistName = playlist?.name ?: "",
             allSongs = allSongs,
             alreadyAddedIds = songs.map { it.id }.toSet(),
             onDismiss = { showAddSongs = false },
+            scanState = scanState,
+            onScanLibrary = requestScan,
             onConfirm = { songIds ->
                 scope.launch {
                     val added = viewModel.addSongsToPlaylist(songIds)

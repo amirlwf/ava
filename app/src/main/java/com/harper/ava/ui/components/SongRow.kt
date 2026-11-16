@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
@@ -68,6 +69,15 @@ import com.harper.ava.ui.theme.AvaTokens
  * art that fails to load falls back to the music-note placeholder instead
  * of a blank square.
  *
+ * Improve loop, run 29 (design): when [isCurrent] the row is the one
+ * playing — it gets the same highlight QueueRow already uses (a
+ * primary-container wash + a static equalizer glyph in the theme
+ * primary), so the playing song is findable at a glance in every list.
+ * The glyph is deliberately STATIC: an animated one would pretend to
+ * react to the audio, and Ava never fakes an audio-reactive visualizer.
+ * The highlight stays while paused, like the queue's — the song is
+ * still the current one.
+ *
  * 0.7.0 motion: the cover is a shared element — tapping a row flies it
  * into the Now Playing cover ([songCoverSharedKey]) whenever the row
  * lives in a destination that provides the shared-transition locals
@@ -98,8 +108,10 @@ fun SongRow(
     onOpenDetails: (() -> Unit)? = null,
     /** 0.7.2: delete the song's file from the device (confirm dialog lives in the caller). */
     onDeleteSong: ((Song) -> Unit)? = null,
-    /** 0.1-fix1 (Track G): open the ringtone editor for this song. */
+    /** 0.2 (Track G): open the ringtone editor for this song. */
     onSetAsRingtone: ((Song) -> Unit)? = null,
+    /** Improve loop, run 29: true when this is the currently loaded song — the row highlights. */
+    isCurrent: Boolean = false,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -117,6 +129,11 @@ fun SongRow(
     // Shared-element cover: only when the enclosing destination provides
     // the transition scopes (Home/Library/Search/Favorites via the nav
     // graph). Anywhere else the locals are null and the row is plain.
+    // 2026-11-16: with reduced motion the flight is near-instant on
+    // this end too (NowPlayingScreen reads the same flag) — the
+    // transition reads one transform, and a spring on one end with
+    // an instant on the other would still move.
+    val reducedMotion = com.harper.ava.ui.theme.rememberReducedMotion()
     val sharedScope = LocalAvaSharedTransitionScope.current
     val visibilityScope = LocalAvaAnimatedVisibilityScope.current
     val coverModifier = if (sharedScope != null && visibilityScope != null) {
@@ -124,7 +141,11 @@ fun SongRow(
             Modifier.sharedElement(
                 sharedContentState = rememberSharedContentState(key = songCoverSharedKey(song.id)),
                 animatedVisibilityScope = visibilityScope,
-                boundsTransform = AvaMotion.coverBoundsTransform,
+                boundsTransform = if (reducedMotion) {
+                    AvaMotion.coverBoundsTransformReducedMotion
+                } else {
+                    AvaMotion.coverBoundsTransform
+                },
             )
         }
     } else {
@@ -147,6 +168,15 @@ fun SongRow(
             .fillMaxWidth()
             .height(AvaTokens.songRowHeight)
             .clip(RoundedCornerShape(AvaTokens.radiusMedium))
+            // Run 29: the playing row wears QueueRow's wash (same token,
+            // same 0.45f alpha) so every list marks it the same way.
+            .then(
+                if (isCurrent) {
+                    Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = AvaTokens.space12, vertical = AvaTokens.space8),
         verticalAlignment = Alignment.CenterVertically,
@@ -197,6 +227,17 @@ fun SongRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        // Run 29: static equalizer glyph for the playing row — the
+        // same marker QueueRow uses. Static on purpose (see the
+        // file KDoc): it marks "this is the one playing", it never
+        // pretends to dance with the audio.
+        if (isCurrent) {
+            Icon(
+                imageVector = Icons.Filled.Equalizer,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         IconButton(onClick = { haptics.like(); heartPop++; onToggleFavorite() }) {

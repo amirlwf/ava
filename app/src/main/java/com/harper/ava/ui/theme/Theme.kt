@@ -32,6 +32,16 @@ import com.harper.ava.ui.common.AvaMotion
  */
 val LocalAppThemeSpec = staticCompositionLocalOf { AppTheme.VIOLET.spec }
 
+/**
+ * Whether the app is rendering dark right now — the same decision
+ * [isDarkTheme] makes in [AvaTheme] (stored [ThemeMode] + system
+ * mode), provided so screens that don't read settings (Now Playing)
+ * can still pick mode-correct theme data, e.g. the hero gradient
+ * stops. Defaults to light, like a fresh Compose preview.
+ * Improve loop run 24.
+ */
+val LocalAppThemeDark = staticCompositionLocalOf { false }
+
 /** Material3 shapes from a theme's corner radii. */
 fun themeShapes(spec: ThemeSpec): Shapes = themeShapes(
     small = spec.radiusSmallDp.dp,
@@ -322,6 +332,7 @@ fun AvaTheme(
     )
     CompositionLocalProvider(
         LocalAppThemeSpec provides spec,
+        LocalAppThemeDark provides dark,
         LocalContentColor provides schemeWithCustom.onSurface,
     ) {
         MaterialTheme(

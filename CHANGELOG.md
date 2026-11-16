@@ -3,6 +3,42 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.4] — 2026-11-16
+
+A patch on 0.4.3, from Harper's reports after testing: Now Playing
+felt stiff, late and laggy, some theme backgrounds displayed wrong,
+and songs sometimes were not recognised on entry. The experimental
+online-music spike is not in this release — it stays private.
+
+Version 0.4.4 (versionCode 28) — a patch release: motion, background
+and scan fixes, no new features.
+
+### Changed
+
+- **Now Playing motion redesigned** — the sheet enters in 300 ms with
+  a fast-out easing and a real rise instead of a slow linear fade, the
+  back button drops away like a drag-dismiss instead of fading, and
+  the cover settles with the sheet. Reduced motion is now respected
+  by the route transition as well.
+- **Theme backgrounds fixed on glass** — Song Details, Ringtone
+  Editor, Queue, Favorites, Insights, Playlist Detail, Library and
+  the empty Now Playing state no longer cut the aurora/sky with a
+  flat opaque strip.
+- **Entry auto-scan** — the app scans the library once when it opens
+  (only when the audio permission is already granted, never prompts),
+  keeping the previous scan state so the next scan is faster; a
+  no-change scan writes nothing. The empty scan prompt now shows only
+  when the library is genuinely empty and no scan ever completed.
+- **Bottom-bar tab reset verified** — tapping a section icon already
+  returned to that section's root in one tap; the visible failure was
+  the empty scan prompt, fixed by the entry auto-scan above.
+- **Improve-loop runs 41–50** — empty state for a Library group whose
+  songs all disappeared, Galaxy star counts scaling with canvas area,
+  the position tick existing only while playing, a dragged queue row
+  lifting like a card, and smaller bug-hunting, performance and code
+  quality fixes. All verified locally; the release build is not yet
+  device-verified.
+
 ## [0.4.3] — 2026-11-14
 
 A small patch on 0.4.2, from Harper's request after testing 0.4.2:

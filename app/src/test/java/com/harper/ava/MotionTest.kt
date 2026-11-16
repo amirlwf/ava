@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 0.1-fix1 (Track E) — the motion family, pinned. Harper: motions must
+ * 0.2 (Track E) — the motion family, pinned. Harper: motions must
  * be softer, and the softness must be a decision in one place, not an
  * accident per screen. These tests pin the shared specs in
  * [AvaMotion]: one easing family (FastOutSlowIn) for every tween,
@@ -80,22 +80,36 @@ class MotionTest {
     fun `cover scale spring is soft`() {
         // 0.3-feedback (Track 4): was 0.85/300 — the cover entrance
         // and the swipe-dismiss spring-back still landed with a snap.
-        assertEquals(0.9f, AvaMotion.coverScaleSpring.dampingRatio)
-        assertEquals(250f, AvaMotion.coverScaleSpring.stiffness)
+        // 2026-11-16 (Harper: the flight felt laggy): 0.90/250
+        // settles in ~700 ms, twice the 300 ms sheet — the entrance
+        // scale was still moving after the sheet landed. 0.85/500
+        // lands in ~350 ms with the sheet, and still never overshoots
+        // visibly (damping stays in the family's 0.7–0.9, pinned
+        // by the test below).
+        assertEquals(0.85f, AvaMotion.coverScaleSpring.dampingRatio)
+        assertEquals(500f, AvaMotion.coverScaleSpring.stiffness)
     }
 
     @Test
-    fun `now playing transition is fade dominant and mirrors its exit`() {
+    fun `now playing transition is a sheet arriving and leaving`() {
         // 0.3-feedback (Track 4): Harper called the Now Playing
         // enter/exit "sharp" — the 260/220 ms fade was over before
-        // the eye registered it. The dedicated family is slower and
-        // fade-led: 420 ms in, 320 ms out, exit mirroring entry but
-        // slightly quicker; the slide shares the fade's duration so
-        // the opacity does the work and the rise is only a whisper.
-        assertEquals(420, AvaMotion.nowPlayingEnterFade.durationMillis)
-        assertEquals(320, AvaMotion.nowPlayingExitFade.durationMillis)
-        assertEquals(420, AvaMotion.nowPlayingEnterSlide.durationMillis)
-        assertEquals(320, AvaMotion.nowPlayingExitSlide.durationMillis)
+        // the eye registered it. The dedicated family was slower and
+        // fade-led: 420 ms in, 320 ms out.
+        // 2026-11-16 (Harper: "very stiff, very late and laggy"):
+        // that family WAS the cause — the fades were LINEAR, so at
+        // 100 ms the screen was only ~24% opaque (reads as "late"),
+        // and the rise was ~16dp over 420 ms (invisible — a dissolve,
+        // not a sheet arriving). Now a real sheet: 300 ms FastOutSlowIn
+        // fade + a ~140dp rise in, 260 ms fade + a full-height fall
+        // out (the sheet drops away exactly like the drag-dismiss
+        // slide-off, so back and drag feel like one motion). Nothing
+        // here was slowed down to "feel premium" — the enter is
+        // quicker than the 420 ms it replaces.
+        assertEquals(300, AvaMotion.nowPlayingEnterFade.durationMillis)
+        assertEquals(260, AvaMotion.nowPlayingExitFade.durationMillis)
+        assertEquals(300, AvaMotion.nowPlayingEnterSlide.durationMillis)
+        assertEquals(300, AvaMotion.nowPlayingExitSlide.durationMillis)
         assertTrue(
             AvaMotion.nowPlayingEnterFade.durationMillis >
                 AvaMotion.nowPlayingExitFade.durationMillis,
@@ -116,6 +130,48 @@ class MotionTest {
         // The swipe slide-off matches the exit's family, not the old
         // inline 300 ms.
         assertEquals(340, AvaMotion.swipeDismissSlideOff.durationMillis)
+        // The rise is perceptible (height/6 ≈ 140dp on an 844dp
+        // screen — the old it/60 was ~16dp, a whisper), and the exit
+        // falls the full height.
+        assertEquals(140, AvaMotion.nowPlayingEnterOffsetY(840))
+        assertEquals(840, AvaMotion.nowPlayingExitOffsetY(840))
+        assertTrue(AvaMotion.nowPlayingEnterOffsetY(840) > 100)
+    }
+
+    @Test
+    fun `now playing reduced motion is a short calm fade`() {
+        // 2026-11-16 (run 19 rule): with reduced motion the Now
+        // Playing route fades in 100 ms with no slide and no cover
+        // flight — calm and instant, never a 300 ms sheet.
+        assertEquals(100, AvaMotion.nowPlayingReducedFade.durationMillis)
+        assertEquals(FastOutSlowInEasing, AvaMotion.nowPlayingReducedFade.easing)
+        assertTrue(
+            AvaMotion.nowPlayingReducedFade.durationMillis <
+                AvaMotion.nowPlayingEnterFade.durationMillis,
+        )
+    }
+
+    @Test
+    fun `paused cover settles gently below full size`() {
+        // Improve loop run 39: the Now Playing cover breathes with
+        // play state — full size while playing, a gentle settle
+        // while paused. Subtle on purpose (0.95, not 0.86): the
+        // screen is already alive with AmbientGlow, so the cover
+        // settles instead of dancing; and it must stay a settle,
+        // never a grow above 1.
+        assertEquals(0.95f, AvaMotion.coverPausedScale)
+        assertTrue(AvaMotion.coverPausedScale in 0.9f..1f)
+        assertTrue(AvaMotion.coverPausedScale < 1f)
+    }
+
+    @Test
+    fun `dragged queue row lifts softly`() {
+        // Improve loop run 49: the dragged row's shadow rises to
+        // the soft lift and lands back on release — 160 ms on the
+        // family easing, quick enough to feel attached to the
+        // finger, slow enough to read as a lift, not a pop.
+        assertEquals(160, AvaMotion.queueDragLift.durationMillis)
+        assertEquals(FastOutSlowInEasing, AvaMotion.queueDragLift.easing)
     }
 
     @Test

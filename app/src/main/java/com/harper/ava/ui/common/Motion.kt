@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.IntOffset
  * or spring constants — they read them from here, so a tap feels the
  * same everywhere and a theme change never snaps.
  *
- * 0.1-fix1 (Track E) — ONE motion family, softer everywhere (Harper:
+ * 0.2 (Track E) — ONE motion family, softer everywhere (Harper:
  * "animations must be softer, spend a lot of time on them"):
  *
  * - Tweens all share [FastOutSlowInEasing]: one easing family
@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.IntOffset
  */
 object AvaMotion {
     /** Press feedback: a soft squash that settles without a wobble
-     *  (play buttons, hearts). 0.1-fix1: was 0.55/550 — visibly
+     *  (play buttons, hearts). 0.2: changed from 0.55/550 — visibly
      *  bouncy; 0.7 damping + 400 stiffness lands instead of bouncing. */
     val pressSpring: SpringSpec<Float> =
         spring(dampingRatio = 0.7f, stiffness = 400f)
@@ -71,13 +71,31 @@ object AvaMotion {
     /** Shared-element cover flight (list row -> Now Playing): the bounds
      *  glide on a soft, non-bouncy spring instead of snapping.
      *  0.3-feedback (Track 4): was 0.85/300 — still landed with a
-     *  snap; 0.90/250 settles instead. */
+     *  snap; 0.90/250 settles instead.
+     *  2026-11-16 (Harper: the flight felt laggy): 0.90/250 settles
+     *  in ~700 ms — long after the 300 ms sheet transition, so the
+     *  cover kept gliding after the sheet had landed (and on exit it
+     *  floated over the underlying screen after the sheet was gone).
+     *  0.85/550 lands in ~350 ms, with the sheet, and still never
+     *  overshoots visibly (damping stays in the family's 0.7–0.9). */
     val coverBoundsTransform: BoundsTransform = BoundsTransform { _, _ ->
-        spring(dampingRatio = 0.9f, stiffness = 250f)
+        spring(dampingRatio = 0.85f, stiffness = 550f)
+    }
+
+    /**
+     * 2026-11-16 — the cover flight with reduced motion: a 1 ms
+     * tween, effectively instant, so the cover never travels for
+     * users who asked for stillness (run 19 rule). Used on BOTH
+     * ends of the flight (SongRow and NowPlayingScreen) — the
+     * transition reads one transform, and a spring on one end with
+     * an instant on the other would still move.
+     */
+    val coverBoundsTransformReducedMotion: BoundsTransform = BoundsTransform { _, _ ->
+        tween(durationMillis = 1)
     }
 
     /** Navigation fades: slow enough to read as soft, fast enough to
-     *  feel instant. 0.1-fix1: was 220/180. */
+     *  feel instant. 0.2: changed from 220/180. */
     val navEnterFade: TweenSpec<Float> = tween(durationMillis = 260)
     val navExitFade: TweenSpec<Float> = tween(durationMillis = 220)
 
@@ -88,7 +106,7 @@ object AvaMotion {
      * that reads as "forward" in LTR reads as "back" in RTL); a gentle
      * rise reads the same in both directions. Now Playing keeps its
      * fade-only transition (it is a shared-element destination).
-     * 0.1-fix1: 300/240 ms (was 260/200) — the rise breathes instead
+     * 0.2: 300/240 ms (was 260/200) — the rise breathes instead
      * of snapping.
      */
     val navEnterSlide: TweenSpec<IntOffset> =
@@ -106,13 +124,54 @@ object AvaMotion {
      * same FastOutSlowIn easing as the rest of the family, and the
      * same durations the Now Playing route and the swipe slide-off
      * below use — one family, one feeling.
+     *
+     * 2026-11-16 (Harper: enter/exit "very stiff, very late and
+     * laggy"): the 0.3 family was the cause, read from the specs
+     * themselves — (1) the fades were LINEAR (`tween(ms)` with no
+     * easing), so at 100 ms the screen was only ~24% opaque and the
+     * eye registered "nothing happened" for the first ~150 ms;
+     * (2) the rise was ~16dp over 420 ms (~0.04 dp/ms), invisible —
+     * a dissolve, not a sheet arriving; (3) the exit faded the same
+     * way while the cover's slow spring outlived it. The family is
+     * now a real sheet: a perceptible rise in, a full-height fall
+     * out (the same gesture as the drag-dismiss slide-off below),
+     * both on the family FastOutSlowIn easing so the motion answers
+     * immediately, and both settled quicker (300/260 ms — nothing
+     * here was slowed down to "feel premium"). The slide distances
+     * are pure functions ([nowPlayingEnterOffsetY] /
+     * [nowPlayingExitOffsetY]) so MotionTest pins them.
      */
-    val nowPlayingEnterFade: TweenSpec<Float> = tween(durationMillis = 420)
-    val nowPlayingExitFade: TweenSpec<Float> = tween(durationMillis = 320)
+    val nowPlayingEnterFade: TweenSpec<Float> =
+        tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    val nowPlayingExitFade: TweenSpec<Float> =
+        tween(durationMillis = 260, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     val nowPlayingEnterSlide: TweenSpec<IntOffset> =
-        tween(durationMillis = 420, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     val nowPlayingExitSlide: TweenSpec<IntOffset> =
-        tween(durationMillis = 320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        tween(durationMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    /**
+     * 2026-11-16 — the Now Playing sheet's travel, as pure functions
+     * of the screen height (pinned in MotionTest). Enter rises from
+     * ~140dp below (height/6 on an 844dp screen): a rise the eye can
+     * actually follow, not the old it/60 whisper. Exit falls the full
+     * height — the sheet drops away exactly the way the drag-dismiss
+     * slide-off drops it, so the back button and the drag feel like
+     * the same motion. Vertical only, so both read identically in
+     * RTL and LTR.
+     */
+    fun nowPlayingEnterOffsetY(heightPx: Int): Int = heightPx / 6
+    fun nowPlayingExitOffsetY(heightPx: Int): Int = heightPx
+
+    /**
+     * 2026-11-16 — reduced motion for the Now Playing route: a short
+     * calm fade and nothing else (run 19 rule — reduced motion stays
+     * calm/instant). The route transitions and the cover entrance
+     * both read this spec when [rememberReducedMotion] is on; the
+     * slide and the cover flight are skipped entirely.
+     */
+    val nowPlayingReducedFade: TweenSpec<Float> =
+        tween(durationMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 
     /**
      * 0.3-feedback (Track 4) — the swipe-down slide-off: after the
@@ -140,7 +199,7 @@ object AvaMotion {
         tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 
     /**
-     * 0.1-fix1: the ONE cross-fade spec — song/cover/title changes and
+     * 0.2: the ONE cross-fade spec — song/cover/title changes and
      * play/pause icon swaps all use this 350 ms FastOutSlowIn fade, so
      * every swap in the app dissolves at the same speed. (The
      * AnimatedContent call sites used to rely on the bare `fadeIn()`
@@ -150,7 +209,7 @@ object AvaMotion {
         tween(durationMillis = 350, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 
     /**
-     * 0.1-fix1: the ONE list-item placement spec — `animateItem()` on
+     * 0.2: the ONE list-item placement spec — `animateItem()` on
      * every song/playlist row uses this soft spring (damping 0.85,
      * stiffness 250), so rows glide into place instead of snapping
      * with the framework's bouncier default.
@@ -159,16 +218,50 @@ object AvaMotion {
         spring(dampingRatio = 0.85f, stiffness = 250f)
 
     /**
-     * 0.1-fix1: the soft scale spring for the Now Playing cover's
+     * 0.2: the soft scale spring for the Now Playing cover's
      * entrance (0.96x → 1x): the bare `scaleIn()` default spring
      * overshoots visibly at this size; this one settles. It also
      * springs the sheet back when a swipe-down is released below the
      * dismiss threshold.
      * 0.3-feedback (Track 4): was 0.85/300 — the cover entrance and
      * the spring-back still landed with a snap; 0.90/250 settles.
+     * 2026-11-16: 0.90/250 settles in ~700 ms, twice the sheet's
+     * 300 ms — the entrance scale was still moving after the sheet
+     * landed. 0.85/500 lands in ~350 ms with the sheet. (Shared
+     * with the splash logo entrance, which settles a little quicker
+     * too — same family, benign.)
      */
     val coverScaleSpring: SpringSpec<Float> =
-        spring(dampingRatio = 0.9f, stiffness = 250f)
+        spring(dampingRatio = 0.85f, stiffness = 500f)
+
+    /**
+     * Improve loop run 39 (design) — the Now Playing cover breathes
+     * with play state: full size while playing, a gentle settle to
+     * this scale when paused. The pattern both studied players use
+     * (Apple Music's art "breathes"; the Marrow reference shrinks
+     * its art while paused) — Ava's own version stays subtle (0.95,
+     * not 0.86) because the screen is already alive with
+     * AmbientGlow; the cover should settle, not dance. It rides the
+     * same soft spring as the cover entrance ([coverScaleSpring]),
+     * so the two scales feel like one motion, and it never pretends
+     * to follow the music — it answers only play/pause. With
+     * reduced motion the call site holds 1f, so the cover never
+     * moves for users who asked for stillness (run 19 rule).
+     */
+    const val coverPausedScale: Float = 0.95f
+
+    /**
+     * Improve loop run 49 (design) — the dragged queue row lifts
+     * softly: its shadow rises to the soft 8dp lift on long-press
+     * and lands back on release, instead of snapping 0 → 8. 160 ms on the family easing
+     * (FastOutSlowIn, like the cross-fade): quick enough to feel
+     * attached to the finger, slow enough to read as a lift, not
+     * a pop. The same 160 ms the Marrow reference uses for its
+     * scrubber growth — the studied pattern for "a control
+     * answers the hand".
+     */
+    val queueDragLift: TweenSpec<Float> =
+        tween(durationMillis = 160, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 
     /** Skeleton shimmer sweep duration (one pass across a row). */
     const val shimmerDurationMs: Int = 1400

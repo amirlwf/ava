@@ -35,6 +35,7 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +66,7 @@ import com.harper.ava.ui.scan.rememberScanLauncher
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.theme.INACTIVE_TRACK_ALPHA
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,7 +76,7 @@ fun LibraryScreen(
     onOpenRingtoneEditor: (Long) -> Unit = {},
 ) {
     val viewModel: LibraryViewModel = viewModel(
-        factory = LibraryViewModel.factory(app.container.musicRepository, app.container.playerRepository),
+        factory = LibraryViewModel.factory(app.container.musicRepository, app.container.playerRepository, app.container.mediaStoreScanner),
     )
     val songs by viewModel.songs.collectAsState()
     val groupSongs by viewModel.groupSongs.collectAsState()
@@ -83,6 +85,9 @@ fun LibraryScreen(
     val tab by viewModel.tab.collectAsState()
     val openGroup by viewModel.openGroup.collectAsState()
     val scanState by viewModel.scanState.collectAsState()
+    // Run 29 (design): the playing row highlights — the id alone, so
+    // this list recomposes only on a track change, not on play/pause.
+    val currentSongId by app.container.playerRepository.currentSongId.collectAsState()
     var sortMenuOpen by remember { mutableStateOf(false) }
 
     val requestScan = rememberScanLauncher(
@@ -98,6 +103,13 @@ fun LibraryScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(stringResource(R.string.library_title)) },
+
+            // 2026-11-16: frosted on glass (0.72 surface) like
+            // the other bars — the default opaque surface cut a flat
+            // strip across the aurora/sky at the top of this screen.
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = glassAwareTopBarContainerColor(),
+            ),
             actions = {
                 IconButton(onClick = requestScan) {
                     Icon(
@@ -208,14 +220,35 @@ fun LibraryScreen(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            SongList(
-                songs = groupSongs,
-                viewModel = viewModel,
-                playlists = playlists,
-                onOpenSongDetails = onOpenSongDetails,
-                onOpenRingtoneEditor = onOpenRingtoneEditor,
-                isLoading = isScanning && groupSongs.isEmpty(),
-            )
+            // Run 41 (UX): an open group whose songs all disappear
+            // used to go blank — SongList renders an empty LazyColumn
+            // with no words at all. Reachable: delete the group's last
+            // song from inside the group view, or a rescan that drops
+            // its files, while the group stays open (groupSongs is a
+            // live flow, _openGroup stays non-null). The header back
+            // arrow is the visible way out, so no button is added —
+            // the state just needs to say why it is empty.
+            if (groupSongs.isEmpty() && !isScanning) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyState(
+                        title = stringResource(R.string.library_group_empty_title),
+                        body = stringResource(R.string.library_group_empty_body),
+                    )
+                }
+            } else {
+                SongList(
+                    songs = groupSongs,
+                    viewModel = viewModel,
+                    playlists = playlists,
+                    onOpenSongDetails = onOpenSongDetails,
+                    onOpenRingtoneEditor = onOpenRingtoneEditor,
+                    currentSongId = currentSongId,
+                    isLoading = isScanning && groupSongs.isEmpty(),
+                )
+            }
             return@Column
         }
 
@@ -271,6 +304,7 @@ fun LibraryScreen(
                         playlists = playlists,
                         onOpenSongDetails = onOpenSongDetails,
                         onOpenRingtoneEditor = onOpenRingtoneEditor,
+                        currentSongId = currentSongId,
                     )
                 }
             }
@@ -417,6 +451,7 @@ private fun SongList(
     playlists: List<com.harper.ava.domain.model.Playlist>,
     onOpenSongDetails: (Long) -> Unit,
     onOpenRingtoneEditor: (Long) -> Unit = {},
+    currentSongId: Long? = null,
     isLoading: Boolean = false,
 ) {
     // 0.7.2 song delete: in-app confirm dialog + outcome Toasts.
@@ -439,6 +474,7 @@ private fun SongList(
         items(songs, key = { it.id }) { song ->
             SongRow(
                 song = song,
+                isCurrent = song.id == currentSongId,
                 onClick = { viewModel.play(song, songs) },
                 onToggleFavorite = { viewModel.toggleFavorite(song) },
                 playlists = playlists,

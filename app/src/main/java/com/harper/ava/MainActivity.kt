@@ -66,6 +66,7 @@ import com.harper.ava.core.util.LocaleHelper
 import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.bottomBarNavOptions
 import com.harper.ava.core.util.rememberAvaHaptics
+import com.harper.ava.data.media.AudioPermission
 import com.harper.ava.data.preferences.ThemeMode
 import com.harper.ava.data.preferences.UserPreferences
 import com.harper.ava.data.repository.SongDeleteCoordinator
@@ -231,6 +232,21 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 // 0.5.7: restore once per process (see resumeRestored).
                 if (!resumeRestored.compareAndSet(false, true)) return@LaunchedEffect
+                // 2026-11-16 (Harper: songs not recognised on entry):
+                // one incremental auto-scan on every app entry, as a
+                // child launch so it never blocks the queue restore
+                // below. The scanner's shared state drives Home and
+                // Library, so while it runs the known library keeps
+                // showing (skeletons on an empty library) instead of
+                // the scan prompt flashing. The persisted Room baseline
+                // makes a no-change scan write nothing (run 33), so
+                // this is fast when nothing changed. Only when the
+                // audio permission is already granted — the auto-scan
+                // never prompts; without permission the permission
+                // card shows as today.
+                if (AudioPermission.isGranted(applicationContext)) {
+                    launch { app.container.mediaStoreScanner.rescan() }
+                }
                 // 0.5.2: settings arrived and the first screen composed —
                 // startup succeeded; clear the crash flag for next launch.
                 StartupTracer.mark(this@MainActivity, "activity.settings.first")
@@ -316,7 +332,7 @@ class MainActivity : ComponentActivity() {
                     val isFullScreenRoute = currentRoute == NowPlayingRoute.ROUTE ||
                         currentRoute == QueueRoute.ROUTE
 
-                    // 0.1-fix1: ONE persistent backdrop behind everything.
+                    // 0.2: ONE persistent backdrop behind everything.
                     // The Galaxy / seasonal sky used to live inside Home
                     // and Now Playing, tied to each destination's resume
                     // state — tapping an icon (e.g. Settings) dropped the
@@ -372,7 +388,7 @@ class MainActivity : ComponentActivity() {
                                                 },
                                             )
                                         }
-                                        // 0.1-fix1 (Track C): on the
+                                        // 0.2 (Track C): on the
                                         // glass theme a 1dp hairline
                                         // above the bar, like iOS's tab
                                         // bar edge — the bar itself is

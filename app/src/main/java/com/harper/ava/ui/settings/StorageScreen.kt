@@ -255,6 +255,27 @@ fun StorageScreen(app: AvaApplication, onBack: () -> Unit) {
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                        // Improve loop, run 36 (UX): a folder whose
+                        // access was lost used to be a dead end — the
+                        // subtitle said "pick this folder again" but
+                        // the row offered only Delete, so the only way
+                        // back was deleting the entry and re-adding it
+                        // from the bottom button. The re-pick button
+                        // launches the same folder picker; picking the
+                        // same folder re-takes the permission and
+                        // addMusicFolder dedupes by tree URI, so no
+                        // duplicate entry appears.
+                        if (folder.accessLost) {
+                            IconButton(onClick = { folderPicker.launch(null) }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = stringResource(
+                                        R.string.storage_folders_repick,
+                                    ),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
                     }
                 }
             }

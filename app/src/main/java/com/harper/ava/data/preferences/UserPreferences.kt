@@ -18,8 +18,11 @@ import com.harper.ava.core.util.StartupTracer
 import com.harper.ava.core.util.clampPlaybackSpeed
 import com.harper.ava.core.util.decodeQueueIds
 import com.harper.ava.core.util.decodeRecentSearches
+import com.harper.ava.core.util.decodeRingtoneUris
 import com.harper.ava.core.util.encodeQueueIds
 import com.harper.ava.core.util.encodeRecentSearches
+import com.harper.ava.core.util.encodeRingtoneUris
+import com.harper.ava.core.util.putRingtoneUri
 import com.harper.ava.core.util.recordSearch
 import com.harper.ava.core.util.removeSearch
 import kotlinx.coroutines.flow.Flow
@@ -88,6 +91,12 @@ data class SettingsState(
     val musicFolderUris: List<String> = emptyList(),
     /** Recent search queries, most recent first (max 8) — stage 6. */
     val recentSearches: List<String> = emptyList(),
+    /**
+     * Improve loop, run 25: the MediaStore row Uri Ava inserted for a
+     * song's ringtone, keyed by song id — so a repeat "Set as
+     * ringtone" overwrites that row instead of inserting a new one.
+     */
+    val ringtoneUris: Map<Long, String> = emptyMap(),
     /** First-run onboarding completed (stage 6). */
     val onboardingSeen: Boolean = false,
     /** Automatic update check on launch (0.7.2). */
@@ -138,6 +147,7 @@ class UserPreferences(private val context: Context) {
         val EQ_BAND_LEVELS = stringPreferencesKey("eq_band_levels")
         val MUSIC_FOLDER_URIS = stringPreferencesKey("music_folder_uris")
         val RECENT_SEARCHES = stringPreferencesKey("recent_searches")
+        val RINGTONE_URIS = stringPreferencesKey("ringtone_uris")
         val ONBOARDING_SEEN = booleanPreferencesKey("onboarding_seen")
         val AUTO_UPDATE_CHECK = booleanPreferencesKey("auto_update_check")
         val LAST_UPDATE_CHECK_MS = longPreferencesKey("last_update_check_ms")
@@ -179,6 +189,7 @@ class UserPreferences(private val context: Context) {
             musicFolderUris = prefs[Keys.MUSIC_FOLDER_URIS]
                 ?.split("\n")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList(),
             recentSearches = decodeRecentSearches(prefs[Keys.RECENT_SEARCHES]),
+            ringtoneUris = decodeRingtoneUris(prefs[Keys.RINGTONE_URIS]),
             onboardingSeen = prefs[Keys.ONBOARDING_SEEN] ?: false,
             autoUpdateCheck = prefs[Keys.AUTO_UPDATE_CHECK] ?: true,
             lastUpdateCheckMs = prefs[Keys.LAST_UPDATE_CHECK_MS]?.coerceAtLeast(0L) ?: 0L,
@@ -326,6 +337,18 @@ class UserPreferences(private val context: Context) {
 
     suspend fun clearSearchHistory() {
         context.dataStore.edit { it.remove(Keys.RECENT_SEARCHES) }
+    }
+
+    /**
+     * Improve loop, run 25: remembers the MediaStore row Uri Ava
+     * inserted for [songId]'s ringtone, so the next "Set as ringtone"
+     * overwrites that row instead of inserting a duplicate.
+     */
+    suspend fun setRingtoneUri(songId: Long, uri: String) {
+        context.dataStore.edit { prefs ->
+            val current = decodeRingtoneUris(prefs[Keys.RINGTONE_URIS])
+            prefs[Keys.RINGTONE_URIS] = encodeRingtoneUris(putRingtoneUri(current, songId, uri))
+        }
     }
 
     /** Marks the first-run onboarding as completed (shown once). */

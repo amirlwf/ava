@@ -100,7 +100,18 @@ data class ThemeSpec(
      * glass never leaks into a theme that didn't ask for it.
      */
     val isGlass: Boolean = false,
-)
+) {
+    /**
+     * Improve loop run 24 (design): the hero gradient stops for the
+     * mode the app is in — the saturated stops in dark/AMOLED, the
+     * pastel stops in light. `heroLight` was dead data until now
+     * (only `heroDark` was ever read, by the Appearance card); the
+     * Now Playing no-art backdrop and the card both read through
+     * here, so the preview and the screen can never disagree about
+     * which stops a mode uses.
+     */
+    fun heroStops(dark: Boolean): List<Long> = if (dark) heroDark else heroLight
+}
 
 /** The spec for a theme. */
 fun appThemeSpec(theme: AppTheme): ThemeSpec = when (theme) {
@@ -601,7 +612,7 @@ fun amoledLiftedContainer(baseArgb: Long, step: AmoledSurfaceStep): Long {
         lift(baseArgb and 0xFF)
 }
 
-// -- Glass aurora (0.1-fix1, Track C; strengthened 0.3-feedback, Track 6) --
+// -- Glass aurora (0.2, Track C; strengthened 0.3-feedback, Track 6) --
 // Pure strength rules for the IPHONE theme's aurora backdrop. The aurora
 // is the one bold element that makes the glass theme unmistakable: three
 // soft colour fields (iOS blue / cyan / violet) drifting behind the

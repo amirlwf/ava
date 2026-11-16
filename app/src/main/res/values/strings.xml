@@ -59,6 +59,8 @@
     <string name="library_tab_albums">Albums</string>
     <string name="library_empty_title">Your library is empty</string>
     <string name="library_empty_body">No songs have been added to the library yet.</string>
+    <string name="library_group_empty_title">This group is empty</string>
+    <string name="library_group_empty_body">The songs in this group are no longer in your library.</string>
     <string name="library_sort_label">Sort</string>
     <string name="library_sort_title">Sort by title</string>
     <string name="library_sort_artist">Sort by artist</string>
@@ -103,6 +105,7 @@
     <string name="playlist_add_songs_already_added">Already in playlist</string>
     <string name="playlist_add_songs_confirm">Add (%1$d)</string>
     <string name="playlist_add_songs_empty_library">No songs in your library yet — scan your music first.</string>
+    <string name="playlist_add_songs_loading">Loading songs…</string>
     <string name="playlist_add_songs_no_results">No songs match “%1$s”.</string>
     <plurals name="playlist_add_songs_added">
         <item quantity="one">%1$d song added</item>
@@ -162,7 +165,6 @@
     <string name="ringtone_open_settings">Open settings</string>
     <string name="ringtone_done">Done</string>
     <string name="ringtone_preview_note">Preview plays the selected segment through the player.</string>
-    <string name="song_add_to_playlist">Add to playlist</string>
     <string name="song_no_playlists">No playlists yet</string>
     <string name="song_more_actions">More actions</string>
 
@@ -193,6 +195,8 @@
     <string name="update_later">Later</string>
     <string name="update_dont_remind">Don\'t tell me again for this version</string>
     <string name="update_dismiss">Dismiss</string>
+
+    <!-- Online spike — Phase 0 (2026-11-15). EXPERIMENTAL test screen, not a feature. -->
 
     <!-- Listening insights (0.7.0) -->
     <string name="insights_title">Listening insights</string>
@@ -236,13 +240,6 @@
     <string name="color_saturation">Saturation</string>
     <string name="color_brightness">Brightness</string>
     <string name="color_apply">Apply color</string>
-    <string name="accent_violet">Violet</string>
-    <string name="accent_electric_blue">Electric blue</string>
-    <string name="accent_emerald">Emerald</string>
-    <string name="accent_crimson">Crimson</string>
-    <string name="accent_amber">Amber</string>
-    <string name="accent_rose">Rose</string>
-    <string name="accent_monochrome">Monochrome</string>
 
     <!-- App icon (launcher icon variants) -->
 
@@ -402,4 +399,5 @@
     <string name="storage_folders_audio_count">%1$d audio files</string>
     <string name="storage_folders_lost">Access was lost — pick this folder again to restore it.</string>
     <string name="storage_folders_remove">Remove folder</string>
+    <string name="storage_folders_repick">Pick this folder again</string>
 </resources>

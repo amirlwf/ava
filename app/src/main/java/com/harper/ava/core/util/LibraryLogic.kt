@@ -111,6 +111,56 @@ fun dedupeScannedSongs(raws: List<RawScannedSong>): List<RawScannedSong> {
 }
 
 // ---------------------------------------------------------------------------
+// Library sync: what a rescan actually has to write
+// ---------------------------------------------------------------------------
+
+/** The minimal write set for one library sync: only new/changed rows, only stale ids. */
+data class LibrarySyncDiff(
+    val upserts: List<SongEntity>,
+    val staleIds: List<Long>,
+)
+
+/**
+ * Diffs a fresh scan ([scanned], already normalized and deduped) against
+ * the stored library ([existing]) and returns only what has to change.
+ *
+ * Improve loop, run 33 (performance): `syncLibrary` used to upsert
+ * EVERY scanned row on every rescan — `upsertAll` REPLACE rewrites the
+ * row even when nothing changed, and Room fires its table triggers for
+ * every rewritten row, so a no-change Rescan re-emitted every songs
+ * flow and re-mapped every list (Library, Home sections, Search) for
+ * nothing. Now only genuinely new or changed rows are written, and a
+ * rescan with no changes writes nothing at all: one SELECT, zero
+ * writes, zero invalidation.
+ *
+ * The comparison is a plain data-class equality on the row with the
+ * stored play counters carried over (scanned rows are fresh: playCount
+ * 0, lastPlayedMs null) — so a row whose counters differ alone is NOT
+ * an upsert (counters live in the stored row already), and a row whose
+ * scanned fields changed is upserted WITH its counters intact. Every
+ * column is covered by the equality, so a new field can never be
+ * silently forgotten — it is part of the data class.
+ */
+fun diffLibrarySync(existing: List<SongEntity>, scanned: List<SongEntity>): LibrarySyncDiff {
+    val storedById = existing.associateBy { it.mediaStoreId }
+    val upserts = scanned.mapNotNull { entity ->
+        val stored = storedById[entity.mediaStoreId]
+        if (stored == null) {
+            entity
+        } else {
+            val withCounters = entity.copy(
+                playCount = stored.playCount,
+                lastPlayedMs = stored.lastPlayedMs,
+            )
+            if (withCounters == stored) null else withCounters
+        }
+    }
+    val scannedIds = scanned.map { it.mediaStoreId }.toSet()
+    val staleIds = existing.map { it.mediaStoreId }.filter { it !in scannedIds }
+    return LibrarySyncDiff(upserts, staleIds)
+}
+
+// ---------------------------------------------------------------------------
 // LazyColumn item keys — unique across the WHOLE list scope, not per section
 // ---------------------------------------------------------------------------
 

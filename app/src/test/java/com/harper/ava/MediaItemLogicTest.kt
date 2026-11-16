@@ -112,7 +112,7 @@ class MediaItemLogicTest {
         assertEquals("track-1000201063", notificationTitle(song(title = "", fileName = "   ")))
     }
 
-    // --- 0.1-fix1 (Track A): the notification always has artwork ---
+    // --- 0.2 (Track A): the notification always has artwork ---
 
     @Test
     fun `artwork uri is the song album art when present`() {

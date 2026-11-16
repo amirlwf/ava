@@ -3,6 +3,7 @@ package com.harper.ava.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +64,7 @@ import com.harper.ava.ui.theme.accentPalette
 import com.harper.ava.ui.theme.spec
 import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
 import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
+import com.harper.ava.ui.theme.isDarkTheme
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -101,6 +103,10 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
     val settings by viewModel.settings.collectAsState()
     val scope = rememberCoroutineScope()
     val fa = Locale.getDefault().language == "fa"
+    // Improve loop run 24 (design): the theme cards preview the hero
+    // gradient in the mode the app is in — pastel in Light, saturated
+    // otherwise — so the preview is what the theme really looks like.
+    val dark = isDarkTheme(settings.themeMode, isSystemInDarkTheme())
 
     Scaffold(
         // Edge-to-edge (Harper 2026-11-13): this nested Scaffold owns no
@@ -147,6 +153,7 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
                         AppThemeCard(
                             theme = theme,
                             fa = fa,
+                            dark = dark,
                             selected = settings.appTheme == theme,
                             onClick = {
                                 scope.launch {
@@ -218,6 +225,7 @@ fun AppearanceScreen(app: AvaApplication, onBack: () -> Unit) {
 private fun AppThemeCard(
     theme: AppTheme,
     fa: Boolean,
+    dark: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -241,7 +249,9 @@ private fun AppThemeCard(
                 .fillMaxWidth()
                 .height(56.dp)
                 .background(
-                    Brush.linearGradient(spec.heroDark.map { Color(it) }),
+                    Brush.linearGradient(
+                        spec.heroStops(dark).map { Color(it) },
+                    ),
                 ),
             contentAlignment = Alignment.TopEnd,
         ) {

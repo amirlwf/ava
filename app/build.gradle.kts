@@ -12,8 +12,8 @@ android {
         applicationId = "com.harper.ava"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "0.4.3"
+        versionCode = 28
+        versionName = "0.4.4"
     }
 
     buildTypes {

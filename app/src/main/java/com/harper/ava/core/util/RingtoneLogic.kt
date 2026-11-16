@@ -1,7 +1,7 @@
 package com.harper.ava.core.util
 
 /**
- * Ringtone editing (0.1-fix1, Track G) — the pure decisions, so the
+ * Ringtone editing (0.2, Track G) — the pure decisions, so the
  * offline JUnit suite can pin them. The actual trim runs through
  * Media3 Transformer (re-encodes the segment to AAC/MP4) in
  * `RingtoneTrimmer`, and the system ringtone is set through
@@ -68,3 +68,52 @@ fun ringtoneFileName(title: String): String {
     val base = cleaned.ifEmpty { "ava-ringtone" }
     return base.take(80)
 }
+
+// ---------------------------------------------------------------------------
+// Ava's own ringtone rows (improve loop, run 25).
+//
+// Every "Set as ringtone" tap used to insert a NEW MediaStore row, so
+// setting the same song's ringtone repeatedly littered the system
+// Ringtones folder with identical files. The safe fix is to remember
+// Ava's own row Uri per song and reuse it: the setter overwrites the
+// row's bytes (and refreshes its display name) instead of inserting.
+// Dedup by display name was rejected — it could overwrite a file the
+// user put there themselves. A stored Uri is only ever one Ava
+// inserted, and the setter falls back to a fresh insert when the row
+// is gone (the user deleted it), so a stale entry self-heals.
+//
+// Storage is one DataStore string, one `songId=uri` line per song —
+// the same shape as the music-folder URIs. A Uri never contains a
+// newline or `=`, so the first `=` splits the line safely.
+// ---------------------------------------------------------------------------
+
+/** Encodes the per-song ringtone-row map for DataStore (sorted, stable). */
+fun encodeRingtoneUris(uris: Map<Long, String>): String =
+    uris.entries
+        .sortedBy { it.key }
+        .joinToString("\n") { "${it.key}=${it.value}" }
+
+/**
+ * Decodes the stored ringtone-row map. Garbage-tolerant: a null/blank
+ * store, a line without `=`, a non-numeric id or a blank Uri are all
+ * skipped, and a later line wins on a duplicate id.
+ */
+fun decodeRingtoneUris(raw: String?): Map<Long, String> {
+    if (raw.isNullOrBlank()) return emptyMap()
+    val out = mutableMapOf<Long, String>()
+    for (line in raw.split("\n")) {
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) continue
+        val eq = trimmed.indexOf('=')
+        if (eq <= 0) continue
+        val id = trimmed.substring(0, eq).toLongOrNull() ?: continue
+        val uri = trimmed.substring(eq + 1).trim()
+        if (uri.isEmpty()) continue
+        out[id] = uri
+    }
+    return out
+}
+
+/** Returns [uris] with [songId] now pointing at [uri] (insert or replace). */
+fun putRingtoneUri(uris: Map<Long, String>, songId: Long, uri: String): Map<Long, String> =
+    uris + (songId to uri)

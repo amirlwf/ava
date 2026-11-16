@@ -2,8 +2,6 @@ package com.harper.ava.data.repository
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -38,9 +36,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -108,16 +110,23 @@ class PlayerRepository(
         addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _state.update { it.copy(isPlaying = isPlaying) }
-                // 0.7.0 Insights: a pause banks the listened time so far
-                // into the open history row; a resume keeps banking into
-                // the SAME row (a resume is not a new play).
+                // Improve loop, run 48: the position tick only exists
+                // while playing — started here on play, stopped on
+                // pause (it used to loop forever from init, waking Main
+                // 2x/s even with nothing playing). A pause already banks
+                // the listened time below, so stopping the tick loses
+                // nothing; prepare / seek / track-change paths write
+                // _positionMs directly, so a paused slider never goes
+                // stale.
                 if (isPlaying) {
+                    startPositionTick()
                     if (listenSong == null) {
                         _state.value.currentSong?.let { beginListen(it) }
                     } else {
                         resumeListen()
                     }
                 } else {
+                    stopPositionTick()
                     pauseListen()
                 }
             }
@@ -227,6 +236,20 @@ class PlayerRepository(
      */
     private val _positionMs = MutableStateFlow(0L)
     val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
+
+    /**
+     * Improve loop, run 29 (design): the id of the currently loaded
+     * song, on its OWN flow — the same scoping idea as [positionMs]
+     * (run 8). Library lists (Home / Library / Search / Favorites /
+     * Playlist detail) only need the id to highlight the playing row,
+     * so they collect this instead of [state] and recompose only on a
+     * track change — not on play/pause, queue edits or shuffle
+     * toggles. Null when nothing is loaded yet.
+     */
+    val currentSongId: StateFlow<Long?> = state
+        .map { it.currentSong?.id }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, null)
 
     private var positionJob: Job? = null
 
@@ -529,7 +552,20 @@ class PlayerRepository(
      */
     private fun Song.toMediaItem(): MediaItem = songToMediaItem(this)
 
-    init {
+    /**
+     * Improve loop, run 48 (performance & battery): the 500 ms position
+     * tick only exists while playing. It used to be launched once in
+     * init and looped forever — delay(500) on Main, waking 2x/s for the
+     * whole process lifetime even when nothing played for hours (the
+     * body was already gated on isPlaying, so nothing was written — but
+     * the wake itself kept the main looper from going quiet). Now
+     * onIsPlayingChanged starts it on play and stops it on pause; the
+     * tick body is unchanged (position flow, duration safety net, ~10 s
+     * listen banking). Idempotent: a second play while the tick runs
+     * (play/pause flapping, notification + UI racing) starts nothing new.
+     */
+    private fun startPositionTick() {
+        if (positionJob?.isActive == true) return
         positionJob = scope.launch {
             var listenBankTicks = 0
             while (true) {
@@ -556,6 +592,15 @@ class PlayerRepository(
                 }
             }
         }
+    }
+
+    /** Stops the position tick (pause / stop / release); a no-op when it is not running. */
+    private fun stopPositionTick() {
+        positionJob?.cancel()
+        positionJob = null
+    }
+
+    init {
         StartupTracer.mark(appContext, "player.constructor.done")
     }
 
@@ -849,6 +894,16 @@ class PlayerRepository(
             // on notification dismiss) — rebuild it from the saved queue
             // first, or play() below is a silent no-op.
             ensurePlayable()
+            // Improve loop, run 40: when the queue has played to the end
+            // ExoPlayer sits in STATE_ENDED with playWhenReady still
+            // true, so play() below is a no-op — verified against the
+            // shipped Media3 1.11.1 bytecode: BasePlayer.play() is only
+            // setPlayWhenReady(true), and ExoPlayerImpl.updatePlayWhenReady
+            // early-returns when nothing changed (no ENDED handling, no
+            // seek). Without this the play button is dead after the last
+            // song ends, until the user seeks or re-taps a song. Rewind
+            // the last song first; play() then works.
+            if (player.playbackState == Player.STATE_ENDED) player.seekTo(0L)
             // 0.5.7: play from the Mini Player / Now Playing must also
             // (re)start the service — after a pause Media3 demotes it,
             // and playing without a service leaves playback with no
@@ -942,6 +997,20 @@ class PlayerRepository(
         _state.update { PlaybackState() }
     }
 
+    /**
+     * Idempotent play for the notification / headset path (improve loop,
+     * run 40). The MediaSession default onPlay calls player.play() directly,
+     * which is a no-op in the two states this repo guards against: a reset
+     * player (round 8 — nothing loaded) and STATE_ENDED (run 40 — the
+     * queue played to the end). Routing through the toggle fixes both.
+     * Deliberately NOT togglePlayPause: a stray play command while already
+     * playing must not pause.
+     */
+    fun playOrResume() {
+        if (player.isPlaying) return
+        togglePlayPause()
+    }
+
     // ------------------------------------------------------------------
     // Fade in / out (real volume ramps on the player, in-app controls)
     // ------------------------------------------------------------------
@@ -1007,13 +1076,8 @@ class PlayerRepository(
 
     fun release() {
         cancelSleepTimerJobs()
-        positionJob?.cancel()
+        stopPositionTick()
         eqController.release()
         player.release()
-    }
-
-    companion object {
-        @Suppress("unused")
-        fun uriOf(song: Song): Uri = song.uri.toUri()
     }
 }

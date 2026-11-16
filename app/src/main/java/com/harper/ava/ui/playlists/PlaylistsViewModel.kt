@@ -4,14 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.harper.ava.core.util.normalizePlaylistName
+import com.harper.ava.data.media.ScanResult
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
 import com.harper.ava.data.repository.SongDeleteCoordinator
 import com.harper.ava.data.repository.SongSort
 import com.harper.ava.domain.model.Playlist
 import com.harper.ava.domain.model.Song
+import com.harper.ava.ui.scan.ScanUiState
+import com.harper.ava.ui.scan.toUiState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -26,10 +32,37 @@ class PlaylistsViewModel(
         .observePlaylistsWithCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 0.7.4: library source for the in-playlist add-songs picker. */
-    val allSongs: StateFlow<List<Song>> = musicRepository
-        .observeSongs(SongSort.TITLE)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /**
+     * Run 43 (perf): library source for the in-playlist add-songs
+     * picker — a cold flow now, collected only while the picker is
+     * open. It used to be a StateFlow collected at the top of the
+     * screen, so every songs-table write (each track start marks a
+     * song played) re-mapped the whole library into Song models
+     * even though the picker is closed 99% of the time. The dialog
+     * collects with a null initial, so "not loaded yet" never shows
+     * as "library empty" (same rule as run 23's Library tabs).
+     */
+    fun observeAllSongs(): Flow<List<Song>> =
+        musicRepository.observeSongs(SongSort.TITLE)
+
+    /**
+     * Run 31 (UX): scan state for the add-songs picker — the same
+     * mirror as Home/Library. When the library is empty the picker
+     * offers a real scan from inside the dialog instead of only a
+     * Cancel button; the scan result lands in [observeAllSongs] on
+     * its own (Room flow), so the picker fills up without leaving
+     * the dialog.
+     */
+    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
+
+    fun onScanStarted() {
+        _scanState.value = ScanUiState.Scanning
+    }
+
+    fun onScanResult(result: ScanResult) {
+        _scanState.value = result.toUiState()
+    }
 
     /** 0.7.4: add several songs at once from the picker; returns how many were new. */
     suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Int =
@@ -92,10 +125,27 @@ class PlaylistDetailViewModel(
         .observePlaylists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 0.7.4: library source for the in-playlist add-songs picker. */
-    val allSongs: StateFlow<List<Song>> = musicRepository
-        .observeSongs(SongSort.TITLE)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /**
+     * Run 43 (perf): library source for the in-playlist add-songs
+     * picker — a cold flow now, collected only while the picker is
+     * open (same change as [PlaylistsViewModel.observeAllSongs]:
+     * the old top-of-screen StateFlow re-mapped the whole library
+     * on every songs-table write while the picker was closed).
+     */
+    fun observeAllSongs(): Flow<List<Song>> =
+        musicRepository.observeSongs(SongSort.TITLE)
+
+    /** Run 31 (UX): scan state for the add-songs picker — same mirror as [PlaylistsViewModel]. */
+    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
+
+    fun onScanStarted() {
+        _scanState.value = ScanUiState.Scanning
+    }
+
+    fun onScanResult(result: ScanResult) {
+        _scanState.value = result.toUiState()
+    }
 
     /** 0.7.4: add several songs at once from the picker; returns how many were new. */
     suspend fun addSongsToPlaylist(songIds: List<Long>): Int =

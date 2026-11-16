@@ -59,6 +59,8 @@
     <string name="library_tab_albums">آلبوم‌ها</string>
     <string name="library_empty_title">کتابخانه خالی است</string>
     <string name="library_empty_body">هنوز هیچ آهنگی به کتابخانه اضافه نشده است.</string>
+    <string name="library_group_empty_title">این گروه خالی است</string>
+    <string name="library_group_empty_body">آهنگ‌های این گروه دیگر در کتابخانه نیستند.</string>
     <string name="library_sort_label">مرتب‌سازی</string>
     <string name="library_sort_title">مرتب‌سازی بر اساس نام</string>
     <string name="library_sort_artist">مرتب‌سازی بر اساس خواننده</string>
@@ -103,6 +105,7 @@
     <string name="playlist_add_songs_already_added">در پلی‌لیست است</string>
     <string name="playlist_add_songs_confirm">افزودن (%1$d)</string>
     <string name="playlist_add_songs_empty_library">هنوز آهنگی در کتابخانه نیست — اول موسیقی‌ات را اسکن کن.</string>
+    <string name="playlist_add_songs_loading">در حال بارگذاری آهنگ‌ها…</string>
     <string name="playlist_add_songs_no_results">آهنگی مطابق «%1$s» پیدا نشد.</string>
     <plurals name="playlist_add_songs_added">
         <item quantity="one">۱ آهنگ اضافه شد</item>
@@ -162,7 +165,6 @@
     <string name="ringtone_open_settings">باز کردن تنظیمات</string>
     <string name="ringtone_done">تمام</string>
     <string name="ringtone_preview_note">پیش‌نمایش، بخش انتخاب‌شده را با پخش‌کننده پخش می‌کند.</string>
-    <string name="song_add_to_playlist">افزودن به پلی‌لیست</string>
     <string name="song_no_playlists">هنوز پلی‌لیستی نیست</string>
     <string name="song_more_actions">گزینه‌های بیشتر</string>
 
@@ -193,6 +195,8 @@
     <string name="update_later">بعداً</string>
     <string name="update_dont_remind">برای این نسخه دیگر نگو</string>
     <string name="update_dismiss">بستن</string>
+
+    <!-- تست آنلاین — فاز ۰ (۲۰۲۶-۱۱-۱۵). صفحه آزمایشی، نه قابلیت نهایی. -->
 
     <!-- Listening insights (0.7.0) -->
     <string name="insights_title">آمار گوش دادن</string>
@@ -236,13 +240,6 @@
     <string name="color_saturation">اشباع</string>
     <string name="color_brightness">روشنایی</string>
     <string name="color_apply">اعمال رنگ</string>
-    <string name="accent_violet">بنفش</string>
-    <string name="accent_electric_blue">آبی برقی</string>
-    <string name="accent_emerald">زمردی</string>
-    <string name="accent_crimson">زرشکی</string>
-    <string name="accent_amber">کهربایی</string>
-    <string name="accent_rose">رز</string>
-    <string name="accent_monochrome">تک‌رنگ</string>
 
     <!-- App icon (launcher icon variants) -->
 
@@ -402,4 +399,5 @@
     <string name="storage_folders_audio_count">%1$d فایل صوتی</string>
     <string name="storage_folders_lost">دسترسی از دست رفته است — برای بازگرداندن، دوباره همین پوشه را انتخاب کن.</string>
     <string name="storage_folders_remove">حذف پوشه</string>
+    <string name="storage_folders_repick">انتخاب دوبارهٔ این پوشه</string>
 </resources>

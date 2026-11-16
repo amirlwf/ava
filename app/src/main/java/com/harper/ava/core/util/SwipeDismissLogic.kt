@@ -1,7 +1,7 @@
 package com.harper.ava.core.util
 
 /**
- * Swipe-down-to-dismiss for Now Playing (0.1-fix1, Track F) — the pure
+ * Swipe-down-to-dismiss for Now Playing (0.2, Track F) — the pure
  * decisions, so the offline JUnit suite can pin them. The gesture
  * itself lives in `NowPlayingScreen` (a `draggable` on the content
  * Column, following the finger; past the threshold it slides off and

@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,8 @@ import coil3.compose.AsyncImage
 import com.harper.ava.AvaApplication
 import com.harper.ava.R
 import com.harper.ava.core.util.effectiveAlbumArtUri
+import com.harper.ava.ui.theme.glassAwareScaffoldContainerColor
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 import com.harper.ava.core.util.formatDuration
 import com.harper.ava.core.util.formatFileSize
 import com.harper.ava.data.media.formatOf
@@ -73,6 +76,10 @@ fun SongDetailsScreen(app: AvaApplication, songId: Long, onBack: () -> Unit) {
         // contentWindowInsets (system bars) added a second navigation-bar
         // height of dead space at the bottom of this screen's content.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        // 2026-11-16: frosted on glass like the other sub-screens —
+        // the default opaque surface hid the aurora here while every
+        // sibling screen let it through.
+        containerColor = glassAwareScaffoldContainerColor(),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.details_title)) },
@@ -84,6 +91,9 @@ fun SongDetailsScreen(app: AvaApplication, songId: Long, onBack: () -> Unit) {
                         )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = glassAwareTopBarContainerColor(),
+                ),
             )
         },
     ) { padding ->

@@ -1,5 +1,6 @@
 package com.harper.ava.ui.queue
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -33,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +64,7 @@ import com.harper.ava.domain.model.Song
 import com.harper.ava.ui.components.EmptyState
 import com.harper.ava.ui.theme.AvaTokens
 import com.harper.ava.ui.common.AvaMotion
+import com.harper.ava.ui.theme.glassAwareTopBarContainerColor
 
 /**
  * The playback queue: the current song on top, the upcoming songs below.
@@ -100,6 +103,13 @@ fun QueueScreen(
     var lastTickTarget by remember { mutableStateOf<Int?>(null) }
     val haptics = rememberAvaHaptics()
     val rowHeightPx = with(LocalDensity.current) { AvaTokens.queueRowHeight.toPx() }
+    // Improve loop run 49 (design): the dragged row's lift, in
+    // pixels. graphicsLayer.shadowElevation is raw px, so the old
+    // literal 8f was ~2.9dp on Harper's Redmi Note 12 (density
+    // ~2.75) — a whisper, not the 8dp soft lift the token
+    // describes. Converted here, next to rowHeightPx, so the
+    // shadow is a real 8dp on every density.
+    val dragShadowPx = with(LocalDensity.current) { AvaTokens.elevationSoft.toPx() }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -112,6 +122,12 @@ fun QueueScreen(
                     )
                 }
             },
+            // 2026-11-16: frosted on glass (0.72 surface) like
+            // the other bars — the default opaque surface cut a flat
+            // strip across the aurora/sky at the top of this screen.
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = glassAwareTopBarContainerColor(),
+            ),
             actions = {
                 if (upcoming.isNotEmpty()) {
                     // Icon buttons (not text buttons): the TopAppBar must not
@@ -198,9 +214,19 @@ fun QueueScreen(
                 itemsIndexed(upcoming, key = { pos, song -> queueRowKey(pos, song.id) }) { pos, song ->
                     val absoluteIndex = currentIndex + 1 + pos
                     val isDragged = draggedPos == pos
+                    // Run 49 (design): the lift rises and lands on
+                    // AvaMotion.queueDragLift instead of snapping
+                    // 0 -> 8 — the row settles onto the finger and
+                    // back down, like the cover breath (run 39).
+                    val dragElevation by animateFloatAsState(
+                        targetValue = if (isDragged) dragShadowPx else 0f,
+                        animationSpec = AvaMotion.queueDragLift,
+                        label = "queue-drag-elevation",
+                    )
                     QueueRow(
                         song = song,
                         isCurrent = false,
+                        isDragged = isDragged,
                         onClick = { viewModel.playAt(absoluteIndex) },
                         onRemove = { viewModel.removeAt(absoluteIndex) },
                         modifier = Modifier
@@ -208,7 +234,7 @@ fun QueueScreen(
                             .animateItem(placementSpec = AvaMotion.listItemPlacement)
                             .graphicsLayer {
                                 translationY = if (isDragged) dragOffsetY else 0f
-                                shadowElevation = if (isDragged) 8f else 0f
+                                shadowElevation = dragElevation
                             },
                         dragHandle = {
                             Box(
@@ -269,6 +295,25 @@ fun QueueScreen(
                 }
                 item { Spacer(modifier = Modifier.height(AvaTokens.space16)) }
             }
+        } else {
+            // Run 26 (UX): a queue with only the current song had no
+            // way to grow — the only "add" lived in other screens' row
+            // menus, and clearing the queue lands exactly here (the
+            // clear action keeps the current song). Same Library reset
+            // as the empty state's button (run 11); the label reuses
+            // the playlist "Add songs" string — same intent, so no new
+            // string to keep in fa/en parity.
+            Spacer(modifier = Modifier.height(AvaTokens.space24))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Button(onClick = onBrowseLibrary) {
+                    Icon(Icons.Filled.LibraryMusic, contentDescription = null)
+                    Spacer(modifier = Modifier.width(AvaTokens.space8))
+                    Text(stringResource(R.string.playlist_add_songs))
+                }
+            }
         }
     }
 }
@@ -281,6 +326,9 @@ private fun QueueRow(
     onRemove: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dragHandle: (@Composable () -> Unit)? = null,
+    // Improve loop run 49 (design): the row being dragged — it
+    // wears a lifted-card surface while it slides over the list.
+    isDragged: Boolean = false,
 ) {
     // Frontend + notification round (2026-11-14): same 0.3-feedback
     // fix as GroupRow — a stored broken albums/ uri reads as "no
@@ -295,10 +343,17 @@ private fun QueueRow(
             .height(AvaTokens.queueRowHeight)
             .clip(RoundedCornerShape(AvaTokens.radiusMedium))
             .then(
-                if (isCurrent) {
-                    Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-                } else {
-                    Modifier
+                // Run 49 (design): a dragged row is a lifted card —
+                // an opaque surfaceContainerHigh, so the rows beneath
+                // never show through it while it slides over them
+                // and the shadow has a card to lift. The current row
+                // keeps its primary wash; it is never dragged.
+                when {
+                    isDragged -> Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    isCurrent -> Modifier.background(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    )
+                    else -> Modifier
                 },
             )
             .clickable(onClick = onClick)

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -50,11 +50,14 @@ class LyricsViewModel(
             // Collect the song itself (not just its id): the loaded lyrics
             // always belong to exactly the song that triggered the load.
             // (StateFlow already only emits on change, so no distinctUntilChanged.)
+            // collectLatest: a track change cancels the in-flight load
+            // (a SAF-tree walk can be slow), so rapid skipping never shows
+            // the previous song's lyrics or queues loads behind each other.
             currentSong
-                .collect { song ->
+                .collectLatest { song ->
                     if (song == null) {
                         _lyrics.value = LyricsUiState.NoSong
-                        return@collect
+                        return@collectLatest
                     }
                     _lyrics.value = LyricsUiState.Loading
                     val folderUris = userPreferences.settings.first().musicFolderUris

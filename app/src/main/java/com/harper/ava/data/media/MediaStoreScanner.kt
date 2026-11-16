@@ -9,7 +9,14 @@ import com.harper.ava.core.util.albumArtUriForAlbum
 import com.harper.ava.core.util.dedupeScannedSongs
 import com.harper.ava.core.util.normalizeScannedSong
 import com.harper.ava.data.repository.MusicRepository
+import com.harper.ava.ui.scan.ScanUiState
+import com.harper.ava.ui.scan.toUiState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Outcome of one library scan (always produced on Dispatchers.IO). */
@@ -39,41 +46,44 @@ data class ScanResult(
  *   stay unknown for that run.
  * - RELATIVE_PATH + DISPLAY_NAME are stored too: the Folders tab groups
  *   by folder, and lyrics/details use the file name.
+ * - 2026-11-16 (Harper: songs not recognised on entry): the scan state
+ *   is shared — one [scanState] every screen observes, and one [Mutex]
+ *   so concurrent [rescan] calls (the entry scan + a manual tap)
+ *   serialize instead of racing. [rescan] drives the shared state
+ *   itself, so MainActivity's one-shot entry scan and the manual
+ *   buttons report through the same value. (The state type lives in
+ *   ui.scan — the one data→ui import in the app; the scanner is not
+ *   in verify.sh's no-Compose test-compile list, so it compiles.)
  */
 class MediaStoreScanner(
     private val context: Context,
     private val musicRepository: MusicRepository,
 ) {
 
-    /**
-     * True when the MediaStore actually has a thumbnail for this
-     * album. Opens the albumart uri once and closes it immediately —
-     * no decode, no bitmap, just proof the file exists and opens.
-     * Any failure (no thumbnail, revoked permission, provider error)
-     * means "no art": the caller stores null and the notification
-     * falls back to Ava's default cover. Best-effort by design — a
-     * probe failure must never fail the scan, and the probe runs on
-     * Dispatchers.IO with the rest of the scan.
-     *
-     * [probeCache] is the caller's per-scan map (one entry per
-     * distinct album id, created fresh by [rescan] for each scan):
-     * a thumbnail can appear or disappear between scans, so probe
-     * results must never survive a scan. A field cache would keep a
-     * stale false (art added after the first scan ignored until the
-     * process restarts) or a stale true (a deleted thumbnail stored
-     * again, shadowing the default cover the way the broken albums/
-     * uri did in 0.2).
-     */
-    private fun hasAlbumArt(albumId: Long, probeCache: MutableMap<Long, Boolean>): Boolean =
-        probeCache.getOrPut(albumId) {
-            val uri = albumArtUriForAlbum(albumId) ?: return@getOrPut false
-            runCatching {
-                context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")
-                    ?.use { true } ?: false
-            }.getOrDefault(false)
-        }
+    /** The state of the latest scan, shared by every observer. */
+    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
 
-    suspend fun rescan(): ScanResult = withContext(Dispatchers.IO) {
+    /** Serializes concurrent [rescan] calls (entry scan vs manual tap). */
+    private val scanMutex = Mutex()
+
+    /**
+     * Runs one scan and drives the shared [scanState] through it:
+     * Scanning while the MediaStore walk runs, then Done (or Error).
+     * The persisted Room baseline makes this incremental — a no-change
+     * scan writes nothing ([diffLibrarySync], run 33) — so calling it
+     * on every app entry is cheap when nothing changed. Concurrent
+     * calls serialize on [scanMutex] instead of racing.
+     */
+    suspend fun rescan(): ScanResult = scanMutex.withLock {
+        _scanState.value = ScanUiState.Scanning
+        val result = runScan()
+        _scanState.value = result.toUiState()
+        result
+    }
+
+    /** The actual MediaStore walk + sync (always on Dispatchers.IO). */
+    private suspend fun runScan(): ScanResult = withContext(Dispatchers.IO) {
         // 0.3-fix (improve loop, run 10): the probe cache is created
         // fresh for this scan — see hasAlbumArt.
         val albumArtProbes = mutableMapOf<Long, Boolean>()
@@ -203,6 +213,34 @@ class MediaStoreScanner(
             skipped = skipped,
         )
     }
+
+    /**
+     * True when the MediaStore actually has a thumbnail for this
+     * album. Opens the albumart uri once and closes it immediately —
+     * no decode, no bitmap, just proof the file exists and opens.
+     * Any failure (no thumbnail, revoked permission, provider error)
+     * means "no art": the caller stores null and the notification
+     * falls back to Ava's default cover. Best-effort by design — a
+     * probe failure must never fail the scan, and the probe runs on
+     * Dispatchers.IO with the rest of the scan.
+     *
+     * [probeCache] is the caller's per-scan map (one entry per
+     * distinct album id, created fresh by [rescan] for each scan):
+     * a thumbnail can appear or disappear between scans, so probe
+     * results must never survive a scan. A field cache would keep a
+     * stale false (art added after the first scan ignored until the
+     * process restarts) or a stale true (a deleted thumbnail stored
+     * again, shadowing the default cover the way the broken albums/
+     * uri did in 0.2).
+     */
+    private fun hasAlbumArt(albumId: Long, probeCache: MutableMap<Long, Boolean>): Boolean =
+        probeCache.getOrPut(albumId) {
+            val uri = albumArtUriForAlbum(albumId) ?: return@getOrPut false
+            runCatching {
+                context.contentResolver.openFileDescriptor(Uri.parse(uri), "r")
+                    ?.use { true } ?: false
+            }.getOrDefault(false)
+        }
 
     /**
      * Batched genre lookup: one query lists all genres, then one members

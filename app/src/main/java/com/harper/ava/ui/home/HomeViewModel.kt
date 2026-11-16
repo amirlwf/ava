@@ -3,6 +3,7 @@ package com.harper.ava.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.harper.ava.data.media.MediaStoreScanner
 import com.harper.ava.data.media.ScanResult
 import com.harper.ava.data.repository.MusicRepository
 import com.harper.ava.data.repository.PlayerRepository
@@ -22,7 +23,20 @@ import java.util.Calendar
 class HomeViewModel(
     private val musicRepository: MusicRepository,
     private val playerRepository: PlayerRepository,
+    private val mediaStoreScanner: MediaStoreScanner,
 ) : ViewModel() {
+
+    init {
+        // 2026-11-16 (Harper: songs not recognised on entry): mirror
+        // the scanner's shared state, so the entry scan MainActivity
+        // starts (and any scan started elsewhere) shows here too —
+        // Home never flashes the empty scan prompt while a scan is
+        // running. The manual callbacks below write the same values
+        // (Scanning -> Done/Error), so both paths converge.
+        viewModelScope.launch {
+            mediaStoreScanner.scanState.collect { _scanState.value = it }
+        }
+    }
 
     /** Time-of-day greeting bucket: 5–12 morning, 12–17 afternoon, 17–20 evening, else night. */
     val greetingHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -105,11 +119,15 @@ class HomeViewModel(
     }
 
     companion object {
-        fun factory(music: MusicRepository, player: PlayerRepository): ViewModelProvider.Factory =
+        fun factory(
+            music: MusicRepository,
+            player: PlayerRepository,
+            scanner: MediaStoreScanner,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    HomeViewModel(music, player) as T
+                    HomeViewModel(music, player, scanner) as T
             }
     }
 }

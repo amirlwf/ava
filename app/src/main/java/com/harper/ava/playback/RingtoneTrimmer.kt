@@ -15,7 +15,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * Ringtone trim (0.1-fix1, Track G) — a real audio trim, no fake UI.
+ * Ringtone trim (0.2, Track G) — a real audio trim, no fake UI.
  *
  * Media3 Transformer re-encodes the chosen [TrimRange] of the song to
  * AAC in an MP4 container (`.m4a`), which is what Android accepts as

@@ -181,6 +181,42 @@ class AppThemeTest {
     }
 
     @Test
+    fun `heroStops picks the dark stops in dark mode and the light stops in light mode`() {
+        // Improve loop run 24 (design): the hero gradient is
+        // mode-aware — the Appearance card and the Now Playing
+        // no-art backdrop both read through here, so the preview
+        // and the screen can never disagree about which stops a
+        // mode uses. heroLight was dead data before this run.
+        for (theme in AppTheme.entries) {
+            val s = theme.spec
+            assertEquals(theme.name, s.heroDark, s.heroStops(true))
+            assertEquals(theme.name, s.heroLight, s.heroStops(false))
+            // The two modes really differ: a light preview must
+            // never show the dark gradient.
+            assertNotEquals(theme.name, s.heroDark, s.heroLight)
+        }
+    }
+
+    @Test
+    fun `hero light gradient is lighter overall than the dark gradient`() {
+        // The light gradient must read lighter than the dark one on
+        // every theme — the aggregate, not stop by stop: IPHONE's
+        // first light stop (0xFF0066CC) is deliberately DARKER than
+        // its dark stop (0xFF0071E3, Apple's darker-shade light
+        // primary, same rule as the light primaries) and its middle
+        // stop is shared (0xFF64D2FF both) — so a per-stop pin is
+        // wrong here, but the mean still separates cleanly (light
+        // 0.52..0.79 vs dark 0.11..0.40). A swapped pair of lists
+        // would flip this on every theme.
+        for (theme in AppTheme.entries) {
+            val s = theme.spec
+            val darkMean = s.heroDark.sumOf { argbLuminance(it) } / 3.0
+            val lightMean = s.heroLight.sumOf { argbLuminance(it) } / 3.0
+            assertTrue("${theme.name} light $lightMean > dark $darkMean", lightMean > darkMean)
+        }
+    }
+
+    @Test
     fun `radii are ordered small to extra-large and in range`() {
         for (theme in AppTheme.entries) {
             val s = theme.spec
@@ -256,7 +292,7 @@ class AppThemeTest {
 
     @Test
     fun `iphone backgrounds are unmistakable`() {
-        // 0.1-fix1 (Track C): Harper felt no change when selecting
+        // 0.2 (Track C): Harper felt no change when selecting
         // IPHONE — partly because its backgrounds were not distinct
         // enough to notice. Pin them: pure-black dark (Apple's dark
         // mode) and #F2F2F7 light (Apple's grouped background), and no
@@ -273,7 +309,7 @@ class AppThemeTest {
 
     @Test
     fun `glass aurora strength is faint and mode-aware`() {
-        // 0.1-fix1 (Track C), strengthened 0.3-feedback (Track 6):
+        // 0.2 (Track C), strengthened 0.3-feedback (Track 6):
         // the aurora behind the glass panels must be FELT (dark 0.20,
         // light 0.16) but never loud — every blob stays in 0.05..0.20,
         // and AMOLED is the quietest (0.10).

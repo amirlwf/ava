@@ -4,7 +4,10 @@ import com.harper.ava.core.util.RINGTONE_DEFAULT_MS
 import com.harper.ava.core.util.RINGTONE_MAX_MS
 import com.harper.ava.core.util.RINGTONE_MIN_MS
 import com.harper.ava.core.util.TrimRange
+import com.harper.ava.core.util.decodeRingtoneUris
 import com.harper.ava.core.util.defaultTrimRange
+import com.harper.ava.core.util.encodeRingtoneUris
+import com.harper.ava.core.util.putRingtoneUri
 import com.harper.ava.core.util.ringtoneFileName
 import com.harper.ava.core.util.sanitizeTrimRange
 import org.junit.Assert.assertEquals
@@ -12,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 0.1-fix1 (Track G) — ringtone trim-range decisions.
+ * 0.2 (Track G) — ringtone trim-range decisions.
  */
 class RingtoneLogicTest {
 
@@ -81,5 +84,74 @@ class RingtoneLogicTest {
     fun `ringtone file name is capped at eighty characters`() {
         val long = "a".repeat(200)
         assertEquals(80, ringtoneFileName(long).length)
+    }
+
+    // Improve loop, run 25 — per-song ringtone-row Uri storage.
+
+    @Test
+    fun `ringtone uris round-trip through encode and decode`() {
+        val map = mapOf(
+            42L to "content://media/external/audio/media/7",
+            1000201063L to "content://media/external/audio/media/9",
+        )
+        assertEquals(map, decodeRingtoneUris(encodeRingtoneUris(map)))
+    }
+
+    @Test
+    fun `ringtone uris decode is empty for null blank or garbage`() {
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris(null))
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris(""))
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris("   \n  "))
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris("no-equals-here"))
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris("abc=content://x"))
+        assertEquals(emptyMap<Long, String>(), decodeRingtoneUris("42="))
+    }
+
+    @Test
+    fun `ringtone uris decode skips bad lines and keeps the good ones`() {
+        val raw = "bad-line\n42=content://media/external/audio/media/7\n" +
+            "xyz=content://media/external/audio/media/8\n" +
+            "1000201063=content://media/external/audio/media/9\n"
+        assertEquals(
+            mapOf(
+                42L to "content://media/external/audio/media/7",
+                1000201063L to "content://media/external/audio/media/9",
+            ),
+            decodeRingtoneUris(raw),
+        )
+    }
+
+    @Test
+    fun `ringtone uris decode lets a later line win on a duplicate id`() {
+        val raw = "42=content://media/external/audio/media/7\n" +
+            "42=content://media/external/audio/media/8"
+        assertEquals(
+            mapOf(42L to "content://media/external/audio/media/8"),
+            decodeRingtoneUris(raw),
+        )
+    }
+
+    @Test
+    fun `put ringtone uri inserts and replaces`() {
+        val empty = emptyMap<Long, String>()
+        val one = putRingtoneUri(empty, 42L, "content://media/external/audio/media/7")
+        assertEquals(mapOf(42L to "content://media/external/audio/media/7"), one)
+        val replaced = putRingtoneUri(one, 42L, "content://media/external/audio/media/8")
+        assertEquals(mapOf(42L to "content://media/external/audio/media/8"), replaced)
+        val two = putRingtoneUri(replaced, 7L, "content://media/external/audio/media/9")
+        assertEquals(2, two.size)
+    }
+
+    @Test
+    fun `ringtone uris encode is sorted by song id`() {
+        val map = mapOf(
+            1000201063L to "content://media/external/audio/media/9",
+            42L to "content://media/external/audio/media/7",
+        )
+        assertEquals(
+            "42=content://media/external/audio/media/7\n" +
+                "1000201063=content://media/external/audio/media/9",
+            encodeRingtoneUris(map),
+        )
     }
 }
