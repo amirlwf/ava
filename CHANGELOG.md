@@ -3,6 +3,31 @@
 All notable changes to Ava are documented here, newest first.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.5] — 2026-11-16
+
+A hotfix for a launch crash in 0.4.4: the app died with a
+NullPointerException the moment Home opened, on every launch, so
+0.4.4 was unusable. The experimental online-music spike is not in
+this release — it stays private.
+
+Version 0.4.5 (versionCode 29) — a patch release: launch-crash fix
+only, no new features.
+
+### Fixed
+
+- **Launch crash (NullPointerException in HomeViewModel)** — the
+  entry-scan mirroring added in 0.4.4 launched an init-block
+  collector that wrote `_scanState`, declared AFTER the init block.
+  viewModelScope runs on Main.immediate and the scanner's scanState
+  is a StateFlow, so collect delivered its first value synchronously
+  during the constructor, while the field was still null. The
+  declaration now sits above the init block in both HomeViewModel
+  and LibraryViewModel (Library had the identical trap — it only
+  never fired because Home, the start destination, crashed first).
+  A regression test constructs both ViewModels against a scanner
+  whose scanState already holds a value and asserts the mirror
+  arrives; it fails with the same NPE on the unfixed code.
+
 ## [0.4.4] — 2026-11-16
 
 A patch on 0.4.3, from Harper's reports after testing: Now Playing

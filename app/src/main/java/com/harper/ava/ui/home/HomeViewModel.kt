@@ -26,6 +26,15 @@ class HomeViewModel(
     private val mediaStoreScanner: MediaStoreScanner,
 ) : ViewModel() {
 
+    // 0.4.4 launch-crash fix (2026-11-16): _scanState MUST be declared
+    // BEFORE the init block below. The init collector writes it
+    // synchronously (viewModelScope is Main.immediate and scanState is
+    // a StateFlow, so collect delivers its first value undispatched,
+    // during the constructor) — declared after init it was still null
+    // and every launch died with an NPE at HomeViewModel.kt:37.
+    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
+
     init {
         // 2026-11-16 (Harper: songs not recognised on entry): mirror
         // the scanner's shared state, so the entry scan MainActivity
@@ -36,6 +45,14 @@ class HomeViewModel(
         viewModelScope.launch {
             mediaStoreScanner.scanState.collect { _scanState.value = it }
         }
+    }
+
+    fun onScanStarted() {
+        _scanState.value = ScanUiState.Scanning
+    }
+
+    fun onScanResult(result: ScanResult) {
+        _scanState.value = result.toUiState()
     }
 
     /** Time-of-day greeting bucket: 5–12 morning, 12–17 afternoon, 17–20 evening, else night. */
@@ -64,17 +81,6 @@ class HomeViewModel(
     val songCount: StateFlow<Int> = musicRepository
         .observeSongCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
-    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
-    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
-
-    fun onScanStarted() {
-        _scanState.value = ScanUiState.Scanning
-    }
-
-    fun onScanResult(result: ScanResult) {
-        _scanState.value = result.toUiState()
-    }
 
     fun play(song: Song) {
         viewModelScope.launch {

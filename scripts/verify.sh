@@ -41,8 +41,13 @@ echo "== [1b/3] font audit (no system fonts) =="
 ./scripts/font-audit.sh || exit 1
 
 echo "== [2/3] kotlinc type-check (all main + test sources) =="
+# Test-only deps (kotlinx-coroutines-test, resolved separately so the
+# app classpath — and the APK — never sees them):
+#   python3 scripts/maven-resolve.py --extra org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0 \
+#     --out .build-tools/ava-test-deps --cp-out .build-tools/ava-test-cp.txt
+TEST_CP="$(cat "$TOOLS/ava-test-cp.txt")"
 find app/src/main/java app/src/test/java -name "*.kt" | sort > "$OUT/sources.txt"
-"$KOTLINC" -cp "$CP" -d "$OUT/classes" \
+"$KOTLINC" -cp "$CP:$TEST_CP" -d "$OUT/classes" \
   -Xplugin="$TOOLS/kotlinc-dist/lib/compose-compiler-plugin.jar" \
   -jvm-target 17 \
   $(cat "$OUT/sources.txt") "$OUT/aapt2/r/com/harper/ava/R.java" \
@@ -55,7 +60,7 @@ echo "kotlinc exit=$KOTLIN_EXIT errors=$(grep -c 'error:' "$OUT/kotlinc.log") wa
 echo "== [3/3] unit tests (JUnitCore) =="
 JUNIT="$TOOLS/ava-deps/junit__junit-4.13.2.jar"
 HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
-"$KOTLINC" -cp "$CP:$OUT/classes" -d "$OUT/test-classes" -jvm-target 17 \
+"$KOTLINC" -cp "$CP:$OUT/classes:$TEST_CP" -d "$OUT/test-classes" -jvm-target 17 \
   app/src/main/java/com/harper/ava/core/util/LibraryLogic.kt \
   app/src/main/java/com/harper/ava/core/util/TimeFormat.kt \
   app/src/main/java/com/harper/ava/core/util/SettingsLogic.kt \
@@ -118,9 +123,10 @@ HAMCREST="$TOOLS/ava-deps/org.hamcrest__hamcrest-core-1.3.jar"
   app/src/test/java/com/harper/ava/EdgeToEdgeLogicTest.kt \
   app/src/test/java/com/harper/ava/ReducedMotionLogicTest.kt \
   app/src/test/java/com/harper/ava/LocaleHelperTest.kt \
+  app/src/test/java/com/harper/ava/ScanMirrorInitOrderTest.kt \
   "$OUT/aapt2/r/com/harper/ava/R.java" \
   > "$OUT/test-compile.log" 2>&1 || { echo "test compile FAILED"; cat "$OUT/test-compile.log"; exit 1; }
-java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
+java -cp "$OUT/test-classes:$OUT/classes:$CP:$TEST_CP:$JUNIT:$HAMCREST" \
   org.junit.runner.JUnitCore \
   com.harper.ava.TimeFormatTest \
   com.harper.ava.QueueLogicTest \
@@ -154,4 +160,5 @@ java -cp "$OUT/test-classes:$OUT/classes:$CP:$JUNIT:$HAMCREST" \
   com.harper.ava.NotificationRepeatShuffleTest \
   com.harper.ava.EdgeToEdgeLogicTest \
   com.harper.ava.ReducedMotionLogicTest \
-  com.harper.ava.LocaleHelperTest 2>&1 | tail -5
+  com.harper.ava.LocaleHelperTest \
+  com.harper.ava.ScanMirrorInitOrderTest 2>&1 | tail -5

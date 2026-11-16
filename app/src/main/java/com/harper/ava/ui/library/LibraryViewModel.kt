@@ -44,6 +44,14 @@ class LibraryViewModel(
     private val mediaStoreScanner: MediaStoreScanner,
 ) : ViewModel() {
 
+    // 0.4.4 launch-crash fix (2026-11-16): _scanState MUST be declared
+    // BEFORE the init block below — same trap as HomeViewModel: the
+    // init collector writes it synchronously (Main.immediate +
+    // StateFlow), so a later declaration was still null and the first
+    // navigation to Library would die with the same NPE.
+    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
+    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
+
     init {
         // 2026-11-16 (Harper: songs not recognised on entry): mirror
         // the scanner's shared state — same reason as HomeViewModel:
@@ -103,9 +111,6 @@ class LibraryViewModel(
     val playlists: StateFlow<List<Playlist>> = musicRepository
         .observePlaylists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
-    val scanState: StateFlow<ScanUiState> = _scanState.asStateFlow()
 
     fun onScanStarted() {
         _scanState.value = ScanUiState.Scanning

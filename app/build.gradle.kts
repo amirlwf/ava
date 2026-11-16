@@ -12,8 +12,8 @@ android {
         applicationId = "com.harper.ava"
         minSdk = 26
         targetSdk = 34
-        versionCode = 28
-        versionName = "0.4.4"
+        versionCode = 29
+        versionName = "0.4.5"
     }
 
     buildTypes {
@@ -72,4 +72,5 @@ dependencies {
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
